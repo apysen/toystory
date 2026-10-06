@@ -172,9 +172,11 @@ If a threatened attack could push or pull the selected unit, the projected movem
 
 If collision damage would occur, the preview should state it explicitly.
 
-Example:
+Example for a unit with 30 Max HP:
 
 **8 Damage + 3 Collision**
+
+The preview should always show the actual integer HP loss, even when the underlying effect is percentage-based.
 
 ---
 
@@ -244,11 +246,19 @@ The game does not currently use separate Strength, Magic, Resistance, Luck, or D
 
 Prototype baseline:
 
-**Damage = Power + Attack Might - Defense**
+**Base Damage = Power + Attack Might - Defense**
 
 Minimum normal damage is 1 unless an ability explicitly prevents damage.
 
-Type advantage or disadvantage modifies the result after this baseline.
+Percentage-based damage modifiers are applied to the post-Defense result. The prototype calculation order is:
+
+1. Calculate Base Damage from Power, Might, and Defense.
+2. Apply the Smash/Pierce/Bind damage modifier.
+3. Apply any other damage-dealt or damage-taken modifiers.
+4. Round once to the nearest whole number.
+5. Enforce the normal minimum of 1 damage unless an effect explicitly reduces damage to 0.
+
+This allows offensive identities and defensive effects to remain relevant as stats increase later in the campaign.
 
 ## 8.2 Hit
 
@@ -269,6 +279,35 @@ Prototype baseline:
 Critical hits deal **2x damage**.
 
 The game deliberately avoids 3x crit damage because positioning and ability combinations already create large tactical swings.
+
+## 8.4 Scaling Value Convention
+
+Values should scale according to what they represent.
+
+### Usually Percentage-Based
+
+Use percentages for outcomes that are intended to remain proportionally meaningful throughout the campaign, including:
+
+- damage bonuses and penalties;
+- damage reduction;
+- healing based on Max HP;
+- passive effects whose identity should remain relevant at low and high levels.
+
+### Usually Flat or Percentage-Point Based
+
+Use flat values for structural tactical quantities that should remain easy to reason about, including:
+
+- Move;
+- range;
+- push and pull distance;
+- Noise;
+- Gaze size and duration;
+- Hit, Crit, and evasion modifiers, expressed as percentage-point changes;
+- terrain movement costs.
+
+Short-lived Power or Defense buffs may remain flat only while the game's stat curve stays compressed. They should be rechecked against late-game values during balance testing.
+
+The goal is to avoid early-game flat bonuses becoming irrelevant later without turning every mechanic into percentage math.
 
 ---
 
@@ -314,11 +353,13 @@ Represents:
 
 | Matchup | Hit | Damage |
 |---|---:|---:|
-| Advantage | +15% | +2 |
+| Advantage | +15 percentage points | +20% |
 | Neutral | 0 | 0 |
-| Disadvantage | -15% | -2 |
+| Disadvantage | -15 percentage points | -20% |
 
-Neutral attacks ignore the triangle.
+The damage modifier is applied to post-Defense damage before final rounding. This keeps the triangle meaningful as Power, Might, Defense, and HP increase later in the campaign.
+
+**Neutral-type attacks** ignore the triangle entirely. A neutral matchup between typed attacks simply receives no advantage or disadvantage modifier.
 
 Individual Arts may have a different type from a character's primary identity when thematically appropriate.
 
@@ -351,7 +392,7 @@ The game uses only two primary cover levels.
 
 Prototype effect:
 
-**+25% ranged evasion**
+**+25 percentage points ranged evasion**
 
 Often destructible.
 
@@ -406,13 +447,15 @@ Characters such as Vacuum, Fan, Cable, and Smash-focused units rely on displacem
 
 ## Collision
 
-If a unit is pushed into solid terrain, it takes a small amount of collision damage.
+If a unit is pushed into solid terrain, it takes collision damage that scales with the unit rather than becoming irrelevant later in the campaign.
 
 Prototype value:
 
-**2 to 3 collision damage**
+**10% of the affected unit's Max HP, rounded up**
 
-If a unit is pushed into another unit, both may take collision damage.
+Collision damage ignores Defense.
+
+If a unit is pushed into another unit, both units take collision damage based on their own Max HP. A single forced-movement effect can cause at most one collision-damage instance per affected unit.
 
 Forced movement should be reliable enough to support planned combos.
 
@@ -869,11 +912,11 @@ The following are intentionally provisional and should remain configurable durin
 - 6 Noise threshold
 - 3x3 Gaze area
 - Gaze duration until next Player Phase
-- +15 Hit / +2 damage type advantage
-- -15 Hit / -2 damage type disadvantage
-- +25 ranged evasion from Half Cover
+- +15 percentage-point Hit / +20% damage type advantage
+- -15 percentage-point Hit / -20% damage type disadvantage
+- +25 percentage-point ranged evasion from Half Cover
 - 2x critical damage
-- 2 to 3 collision damage
+- 10% Max HP collision damage
 - exact Hit formula coefficients
 - exact XP curve
 - mission turn targets

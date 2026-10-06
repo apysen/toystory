@@ -25,6 +25,32 @@ Signature abilities are unlocked through character-specific paralogues.
 
 Noise costs are part of character identity. A character who creates strong effects repeatedly should usually create more Human Attention.
 
+### Action-Economy Timing Rule
+
+A character normally gets **one Movement and one Action per activation**. Ability durations and self-buffs must respect that structure.
+
+As a general design rule, an Art that consumes the character's Action should not grant a short-lived offensive buff that expires before the character can normally attack again. A self-buff should instead do at least one of the following:
+
+- affect the upcoming Enemy Phase;
+- persist through the character's next activation;
+- empower the character's next deliberate Action;
+- include an attack as part of the Art itself.
+
+This rule is used throughout the kits below.
+
+### Scaling Value Guideline
+
+Because characters level across the campaign, effects that are meant to stay proportionally useful should scale with the value they affect rather than relying on small flat bonuses. Prototype percentage values can still be tuned during playtesting.
+
+As a general rule:
+
+- healing based on a character's HP uses a percentage of maximum HP;
+- defining damage bonuses use percentage damage modifiers;
+- broad damage-reduction effects use percentage reduction;
+- Hit, Crit, Move, Defense/Power stat buffs, displacement distance, and cover modifiers remain flat values because they are easier to forecast and are intended to interact with specific breakpoints.
+
+Percentage damage and healing values are rounded to the nearest whole point unless an ability explicitly says otherwise. Maximum-HP healing rounds up so that small heals do not lose value at low HP totals.
+
 ---
 
 # 2. Roster Overview
@@ -92,7 +118,7 @@ Lamp is the protagonist and should be mechanically easy to understand. Lamp prot
 
 Once per Enemy Phase, if an adjacent ally is attacked, Lamp may intercept.
 
-Lamp takes the hit instead and reduces the incoming damage by 2.
+Lamp takes the hit instead and receives **20% less damage** from that intercepted hit.
 
 ### Art: Guard Beam
 
@@ -149,7 +175,9 @@ Alarm does not grant full extra turns. Instead, it creates additional movement o
 
 ### Passive: First Bell
 
-At the start of Player Phase, one adjacent ally gains +1 Move for that phase.
+At the start of Player Phase, choose one ally adjacent to Alarm. That ally gains +1 Move for the current Player Phase.
+
+If no ally is adjacent, the passive has no effect that phase.
 
 ### Art: Wake-Up Call
 
@@ -203,7 +231,7 @@ Stapler excels at punishing enemies whose movement has already been disrupted.
 
 ### Passive: Opportunist
 
-Deals +2 damage to an enemy that:
+Deals **20% more damage** to an enemy that:
 
 - currently has a movement penalty; or
 - was displaced earlier in the current Player Phase.
@@ -257,7 +285,11 @@ Launches toast with absurd force.
 
 ### Passive: Hot Coils
 
-After using a +2 or +3 Noise Art, Toaster gains +1 Power until the start of the next Player Phase.
+After Toaster uses a +2 or +3 Noise Art, Toaster becomes **Heated**.
+
+Toaster's next **damaging Action** gains +2 Power. Heated lasts through Toaster's next activation and is consumed when that damaging Action resolves.
+
+Counterattacks do not consume or benefit from Heated.
 
 ### Art: Eject
 
@@ -305,14 +337,16 @@ Teacup is deliberately straightforward. The primary healer should not require a 
 
 ### Passive: Comforting Presence
 
-At the beginning of Player Phase, the first injured adjacent ally recovers 2 HP.
+At the start of Player Phase, choose one injured ally adjacent to Teacup. That ally recovers **10% of maximum HP**, rounded up.
+
+If no injured ally is adjacent, the passive has no effect that phase.
 
 ### Art: Warm Pour
 
 - Noise: +1
 - Range: 3
 
-Restores a substantial amount of HP to one ally.
+Restores **30% of the target's maximum HP**, rounded up.
 
 ### Art: Steady Sip
 
@@ -327,7 +361,7 @@ Because it is a true 0-Noise Art, Teacup can use it while Human Gaze is active, 
 - Noise: +2
 - Area: small radius
 
-Heals and cleanses all allies in the area.
+Heals all allies in the area for **20% of maximum HP**, rounded up, and removes one negative status from each affected ally.
 
 ### Tactical Identity
 
@@ -374,7 +408,7 @@ Until the next Player Phase, adjacent allies count as having Half Cover against 
 Until the next Player Phase:
 
 - ranged attacks against allies within 2 tiles are redirected to Umbrella when valid;
-- Umbrella gains +3 Defense.
+- Umbrella receives **20% less damage from attacks redirected by Raincheck**.
 
 ### Tactical Identity
 
@@ -418,7 +452,9 @@ Immediately destroys adjacent destructible cover or disables an adjacent environ
 
 - Noise: +2
 
-Builds temporary Full Cover on an adjacent tile for two rounds.
+Builds temporary Full Cover on an adjacent tile.
+
+The cover remains until the start of the **second Player Phase after it is created**, unless destroyed earlier.
 
 ### Tactical Identity
 
@@ -496,9 +532,13 @@ Cannot be pushed or pulled by normal effects.
 
 - Noise: 0
 
-Refrigerator gains +4 Defense and cannot voluntarily move until the next Player Phase.
+Refrigerator becomes **Anchored** until the next Player Phase. While Anchored:
 
-Adjacent allies gain +2 Defense.
+- Refrigerator gains +4 Defense;
+- Refrigerator cannot be repositioned by allied movement effects;
+- adjacent allies gain +2 Defense.
+
+Refrigerator's normal **Immovable** passive still prevents enemy push and pull effects.
 
 ### Art: Cold Front
 
@@ -515,7 +555,7 @@ Enemies beginning movement in the area lose 2 Move for that activation.
 Adjacent allies:
 
 - become immune to forced movement;
-- take 4 less damage from each hit;
+- receive **25% less damage** from incoming attacks;
 - duration until the next Player Phase.
 
 ### Tactical Identity
@@ -551,7 +591,7 @@ Marks one enemy.
 The next two attacks against that target gain:
 
 - +15 Hit;
-- +2 damage;
+- **+15% damage**;
 - ignore Half Cover's accuracy bonus.
 
 ### Art: Revision
@@ -597,7 +637,7 @@ Cast Iron is intentionally uncomplicated.
 
 ### Passive: Seasoned
 
-The first damaging hit Cast Iron receives each Enemy Phase deals 2 less damage.
+The first damaging hit Cast Iron receives each Enemy Phase deals **20% less damage**.
 
 ### Art: Clang
 
@@ -609,11 +649,11 @@ Heavy attack that inflicts -15 Hit on the target's next attack.
 
 - Noise: +1
 
-Cast Iron gains:
+Cast Iron gains +3 Defense until the next Player Phase and becomes **Heated**.
 
-- +2 Power;
-- +2 Defense;
-- duration until the next Player Phase.
+Cast Iron's next **damaging Action** gains +3 Power. Heated lasts through Cast Iron's next activation and is consumed when that damaging Action resolves.
+
+Counterattacks do not consume or benefit from Heated.
 
 ### Signature Art: Kitchen Crash
 
@@ -693,7 +733,7 @@ Knife should feel dangerous both to the enemy and to itself.
 
 If no other unit is adjacent to Knife's target, Knife gains:
 
-- +2 damage;
+- **+20% damage**;
 - +10 Crit.
 
 ### Art: Dash Cut
