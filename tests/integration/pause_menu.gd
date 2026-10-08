@@ -48,8 +48,9 @@ func _run() -> void:
 	check(AudioServer.is_bus_mute(bus), "zero volume mutes the bus")
 
 	var saved_fullscreen := SettingsStore.read_flag(DisplaySettings.FULLSCREEN_KEY, false)
+	var wanted := not view.display_settings.is_fullscreen()
 	menu.fullscreen_button.pressed.emit()
-	check(SettingsStore.read_flag(DisplaySettings.FULLSCREEN_KEY, false) != saved_fullscreen, "Fullscreen button saves the choice")
+	check(SettingsStore.read_flag(DisplaySettings.FULLSCREEN_KEY, not wanted) == wanted, "Fullscreen button saves the choice")
 	SettingsStore.write_flag(DisplaySettings.FULLSCREEN_KEY, saved_fullscreen)
 
 	menu.resume_button.pressed.emit()

@@ -74,6 +74,7 @@ func _ready() -> void:
 	hud.minimap.focus_requested.connect(func(p: Vector2) -> void: camera.look_at_point(BattleSpace.to_world(p)))
 	ring.chosen.connect(choose_action)
 	ring.cancelled.connect(_close_menu)
+	ring.hovered.connect(_show_action_reach)
 	pause_menu.setup(audio_settings, display_settings)
 	pause_menu.opened.connect(_set_paused.bind(true))
 	pause_menu.closed.connect(_set_paused.bind(false))
@@ -104,6 +105,7 @@ func start(seed_value := 0, intro: Array = []) -> void:
 	plates.setup(cards)
 	metrics.begin()
 	camera.frame_map(battle.field.size, BattleSpace.to_world(MissionSetup.tile_center(mission.camera_start_tile)))
+	camera.set_room(diorama.room_bounds())
 	audio.start_music()
 	selection.mode = Mode.BUSY
 	_update_hint()
@@ -423,7 +425,27 @@ func open_menu() -> void:
 	_update_hint()
 
 
+## While an action is hovered on the ring, its reach is drawn around the unit.
+## Actions with no reach to speak of (Wait, items, Talk, self-only Arts) show none.
+func _show_action_reach(id: String) -> void:
+	var u := selection.controlled
+	if u == null or not _has_reach(id):
+		overlays.hide_reach_ring()
+		return
+	var friendly: bool = id.begins_with("art:") and Arts.get_art(id.substr(4)).target == "ally"
+	overlays.show_reach_ring(u.pos, _reach_radius(u, id), friendly)
+
+
+func _has_reach(id: String) -> bool:
+	if id == "attack":
+		return true
+	if not id.begins_with("art:"):
+		return false
+	return Arts.get_art(id.substr(4)).target != "self"
+
+
 func _close_menu() -> void:
+	overlays.hide_reach_ring()
 	ring.close()
 	audio.play("ui_cancel")
 	selection.mode = Mode.CONTROL

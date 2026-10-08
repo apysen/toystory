@@ -467,6 +467,12 @@ func trigger_gaze(center: Vector2) -> void:
 				u.acted = true
 	_changed()
 	_emit({"type": "gaze", "center": center, "radius": Defs.GAZE_RADIUS, "frozen": frozen, "noise": noise})
+	# A watched Captain can't swing: its marked Cutting Line is called off now,
+	# not left on the floor until the Enemy Phase.
+	for tg in telegraphs.duplicate():
+		if tg.owner.frozen:
+			telegraphs.erase(tg)
+			_emit({"type": "telegraph_cancel", "unit": tg.owner})
 
 
 func end_gaze() -> void:

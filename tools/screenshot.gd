@@ -75,6 +75,14 @@ func _run() -> void:
 	view.camera.look_at_point(BattleSpace.to_world(Vector2(7.5, 5.5)), true)
 	await _wait(30)
 	_save(out + "/08_overview.png")
+	view.camera.yaw = PI
+	view.camera.pitch = deg_to_rad(30)
+	view.camera.distance = view.camera.max_distance
+	await _wait(30)
+	_save(out + "/10_zoomed_out_from_wall.png")
+	view.camera.yaw = PI * 0.5
+	await _wait(30)
+	_save(out + "/11_zoomed_out_side.png")
 	view.open_pause()
 	await _wait(5)
 	_save(out + "/09_pause.png")

@@ -11,11 +11,15 @@ extends Node3D
 ## the furniture with it. Destructible cover is rebuilt as it takes damage.
 
 @export_group("Room")
-## How far the floor runs past the map on every side, in metres.
-@export var floor_margin := 22.0
-## Distance from the top edge of the map to the wall.
+## Room walls past the map's edges, in metres: left, bottom (toward the camera's
+## home side), right. The wall beyond the top of the map sits `wall_gap` past it.
+@export var room_margin_left := 9.0
+@export var room_margin_bottom := 8.0
+@export var room_margin_right := 9.0
+## Distance from the top edge of the map to the wall with the socket.
 @export var wall_gap := 2.4
-@export var wall_height := 16.0
+## Tall enough that a camera kept inside the room never sees over a wall.
+@export var wall_height := 24.0
 @export var wall_color := Color("b9c7cf")
 @export var rug_color := Color("8e3b36")
 @export var rug_rect := Rect2(9.2, -3.5, 13.0, 8.5)
@@ -83,15 +87,49 @@ func add_tape_patch(center: Vector2, radius: float) -> void:
 
 # --- Room ----------------------------------------------------------------------
 
+## The room's floor area in map metres (walls stand on its edges).
+func room_rect() -> Rect2:
+	var map := _map_size
+	return Rect2(-room_margin_left, -room_margin_bottom, map.x + room_margin_left + room_margin_right,
+		map.y + room_margin_bottom + wall_gap)
+
+
+## The inside of the room in world space: where a camera may go.
+func room_bounds() -> AABB:
+	var r := room_rect()
+	return AABB(Vector3(r.position.x, 0.0, -r.end.y), Vector3(r.size.x, wall_height, r.size.y))
+
+
+var _map_size := Vector2(15, 11)
+
+
 func _build_room(map: Vector2) -> void:
-	var size := map + Vector2.ONE * floor_margin * 2.0
-	_box(_scenery, Vector3(size.x, 0.2, size.y), BattleSpace.to_world(map * 0.5, -0.1), SurfaceLibrary.get_material("wood"))
-	# The wall beyond the top of the map, with its skirting board and a socket.
+	_map_size = map
+	var room := room_rect()
+	var floor_c := room.get_center()
+	_box(_scenery, Vector3(room.size.x + 1.0, 0.2, room.size.y + 1.0), BattleSpace.to_world(floor_c, -0.1), SurfaceLibrary.get_material("wood"))
+	# Four walls, each with a skirting board; the one beyond the map has a socket.
+	var paint := SurfaceLibrary.get_material("paint", wall_color)
+	var skirt := SurfaceLibrary.get_material("paint")
+	var t := 0.4
+	var walls := [
+		# [centre on the floor, length, inward normal on the floor]
+		[Vector2(floor_c.x, room.end.y), room.size.x, Vector2.DOWN],
+		[Vector2(floor_c.x, room.position.y), room.size.x, Vector2.UP],
+		[Vector2(room.position.x, floor_c.y), room.size.y, Vector2.RIGHT],
+		[Vector2(room.end.x, floor_c.y), room.size.y, Vector2.LEFT],
+	]
+	for w in walls:
+		var c: Vector2 = w[0]
+		var n: Vector2 = w[2]
+		var along_x := absf(n.y) > 0.5
+		var size := Vector3(w[1] + t * 2, wall_height, t) if along_x else Vector3(t, wall_height, w[1] + t * 2)
+		_box(_scenery, size, BattleSpace.to_world(c - n * t * 0.5, wall_height * 0.5), paint)
+		var sk := Vector3(w[1], 1.1, 0.25) if along_x else Vector3(0.25, 1.1, w[1])
+		_box(_scenery, sk, BattleSpace.to_world(c + n * 0.12, 0.55), skirt)
+		var cap := Vector3(w[1], 0.12, 0.32) if along_x else Vector3(0.32, 0.12, w[1])
+		_box(_scenery, cap, BattleSpace.to_world(c + n * 0.1, 1.1), skirt)
 	var wall_z := -(map.y + wall_gap)
-	_box(_scenery, Vector3(size.x, wall_height, 0.4), Vector3(map.x * 0.5, wall_height * 0.5, wall_z - 0.2),
-		SurfaceLibrary.get_material("paint", wall_color))
-	_box(_scenery, Vector3(size.x, 1.1, 0.25), Vector3(map.x * 0.5, 0.55, wall_z + 0.12), SurfaceLibrary.get_material("paint"))
-	_box(_scenery, Vector3(size.x, 0.12, 0.32), Vector3(map.x * 0.5, 1.1, wall_z + 0.1), SurfaceLibrary.get_material("paint"))
 	var socket := _box(_scenery, Vector3(1.1, 1.1, 0.12), Vector3(11.5, 2.4, wall_z + 0.06), SurfaceLibrary.plain(Color("f4f1ea"), 0.35))
 	for dx in [-0.22, 0.22]:
 		_box(socket, Vector3(0.08, 0.26, 0.04), Vector3(dx, 0.08, 0.07), SurfaceLibrary.plain(Color("2a2a2a"), 0.6))
@@ -362,7 +400,7 @@ func _build_clutter(map: Vector2) -> void:
 		s.height = s.radius * 1.4
 		dust.mesh = s
 		dust.material_override = SurfaceLibrary.get_material("fabric", Color("9c958c"))
-		dust.position = BattleSpace.to_world(Vector2(_rng.randf_range(-3.0, map.x + 3.0), map.y + wall_gap - 0.4), 0.1)
+		dust.position = BattleSpace.to_world(Vector2(_rng.randf_range(-3.0, map.x + 3.0), map.y + wall_gap - 0.45), 0.1)
 		_scenery.add_child(dust)
 
 

@@ -32,6 +32,9 @@ Rule constants live in `src/core/models/battle/defs.gd` and `src/core/models/art
 - Play has no grid. The floor is 15 m x 11 m, authored on a 1 m grid: tile (x, y) is the square from (x-1, y-1) to (x, y) metres, and "up the map" is world -z.
 - Units are circles (Normal 0.3 m, Large 0.75 m); ranges are edge-to-edge gaps in metres (old range r tiles = r - 0.4 m; 0.6 m is melee).
 - Movement areas come from `ReachField`: Dijkstra over 0.25 m samples with diagonal steps, so the area follows furniture; spill and tape cost three times the distance. The area is measured from where the activation began, which is what makes undo and switching units work.
+- The room is closed on four sides with tall walls, and the camera is kept inside it (it pulls in rather than pass through a wall), so nothing outside the room is ever in view.
+- Hovering an action on the ring draws its reach; Wait, items, Talk and self-only Arts show none.
+- Art drawn facing left says so with `"faces": "left"` in its `_meta.json` (Lamp, Teacup, Toaster, Toolbox); cards mirror from that.
 - Sprites are drawn at 128 px per metre on cards. Cards lean back toward the camera (`UnitCard.lean`, 0.75) so a steep camera still sees the character; shadow casters stay upright.
 
 ## Choices the docs left open
@@ -51,7 +54,7 @@ Rule constants live in `src/core/models/battle/defs.gd` and `src/core/models/art
 | Rubber Band Snarer | Snap pulls the target 1 m on hit. AI prefers targets tucked against half cover. |
 | Tape Dispenser | Tape Lash on hit leaves a 0.55 m sticky patch (x3 cost) and -2 m Move on its next activation. |
 | Bookend Guard | Stays within 2 m of its start until 3 enemies are Broken. Forced movement reduced by 1 m. |
-| Paper Cutter | Alternates: acts and marks a 5 m Cutting Line (0.9 m wide) aimed at the player's units, then resolves it next Enemy Phase (auto-hit, Might 7, cuts through cardboard). Cancelled if the Captain was displaced or is watched. |
+| Paper Cutter | Alternates: acts and marks a 5 m Cutting Line (0.9 m wide) aimed at the player's units, then resolves it next Enemy Phase (auto-hit, Might 7, cuts through cardboard). Called off at once if a Human Gaze catches the Captain, and cancelled if it was displaced. |
 | Paper Guard | The plan says the Captain starts near cardboard, but none was listed near (13,10), so a box was added at (12,10). |
 | Watchful | Lamp intercepts automatically, once per Enemy Phase, for an ally within 0.7 m, unless the hit could take half of Lamp's HP. |
 | Adjacent | Talk, Watchful, Canopy and Comforting Presence use an edge gap of 0.7 m. |

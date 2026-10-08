@@ -43,8 +43,9 @@ var _tween: Tween
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	left_button.pressed.connect(turn.bind(-1))
-	right_button.pressed.connect(turn.bind(1))
+	# Left brings the action on the left round to the front, and right the one on the right.
+	left_button.pressed.connect(turn.bind(1))
+	right_button.pressed.connect(turn.bind(-1))
 
 
 ## Opens over `anchor` (the unit's card). Actions: [{id, label, enabled, tooltip, icon, noise}].
@@ -61,6 +62,7 @@ func open(anchor: Node3D, anchor_height: float, actions: Array, start := 0) -> v
 	visible = true
 	_show_info()
 	_place()
+	hovered.emit(current().id)
 
 
 func close() -> void:
@@ -203,9 +205,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var stick := event is InputEventJoypadMotion
 	if event.is_action_pressed("ring_left") or (stick and event.is_action_pressed("move_left")):
-		turn(-1)
-	elif event.is_action_pressed("ring_right") or (stick and event.is_action_pressed("move_right")):
 		turn(1)
+	elif event.is_action_pressed("ring_right") or (stick and event.is_action_pressed("move_right")):
+		turn(-1)
 	elif event.is_action_pressed("confirm"):
 		choose()
 	elif event.is_action_pressed("cancel"):

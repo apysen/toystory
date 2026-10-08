@@ -7,5 +7,6 @@
  ],
  "colours": 8,
  "fps": 8,
- "source": "assets/animations/toaster/ (your originals, unchanged)"
+ "source": "assets/animations/toaster/ (your originals, unchanged)",
+ "faces": "left"
 }

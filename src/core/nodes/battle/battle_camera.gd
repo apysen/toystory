@@ -51,6 +51,11 @@ var input_enabled := true
 var free_pan := true
 
 var _bounds := AABB()
+## The inside of the room. The camera never leaves it, so no wall stands between it
+## and the focus and nothing outside the room is ever in view.
+var _room := AABB()
+## How close to a wall, floor-level or the top of the walls the camera may come.
+@export var wall_clearance := 0.8
 var _dragging_orbit := false
 var _dragging_pan := false
 
@@ -74,6 +79,12 @@ func frame_map(map_size: Vector2, start: Vector3) -> void:
 	focus = start
 	target_focus = start
 	camera.make_current()
+	_apply()
+
+
+## Keeps the camera inside `room` (world space).
+func set_room(room: AABB) -> void:
+	_room = room.grow(-wall_clearance)
 	_apply()
 
 
@@ -153,16 +164,35 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _apply() -> void:
 	var offset := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch)) * distance
+	offset *= _room_limit(focus, offset)
 	global_position = focus
 	camera.global_position = focus + offset
 	camera.look_at(focus + Vector3(0, 0.4, 0), Vector3.UP)
+	# Focus blur follows where the camera really is (the room may have pulled it in).
+	var actual := offset.length()
 	var attrs := camera.attributes as CameraAttributesPractical
 	if attrs != null:
-		attrs.dof_blur_far_distance = distance + far_blur_offset
+		attrs.dof_blur_far_distance = actual + far_blur_offset
 		attrs.dof_blur_far_transition = far_blur_offset
-		attrs.dof_blur_near_distance = maxf(distance - near_blur_offset, 0.5)
+		attrs.dof_blur_near_distance = maxf(actual - near_blur_offset, 0.5)
 		attrs.dof_blur_near_transition = near_blur_offset * 0.6
 	moved.emit()
+
+
+## The share of `offset` (0..1) the camera can travel from `from` before leaving the room.
+func _room_limit(from: Vector3, offset: Vector3) -> float:
+	if _room.size == Vector3.ZERO:
+		return 1.0
+	var t := 1.0
+	for axis in 3:
+		var d := offset[axis]
+		if absf(d) < 0.0001:
+			continue
+		var edge := _room.end[axis] if d > 0.0 else _room.position[axis]
+		var reach := (edge - from[axis]) / d
+		if reach >= 0.0:
+			t = minf(t, reach)
+	return clampf(t, 0.05, 1.0)
 
 
 func _clamp(p: Vector3) -> Vector3:

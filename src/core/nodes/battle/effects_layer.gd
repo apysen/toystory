@@ -65,14 +65,14 @@ func float_text(p: Vector3, text: String, c: Color) -> void:
 ## Squash-and-flash for the Gaze transformation in both directions. A unit being
 ## watched first squashes down ("gaze_in"); the card swaps form at the flash and
 ## springs back out ("gaze_out") when the human looks away.
-func gaze_poof(card: UnitCard) -> void:
-	if card.unit.frozen:
+func gaze_poof(card: UnitCard, to_object: bool) -> void:
+	if to_object:
 		await card.play_gaze_in()
 	var big := card.unit.is_large()
 	burst("gaze_poof", card.global_position + Vector3(0, 0.9 if big else 0.45, 0), 2.0 if big else 1.0)
 	var tw := create_tween()
 	tw.tween_property(card, "scale", Vector3(1.25, 0.7, 1.25), 0.07)
-	tw.tween_callback(card.play_transform)
+	tw.tween_callback(card.play_transform.bind(to_object))
 	tw.tween_property(card, "scale", Vector3.ONE, 0.12)
 
 

@@ -345,3 +345,18 @@ func test_facing_follows_last_horizontal_move() -> void:
 	var u := Unit.new()
 	u.face_along([Vector2(5, 5), Vector2(4, 5), Vector2(4, 6)])
 	check(u.facing == -1, "last horizontal move wins over a later vertical one")
+
+
+func test_gaze_cancels_watched_telegraph() -> void:
+	var b := fresh()
+	var cutter := b.field.find_unit("cutter")
+	var stapler := b.field.find_unit("stapler")
+	stapler.pos = Vector2(9.5, 9.5)
+	var lane := EnemyAI.new(b).best_lane(cutter)
+	b.add_telegraph(cutter, lane.a, lane.b, EnemyAI.CUTTING_LINE_HALF_WIDTH, EnemyAI.CUTTING_LINE_MIGHT)
+	b.take_events()
+	b.trigger_gaze(cutter.pos)
+	check(cutter.frozen and b.telegraphs.is_empty(), "a Gaze on the Captain calls off its Cutting Line")
+	check(b.take_events().any(func(e): return e.type == "telegraph_cancel"), "and says so")
+	check(Forecast.for_destination(b, stapler, stapler.pos).telegraph_damage == 0, "the lane no longer threatens anyone")
+

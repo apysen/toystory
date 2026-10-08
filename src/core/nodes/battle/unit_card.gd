@@ -43,6 +43,10 @@ var _silhouette: MeshInstance3D
 var _ring: MeshInstance3D
 var _materials: Array[ShaderMaterial] = []
 var _showing_object := false
+## Whether the card shows the unit as watched by a human. Follows playback (the
+## Gaze events), not the rules' end state, so a unit isn't turned into its object
+## before the strikes that happened earlier have been shown.
+var shows_frozen := false
 
 
 func setup(u: Unit) -> void:
@@ -56,6 +60,7 @@ func setup(u: Unit) -> void:
 	if _mundane == null:
 		_mundane = SpriteLib.load_mundane(u.id)
 	_frames = _art.frames if _art != null else null
+	shows_frozen = u.frozen
 	_build()
 	position = BattleSpace.to_world(u.pos)
 	refresh()
@@ -119,15 +124,20 @@ func _process(delta: float) -> void:
 	_update_flip()
 
 
-## Re-reads the unit: faction colour, Gaze form, Broken.
+## Re-reads the unit: faction colour and Broken; shows the Gaze form per `shows_frozen`.
 func refresh() -> void:
 	var col: Color = FACTION_COLORS[Defs.Faction.NEUTRAL if unit.pending_join else unit.faction]
 	(_ring.material_override as StandardMaterial3D).albedo_color = Color(col, 0.75)
 	_silhouette.set_instance_shader_parameter("silhouette_color", Color(col, 0.55))
-	_showing_object = unit.frozen and _mundane != null
-	var grey := unit.frozen and _mundane == null
+	_showing_object = shows_frozen and _mundane != null
+	if _showing_object and not _loop:
+		# A one-shot can't finish on an object; release whoever is waiting for it.
+		_loop = true
+		_anim = "idle"
+		_emit_done.call_deferred("")
+	var grey := shows_frozen and _mundane == null
 	_set_param("tint", Color(0.5, 0.5, 0.58) if grey else Color.WHITE)
-	_ring.visible = not unit.frozen
+	_ring.visible = not shows_frozen
 	visible = not unit.broken
 	_frame = -1
 	_update_frame(true)
@@ -152,7 +162,7 @@ func play(anim: String) -> void:
 ## Plays an animation once, then returns to idle unless `return_to_idle` is false
 ## (the Broken transition holds its last frame).
 func play_once(anim: String, return_to_idle := true) -> void:
-	if not has_anim(anim):
+	if not has_anim(anim) or _showing_object or not visible:
 		return
 	_anim = anim
 	_loop = false
@@ -184,16 +194,16 @@ func play_broken() -> void:
 
 ## Squashes down before the Gaze puff turns the unit into its object.
 func play_gaze_in() -> void:
-	if has_anim("gaze_in"):
+	if has_anim("gaze_in") and not shows_frozen:
 		await play_once("gaze_in", false)
 
 
-## Called at the flash of the Gaze puff: swaps form, springing back out when the
-## human looks away.
-func play_transform() -> void:
-	var back_to_self := not unit.frozen
+## Called at the flash of the Gaze puff: swaps to the object form, or springs
+## back out of it when the human looks away.
+func play_transform(to_object: bool) -> void:
+	shows_frozen = to_object
 	refresh()
-	if back_to_self and has_anim("gaze_out"):
+	if not to_object and has_anim("gaze_out"):
 		play_once("gaze_out")
 
 

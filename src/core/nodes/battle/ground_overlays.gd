@@ -25,6 +25,9 @@ const HEIGHT := 0.05
 @export var cone_fill := Color(1.0, 0.6, 0.2, 0.3)
 
 var _battle: Battle
+## Whether the Gaze circle is shown. Follows playback (the Gaze events) rather than
+## the rules, which already know the end state before the events are played.
+var gaze_visible := false
 var _move: MeshInstance3D
 var _enemy_reach: MeshInstance3D
 var _reach_ring: MeshInstance3D
@@ -39,6 +42,7 @@ var _telegraphs: Array[MeshInstance3D] = []
 
 func setup(b: Battle) -> void:
 	_battle = b
+	gaze_visible = b.gaze_active()
 	var size := b.field.size
 	_move = _quad(size, 3)
 	_enemy_reach = _quad(size, 3)
@@ -81,9 +85,9 @@ func hide_all() -> void:
 
 ## Re-reads the Gaze and the telegraphs (call after every batch of events).
 func sync() -> void:
-	_gaze.visible = _battle.gaze_active()
-	_eye.visible = _battle.gaze_active()
-	if _battle.gaze_active():
+	_gaze.visible = gaze_visible
+	_eye.visible = gaze_visible
+	if gaze_visible:
 		_params(_gaze, {"center": _battle.gaze_center, "radius": Defs.GAZE_RADIUS})
 		_eye.position = BattleSpace.to_world(_battle.gaze_center, 3.2)
 	for t in _telegraphs:

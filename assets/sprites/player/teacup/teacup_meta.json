@@ -7,5 +7,6 @@
  ],
  "colours": 8,
  "fps": 8,
- "source": "assets/animations/teacup/ (your originals, unchanged)"
+ "source": "assets/animations/teacup/ (your originals, unchanged)",
+ "faces": "left"
 }

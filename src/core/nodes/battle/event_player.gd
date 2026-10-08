@@ -44,12 +44,18 @@ func play(events: Array) -> void:
 	for e in events:
 		await _play_one(e)
 		_sync()
-
-
-func _sync() -> void:
+	# Whatever playback didn't show explicitly catches up at the end.
 	for id in _cards:
 		var c: UnitCard = _cards[id]
 		c.shown_hp = c.unit.hp
+
+
+## Refreshes what can be read straight from the rules without getting ahead of
+## playback: faction colours, telegraphs, the HUD. HP and the Gaze form follow
+## their own events.
+func _sync() -> void:
+	for id in _cards:
+		var c: UnitCard = _cards[id]
 		if not c.unit.broken:
 			c.refresh()
 	overlays.sync()
@@ -117,15 +123,18 @@ func _play_one(e: Dictionary) -> void:
 		"gaze":
 			hud.notify("Human Gaze! The human looks down.")
 			audio.play("gaze", 0.0)
+			overlays.gaze_visible = true
 			overlays.sync()
 			for fu in e.frozen:
-				effects.gaze_poof(card(fu))
+				effects.gaze_poof(card(fu), true)
 			await hud.banner("Human Gaze")
 		"gaze_end":
 			hud.notify("The human looks away.")
 			audio.play("gaze_end")
+			overlays.gaze_visible = false
+			overlays.sync()
 			for fu in e.thawed:
-				effects.gaze_poof(card(fu))
+				effects.gaze_poof(card(fu), false)
 		"talk":
 			await dialogue.play(SliceDialogue.RECRUIT)
 			hud.notify("Umbrella will join next Player Phase.")
