@@ -129,7 +129,17 @@ func _on_battle_finished(result: Dictionary, view: BattleView) -> void:
 		var count := _star_count(result.stars)
 		if _best.is_empty() or count > _star_count(_best):
 			_best = result.stars
+	_save_metrics(result.metrics)
 	show_results(result)
+
+
+## Appends one JSON file per battle to user://playtests for later comparison.
+func _save_metrics(m: Dictionary) -> void:
+	DirAccess.make_dir_recursive_absolute("user://playtests")
+	var stamp := Time.get_datetime_string_from_system().replace(":", "-")
+	var f := FileAccess.open("user://playtests/%s.json" % stamp, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(m, "  "))
 
 
 func show_results(result: Dictionary) -> void:
@@ -144,6 +154,9 @@ func show_results(result: Dictionary) -> void:
 	var st: Dictionary = result.stats
 	_label(box, "Arts used: %d   Human Gaze triggered: %d   Enemies caught in Gaze: %d   Allies caught: %d" % [
 		st.arts_used, st.gaze_triggers, st.enemies_caught, st.allies_caught], 14, Color("aaaaaa"))
+	var m: Dictionary = result.metrics
+	_label(box, "Battle time %d:%02d   Avg predicted HP error %.1f   Threat inspections %d   (saved to the playtests folder)" % [
+		int(m.duration_s) / 60, int(m.duration_s) % 60, m.avg_predicted_hp_error, m.threat_inspections], 14, Color("aaaaaa"))
 	var row := HBoxContainer.new()
 	box.add_child(row)
 	_button(row, "Retry", start_battle)

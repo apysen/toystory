@@ -34,6 +34,7 @@ var broken := false
 var pending_join := false # recruited, becomes controllable next Player Phase
 var status := {} # name -> value, see Battle for meanings
 var displaced_this_phase := false
+var facing := 1 # 1 = right, -1 = left; follows the last horizontal step of the unit's own movement
 var move_path_len := 0 # tiles moved in a straight approach this activation
 
 
@@ -62,7 +63,17 @@ static func from_def(def: Dictionary) -> Unit:
 	u.expected_behavior = def.get("expected_behavior", false)
 	u.recruiter = def.get("recruiter", "")
 	u.pos = def.pos
+	u.facing = -1 if u.faction == Defs.Faction.ENEMY else 1
 	return u
+
+
+## Faces the direction of the last horizontal step in `path`; unchanged if none.
+func face_along(path: Array) -> void:
+	for i in range(path.size() - 1, 0, -1):
+		var dx: int = path[i].x - path[i - 1].x
+		if dx != 0:
+			facing = signi(dx)
+			return
 
 
 func tiles_at(anchor: Vector2i) -> Array[Vector2i]:

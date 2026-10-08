@@ -24,9 +24,23 @@ static func load_unit(name: String) -> Variant:
 		if frames == null:
 			frames = _load_static(dir, name)
 		if frames != null:
-			result = {"frames": frames, "pivot": _load_pivot(dir, name)}
+			result = {"frames": frames, "pivot": _load_pivot(dir, name), "faces": _load_native_facing(dir, name)}
 			break
 	_cache[name] = result
+	return result
+
+
+## Mundane (Human Gaze) form: assets/sprites/mundane/<name>.png. {texture, pivot} or null.
+static func load_mundane(name: String) -> Variant:
+	var key := "mundane:" + name
+	if _cache.has(key):
+		return _cache[key]
+	var dir := "res://assets/sprites/mundane/"
+	var tex := _texture(dir + name + ".png")
+	var result: Variant = null
+	if tex != null:
+		result = {"texture": tex, "pivot": _load_pivot(dir, name)}
+	_cache[key] = result
 	return result
 
 
@@ -91,6 +105,16 @@ static func _load_static(dir: String, name: String) -> SpriteFrames:
 	sf.add_animation("idle")
 	sf.add_frame("idle", tex)
 	return sf
+
+
+## Which way the art faces as drawn: meta "faces": "left" | "right" (default right).
+static func _load_native_facing(dir: String, name: String) -> int:
+	var path := dir + name + "_meta.json"
+	if FileAccess.file_exists(path):
+		var data = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if typeof(data) == TYPE_DICTIONARY and data.get("faces", "right") == "left":
+			return -1
+	return 1
 
 
 static func _load_pivot(dir: String, name: String) -> Vector2:

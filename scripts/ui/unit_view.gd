@@ -13,6 +13,7 @@ var unit: Unit
 var sprite: AnimatedSprite2D
 var _art: Variant = null
 var shown_hp := 0
+var _mundane: Sprite2D
 
 
 func setup(u: Unit) -> void:
@@ -34,15 +35,67 @@ func setup(u: Unit) -> void:
 		if sprite.sprite_frames.has_animation("idle"):
 			sprite.play("idle")
 		add_child(sprite)
+	_base_x = sprite.position.x if sprite != null else 0.0
+	apply_facing()
 	queue_redraw()
+
+
+var _base_x := 0.0
+var _mundane_base_x := 0.0
+
+
+## Mirrors the sprite around its foot pivot when the unit faces against the art.
+func apply_facing() -> void:
+	var flip: bool = _art != null and unit.facing != _art.get("faces", 1)
+	if sprite != null:
+		var w := sprite.sprite_frames.get_frame_texture(sprite.animation, 0).get_width()
+		sprite.flip_h = flip
+		sprite.position.x = -(w + _base_x) if flip else _base_x
+	if _mundane != null:
+		_mundane.flip_h = flip
+		var mw := _mundane.texture.get_width()
+		_mundane.position.x = -(mw + _mundane_base_x) if flip else _mundane_base_x
 
 
 func refresh() -> void:
+	var m: Variant = SpriteLib.load_mundane(unit.sprite) if unit.frozen else null
+	if m == null and unit.frozen and unit.sprite != unit.id:
+		m = SpriteLib.load_mundane(unit.id)
+	if m != null and _mundane == null:
+		_mundane = Sprite2D.new()
+		_mundane.centered = false
+		_mundane.texture = m.texture
+		_mundane.position = -m.pivot
+		_mundane_base_x = -m.pivot.x
+		add_child(_mundane)
+	if _mundane != null:
+		_mundane.visible = unit.frozen
+	apply_facing()
 	if sprite != null:
-		sprite.modulate = Color(0.55, 0.55, 0.6) if unit.frozen else Color.WHITE
-		sprite.modulate.a = 1.0 if not unit.broken else 0.0
+		sprite.visible = not (unit.frozen and _mundane != null)
+		# Without a mundane sprite, show the Gaze as a grey tint.
+		sprite.modulate = Color(0.55, 0.55, 0.6) if unit.frozen and _mundane == null else Color.WHITE
 	visible = not unit.broken
 	queue_redraw()
+
+
+## Plays a named animation once if the sprite has it, then returns to idle.
+func play_once(anim: String) -> void:
+	if sprite == null or not sprite.sprite_frames.has_animation(anim):
+		return
+	sprite.sprite_frames.set_animation_loop(anim, false)
+	sprite.play(anim)
+	await sprite.animation_finished
+	sprite.play("idle")
+
+
+func set_moving(on: bool) -> void:
+	if sprite == null:
+		return
+	if on and sprite.sprite_frames.has_animation("move"):
+		sprite.play("move")
+	elif sprite.sprite_frames.has_animation("idle"):
+		sprite.play("idle")
 
 
 func _process(_dt: float) -> void:
@@ -59,7 +112,7 @@ func _draw() -> void:
 	# Base marker ellipse on the footprint.
 	var base_r := Vector2(w * 0.38, w * 0.14)
 	_draw_ellipse(Vector2(0, -6), base_r, Color(col, 0.55))
-	if _art == null:
+	if _art == null and not (unit.frozen and _mundane != null):
 		# Graybox placeholder: a block with the unit's initials.
 		var h := Defs.TILE_SIZE * (0.55 + 0.25 * unit.size)
 		var rect := Rect2(-w * 0.32, -h - 6, w * 0.64, h)
@@ -72,7 +125,7 @@ func _draw() -> void:
 		var label := _initials(unit.name)
 		draw_string(font, Vector2(rect.position.x, rect.position.y + h * 0.6), label,
 			HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 20, Color.WHITE)
-	if unit.frozen:
+	if unit.frozen and _mundane == null:
 		draw_string(ThemeDB.fallback_font, Vector2(-w * 0.5, -Defs.TILE_SIZE * 1.05), "watched",
 			HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color("d8c8ff"))
 	# HP bar under the feet.

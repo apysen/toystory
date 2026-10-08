@@ -36,6 +36,8 @@ var _props: Array = []
 var destroyed_cover := {} # tile -> kind
 var _camera: Camera2D
 var sfx: Sfx
+## Playtest metrics (vertical_slice_plan.md section 26).
+var metrics := {"threat_inspections": 0, "hp_errors": [], "vacuum_blocked": 0, "started_ms": 0}
 
 
 func _ready() -> void:
@@ -78,6 +80,7 @@ func start(seed_value := 0, intro: Array = []) -> void:
 		_place(v, u.pos)
 	battle.start()
 	battle.take_events()
+	metrics.started_ms = Time.get_ticks_msec()
 	_sync_props()
 	_setup_camera()
 	_sync_all()
@@ -232,6 +235,7 @@ func _on_click(t: Vector2i) -> void:
 				select(u)
 			elif u != null and u.faction == Defs.Faction.ENEMY:
 				inspected_enemy = null if inspected_enemy == u else u
+				metrics.threat_inspections += 1
 				_refresh()
 			else:
 				inspected_enemy = null
@@ -260,6 +264,8 @@ func select(u: Unit) -> void:
 	move_set.clear()
 	for a in battle.move_options(u):
 		move_set[a] = true
+	if u.is_large() and move_set.size() <= 3:
+		metrics.vacuum_blocked += 1
 	forecast = Forecast.for_destination(battle, u, u.pos)
 	mode = Mode.SELECTED
 	_refresh()
@@ -417,7 +423,13 @@ func end_turn() -> void:
 	mode = Mode.BUSY
 	_refresh()
 	await _hud.banner("Enemy Phase")
+	var predicted := {}
+	for u in battle.player_units():
+		if not u.frozen:
+			predicted[u] = Forecast.for_destination(battle, u, u.pos).predicted_hp
 	battle.end_player_phase()
+	for u in predicted:
+		metrics.hp_errors.append(absi(int(predicted[u]) - u.hp))
 	await _play(battle.take_events())
 	if await _check_finished():
 		return
@@ -437,11 +449,32 @@ func _check_finished() -> bool:
 		"stats": battle.stats.duplicate(),
 		"broken": battle.board.units.filter(func(u): return u.faction == Defs.Faction.PLAYER and u.broken).map(func(u): return u.name),
 		"recruited": battle.recruited,
+		"metrics": _metrics_summary(),
 	}
 	sfx.play("victory" if result.victory else "defeat", 0.0)
 	await _hud.banner("Victory" if result.victory else "Defeat")
 	battle_finished.emit(result)
 	return true
+
+
+func _metrics_summary() -> Dictionary:
+	var errs: Array = metrics.hp_errors
+	var avg := 0.0
+	for e in errs:
+		avg += e
+	if not errs.is_empty():
+		avg /= errs.size()
+	var out := battle.stats.duplicate()
+	out.merge({
+		"turns": battle.turn,
+		"duration_s": (Time.get_ticks_msec() - metrics.started_ms) / 1000.0,
+		"avg_predicted_hp_error": snappedf(avg, 0.01),
+		"threat_inspections": metrics.threat_inspections,
+		"recruitment_skipped": not battle.recruited,
+		"vacuum_path_blocked": metrics.vacuum_blocked,
+		"victory": battle.phase == Defs.Phase.VICTORY,
+	})
+	return out
 
 
 # --- Event playback -----------------------------------------------------------------
@@ -454,10 +487,14 @@ func _play(events: Array) -> void:
 					await _follow(e.unit)
 				var v: UnitView = _views[e.unit.id]
 				var tw := create_tween()
-				var dur := 0.09 if e.type == "move" else 0.07
+				var dur := 0.11 if e.type == "move" else 0.07
 				for p in e.path.slice(1):
 					tw.tween_property(v, "position", foot_point(e.unit, p), dur)
+				if e.type == "move":
+					v.set_moving(true)
+					v.apply_facing()
 				await tw.finished
+				v.set_moving(false)
 			"teleport":
 				_place(_views[e.unit.id], e.unit.pos)
 			"strike":
@@ -465,6 +502,8 @@ func _play(events: Array) -> void:
 				var av: UnitView = _views[e.attacker.id]
 				sfx.play(Sfx.attack_sound(e.attacker), -10.0)
 				var lunge := (tv.position - av.position).normalized() * 10.0
+				if av.sprite != null and av.sprite.sprite_frames.has_animation("attack"):
+					await av.play_once("attack")
 				var tw := create_tween()
 				tw.tween_property(av, "position", av.position + lunge, 0.08)
 				tw.tween_property(av, "position", av.position, 0.08)

@@ -245,3 +245,19 @@ func test_destructible_box() -> void:
 	check(b.object_targets(toaster).has(Vector2i(8, 7)), "box in range 2")
 	b.attack_object(toaster, Vector2i(8, 7))
 	check(not b.board.objects.has(Vector2i(8, 7)), "15 damage destroys 12 HP box")
+
+
+func test_facing_follows_last_horizontal_step() -> void:
+	var b := fresh()
+	var stapler := b.board.find_unit("stapler")
+	check(stapler.facing == 1, "players start facing right")
+	check(b.board.find_unit("pencil_a").facing == -1, "enemies start facing left")
+	b.commit_move(stapler, Vector2i(2, 1))
+	check(stapler.facing == -1, "moving left turns left")
+	b.undo_move(stapler)
+	check(stapler.facing == 1, "undo restores facing")
+	b.commit_move(stapler, Vector2i(4, 6))
+	check(stapler.facing == 1, "vertical-only move keeps facing")
+	var u := Unit.new()
+	u.face_along([Vector2i(5, 5), Vector2i(4, 5), Vector2i(4, 6)])
+	check(u.facing == -1, "last horizontal step wins over a later vertical step")

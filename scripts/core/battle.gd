@@ -18,6 +18,7 @@ var victory_turn := 0
 
 # Per-activation bookkeeping for move undo.
 var _move_origin := {} # unit id -> Vector2i
+var _facing_origin := {} # unit id -> facing before the move
 var _gaze_count := 0
 var stats := {"gaze_triggers": 0, "arts_used": 0, "quiet_arts_in_gaze": 0, "enemies_caught": 0, "allies_caught": 0}
 
@@ -220,8 +221,10 @@ func commit_move(u: Unit, anchor: Vector2i) -> bool:
 		return false
 	var path := path_to(u, anchor)
 	_move_origin[u.id] = u.pos
+	_facing_origin[u.id] = u.facing
 	u.pos = anchor
 	u.moved = true
+	u.face_along(path)
 	_emit({"type": "move", "unit": u, "path": path})
 	return true
 
@@ -230,6 +233,7 @@ func undo_move(u: Unit) -> void:
 	if u.acted or not _move_origin.has(u.id):
 		return
 	u.pos = _move_origin[u.id]
+	u.facing = _facing_origin.get(u.id, u.facing)
 	u.moved = false
 	_move_origin.erase(u.id)
 	_emit({"type": "teleport", "unit": u})
@@ -360,6 +364,7 @@ func use_art(u: Unit, art_id: String, target) -> bool:
 				at += d
 				path.append(at)
 			u.pos = dash_to
+			u.face_along(path)
 			_emit({"type": "move", "unit": u, "path": path})
 			_strike(u, target, _player_spec(u, target, {"might": art.might, "type": art.type}), false)
 		"canopy":
@@ -697,6 +702,7 @@ func enemy_move(u: Unit, anchor: Vector2i, path: Array[Vector2i]) -> void:
 	if anchor == u.pos:
 		return
 	u.pos = anchor
+	u.face_along(path)
 	u.move_path_len = path.size() - 1
 	_emit({"type": "move", "unit": u, "path": path})
 
