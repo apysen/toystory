@@ -43,6 +43,7 @@ BattleRoot                 (src/core/nodes/battle/battle_root.gd)
 │   │   ├── Umbrella       (neutral recruit)
 │   │   └── PencilLancerA, RubberBandSnarer, BookendGuard, PencilLancerB,
 │   │       TapeDispenser, RobotVacuum, PaperCutterCaptain
+│   ├── AudioSettings
 │   ├── PlaytestMetrics
 │   └── BattleAudio
 │       └── Music
@@ -56,7 +57,8 @@ BattleRoot                 (src/core/nodes/battle/battle_root.gd)
 ├── EventPlayer
 └── Interface (CanvasLayer)
     ├── BattleHud          (scenes/ui/hud/battle_hud.tscn)
-    └── DialogueBox        (scenes/ui/dialogue/dialogue_box.tscn)
+    ├── DialogueBox        (scenes/ui/dialogue/dialogue_box.tscn)
+    └── PauseMenu          (scenes/ui/menus/pause_menu.tscn)
 ```
 
 `BattleRoot` owns the player's turn flow (select, move, act, target, end the phase)
@@ -71,16 +73,19 @@ and coordinates its peers. It implements none of their rules:
 | `EffectsLayer` | One-shot bursts, projectiles, floating numbers, the Gaze puff |
 | `BattleCamera` | Pan, zoom, limits and following units during the Enemy Phase |
 | `BattleAudio` | Effect voices and the looping battle theme |
+| `AudioSettings` | The bus the volume slider drives, how loud 100% is, and the saved volume |
 | `PlaytestMetrics` | The section 26 playtest numbers and the per-battle JSON file |
 
 | Sub-scene | Reports |
 | --- | --- |
-| `BattleHud` | `end_turn_requested`, `action_chosen(action_id)`, `back_requested` |
+| `BattleHud` | `end_turn_requested`, `action_chosen(action_id)`, `back_requested`, `pause_requested` |
+| `PauseMenu` | `opened`, `closed`, `main_menu_requested`. `BattleRoot` decides what pausing stops (everything but the menu and the music) |
 | `DialogueBox` | `finished` |
 | `UnitProfiles` | nothing; `BattleRoot` reads the definitions when a battle starts |
 
-The battle reports one thing upward: `battle_finished(result)`, after the closing
-conversation has played.
+The battle reports upward: `battle_finished(result)` after the closing conversation
+has played, or `battle_abandoned` when the player leaves from the pause menu.
+Esc (with nothing selected) or the top bar's Menu button opens the pause menu.
 
 ## Editing in the Inspector
 
@@ -93,6 +98,7 @@ conversation has played.
 | `BoardView` | Map origin, grid colour |
 | `EventPlayer` | Walk and shove speed, attack lunge, pauses after strikes and area flashes |
 | `EffectsLayer` | Projectile speed, floating text size, draw order |
+| `AudioSettings` | Volume bus, 100% output, first-run volume |
 | `PlaytestMetrics` | Output folder, the Vacuum "path-blocked" threshold |
 | `Interface/BattleHud` | Banner and toast timing, the idle hint, log length |
 

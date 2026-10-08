@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://src/core/nodes/ui/battle_hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://src/core/nodes/ui/noise_meter.gd" id="2_noise"]
 
-[node name="BattleHud" type="Control" node_paths=PackedStringArray("turn_label", "noise_meter", "objective_label", "unit_card", "forecast_text", "action_list", "end_turn_button", "log_text", "banner_label", "toast_label")]
+[node name="BattleHud" type="Control" node_paths=PackedStringArray("turn_label", "noise_meter", "objective_label", "menu_button", "unit_card", "forecast_text", "action_list", "end_turn_button", "log_text", "banner_label", "toast_label")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -15,6 +15,7 @@ script = ExtResource("1_hud")
 turn_label = NodePath("TopBar/Row/TurnLabel")
 noise_meter = NodePath("TopBar/Row/NoiseMeter")
 objective_label = NodePath("TopBar/Row/ObjectiveLabel")
+menu_button = NodePath("TopBar/Row/MenuButton")
 unit_card = NodePath("SidePanel/Column/UnitCard")
 forecast_text = NodePath("SidePanel/Column/Forecast")
 action_list = NodePath("SidePanel/Column/Actions")
@@ -51,6 +52,11 @@ script = ExtResource("2_noise")
 layout_mode = 2
 size_flags_horizontal = 3
 horizontal_alignment = 2
+
+[node name="MenuButton" type="Button" parent="TopBar/Row"]
+layout_mode = 2
+focus_mode = 0
+text = "Menu"
 
 [node name="SidePanel" type="PanelContainer" parent="."]
 layout_mode = 1

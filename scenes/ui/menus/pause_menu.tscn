@@ -1,0 +1,78 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/ui/pause_menu.gd" id="1_pause"]
+
+[node name="PauseMenu" type="Control" node_paths=PackedStringArray("resume_button", "main_menu_button", "volume_slider", "volume_value")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_pause")
+resume_button = NodePath("Center/Panel/Column/Resume")
+main_menu_button = NodePath("Center/Panel/Column/MainMenu")
+volume_slider = NodePath("Center/Panel/Column/Volume/Slider")
+volume_value = NodePath("Center/Panel/Column/Volume/Value")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0784314, 0.0627451, 0.0941176, 0.6)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Heading" type="Label" parent="Center/Panel/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="Volume" type="HBoxContainer" parent="Center/Panel/Column"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Caption" type="Label" parent="Center/Panel/Column/Volume"]
+layout_mode = 2
+text = "Volume"
+
+[node name="Slider" type="HSlider" parent="Center/Panel/Column/Volume"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+step = 1.0
+value = 80.0
+
+[node name="Value" type="Label" parent="Center/Panel/Column/Volume"]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="Resume" type="Button" parent="Center/Panel/Column"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Resume"
+
+[node name="MainMenu" type="Button" parent="Center/Panel/Column"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Return to Missions"

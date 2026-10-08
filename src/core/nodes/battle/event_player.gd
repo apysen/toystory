@@ -84,7 +84,7 @@ func _play_one(e: Dictionary) -> void:
 			effects.burst("heal_sparkle", v.position + Vector2(0, -56))
 			effects.float_text(v.position + Vector2(0, -90), "+%d" % e.amount, Color("80ff90"))
 			hud.log_line("%s recovers %d HP." % [e.unit.name, e.amount])
-			await get_tree().create_timer(0.25).timeout
+			await get_tree().create_timer(0.25, false).timeout
 		"broken":
 			hud.log_line("%s is Broken." % e.unit.name)
 			audio.play("broken")
@@ -111,7 +111,7 @@ func _play_one(e: Dictionary) -> void:
 			for t in e.tiles:
 				board_view.flash_tiles[t] = col
 			board_view.redraw()
-			await get_tree().create_timer(area_flash_seconds).timeout
+			await get_tree().create_timer(area_flash_seconds, false).timeout
 			board_view.flash_tiles.clear()
 			board_view.redraw()
 		"object_hit":
@@ -141,7 +141,7 @@ func _play_one(e: Dictionary) -> void:
 			hud.log_line("Paper Cutter marks a Cutting Line!")
 			audio.play("telegraph")
 			board_view.redraw()
-			await get_tree().create_timer(0.35).timeout
+			await get_tree().create_timer(0.35, false).timeout
 		"telegraph_cancel":
 			hud.log_line("Cutting Line cancelled.")
 		"tape":
@@ -182,4 +182,4 @@ func _strike(e: Dictionary) -> void:
 		hud.log_line("Lamp intercepts the hit (Watchful).")
 	effects.float_text(tv.position + Vector2(0, -90), txt, Color("ffe070") if e.crit else Color.WHITE)
 	hud.log_line("%s %s %s: %s" % [e.attacker.name, "counters" if e.get("counter", false) else "hits", e.target.name, txt])
-	await get_tree().create_timer(after_strike_seconds).timeout
+	await get_tree().create_timer(after_strike_seconds, false).timeout

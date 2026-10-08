@@ -55,6 +55,7 @@ func start_battle() -> void:
 	_battle = battle_scene.instantiate()
 	add_child(_battle)
 	_battle.battle_finished.connect(_on_battle_finished)
+	_battle.battle_abandoned.connect(_on_battle_abandoned)
 	_battle.start(0, SliceDialogue.PRE_BATTLE)
 
 
@@ -64,6 +65,11 @@ func _on_battle_finished(result: Dictionary) -> void:
 	_free_battle()
 	results_screen.show_result(result)
 	_show(results_screen)
+
+
+func _on_battle_abandoned() -> void:
+	_free_battle()
+	show_mission_select()
 
 
 func _free_battle() -> void:

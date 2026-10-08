@@ -7,10 +7,11 @@ extends Node2D
 ## plays back what happened, `BattleHud` and `DialogueBox` present, and
 ## `PlaytestMetrics` records. It implements none of their rules.
 ##
-## The battle reports one thing upward: `battle_finished`, after the closing
-## conversation has played.
+## The battle reports upward: `battle_finished` after the closing conversation has
+## played, or `battle_abandoned` when the player leaves from the pause menu.
 
 signal battle_finished(result: Dictionary)
+signal battle_abandoned
 
 const Mode := BattleSelection.Mode
 const NONE := BattleSelection.NONE
@@ -23,6 +24,7 @@ const NONE := BattleSelection.NONE
 
 @export_group("Gameplay Components")
 @export var metrics: PlaytestMetrics
+@export var audio_settings: AudioSettings
 @export var audio: BattleAudio
 
 @export_group("Presentation")
@@ -34,6 +36,7 @@ const NONE := BattleSelection.NONE
 @export_group("Interface")
 @export var hud: BattleHud
 @export var dialogue: DialogueBox
+@export var pause_menu: PauseMenu
 
 var battle: Battle
 var selection := BattleSelection.new()
@@ -43,6 +46,36 @@ func _ready() -> void:
 	hud.end_turn_requested.connect(end_turn)
 	hud.action_chosen.connect(on_action)
 	hud.back_requested.connect(cancel)
+	hud.pause_requested.connect(open_pause)
+	pause_menu.setup(audio_settings)
+	pause_menu.opened.connect(_set_paused.bind(true))
+	pause_menu.closed.connect(_set_paused.bind(false))
+	pause_menu.main_menu_requested.connect(_abandon)
+
+
+func _exit_tree() -> void:
+	# Never leave the tree paused behind a battle that is going away.
+	if get_tree().paused and pause_menu.is_open():
+		get_tree().paused = false
+
+
+# --- Pause ------------------------------------------------------------------------
+
+## Pausing stops the whole battle: input, camera, playback and tweens. The pause
+## menu and the music keep running.
+func open_pause() -> void:
+	if selection.mode != Mode.DONE:
+		pause_menu.open()
+
+
+func _set_paused(on: bool) -> void:
+	get_tree().paused = on
+
+
+func _abandon() -> void:
+	pause_menu.close()
+	audio.stop_music(0.0)
+	battle_abandoned.emit()
 
 
 ## Starts a fresh battle. `intro` plays before the first Player Phase.
@@ -73,7 +106,14 @@ func _refresh() -> void:
 # --- Input ------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if battle == null or selection.mode == Mode.DONE or selection.mode == Mode.BUSY:
+	if battle == null or selection.mode == Mode.DONE:
+		return
+	# Esc with nothing to back out of opens the pause menu, even mid-playback.
+	if event.is_action_pressed("ui_cancel") and selection.mode in [Mode.IDLE, Mode.BUSY]:
+		open_pause()
+		get_viewport().set_input_as_handled()
+		return
+	if selection.mode == Mode.BUSY:
 		return
 	if event is InputEventMouseMotion:
 		var t := board_view.px_to_tile(get_global_mouse_position())

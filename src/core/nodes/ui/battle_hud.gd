@@ -11,11 +11,13 @@ extends Control
 signal end_turn_requested
 signal action_chosen(action_id: String)
 signal back_requested
+signal pause_requested
 
 @export_group("Top Bar")
 @export var turn_label: Label
 @export var noise_meter: NoiseMeter
 @export var objective_label: Label
+@export var menu_button: Button
 
 @export_group("Side Panel")
 @export var unit_card: RichTextLabel
@@ -44,6 +46,7 @@ var _log_lines: Array[String] = []
 
 func _ready() -> void:
 	end_turn_button.pressed.connect(end_turn_requested.emit)
+	menu_button.pressed.connect(pause_requested.emit)
 	banner_label.visible = false
 	toast_label.visible = false
 
@@ -246,7 +249,7 @@ func banner(s: String) -> void:
 func toast(s: String) -> void:
 	toast_label.text = s
 	toast_label.visible = true
-	await get_tree().create_timer(toast_seconds).timeout
+	await get_tree().create_timer(toast_seconds, false).timeout
 	toast_label.visible = false
 
 

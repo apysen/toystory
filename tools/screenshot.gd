@@ -46,6 +46,10 @@ func _run() -> void:
 	view.camera.move_to(view.board_view.tile_center(Vector2i(4, 3)))
 	await _wait(30)
 	_save(out + "/05_gaze.png")
+	view.open_pause()
+	await _wait(5)
+	_save(out + "/06_pause.png")
+	view.pause_menu.close()
 	quit()
 
 
