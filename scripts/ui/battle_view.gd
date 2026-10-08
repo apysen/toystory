@@ -319,8 +319,12 @@ func _action_list(u: Unit) -> Array:
 	for a in u.arts:
 		var art := Arts.get_art(a)
 		var chk := battle.art_check(u, a)
-		out.append({"id": "art:" + a, "label": "%s  (+%d)" % [art.name, art.noise], "enabled": chk.ok,
-			"tooltip": art.desc if chk.ok else "%s\n%s" % [chk.reason, art.desc]})
+		var label := "%s  (+%d)" % [art.name, art.noise]
+		var tip: String = art.desc if chk.ok else "%s\n%s" % [chk.reason, art.desc]
+		if chk.ok and art.noise > 0 and battle.noise + art.noise >= Defs.NOISE_THRESHOLD:
+			label += "  TRIGGERS GAZE"
+			tip += "\nNoise reaches %d: the human looks at a 3x3 area around %s." % [Defs.NOISE_THRESHOLD, u.name]
+		out.append({"id": "art:" + a, "label": label, "enabled": chk.ok, "tooltip": tip})
 	if u.item != "":
 		var it: Dictionary = Arts.ITEMS[u.item]
 		out.append({"id": "item", "label": it.name, "enabled": u.hp < u.max_hp, "tooltip": it.desc})
@@ -572,11 +576,15 @@ func _play(events: Array) -> void:
 			"gaze":
 				_hud.log_line("Human Gaze! The human looks down.")
 				sfx.play("gaze", 0.0)
+				for fu in e.frozen:
+					_poof(_views[fu.id])
 				_sync_all()
 				await _hud.banner("Human Gaze")
 			"gaze_end":
 				_hud.log_line("The human looks away.")
 				sfx.play("gaze_end")
+				for fu in e.thawed:
+					_poof(_views[fu.id])
 				_sync_all()
 			"talk":
 				await _dialogue.play(SliceDialogue.RECRUIT)
@@ -599,6 +607,16 @@ func _play(events: Array) -> void:
 					sfx.play("phase")
 					await _hud.banner("Player Phase  -  Turn %d" % e.turn)
 		_sync_all()
+
+
+## Quick squash-and-flash used for the Gaze transformation in both directions.
+func _poof(v: UnitView) -> void:
+	var tw := create_tween()
+	tw.tween_property(v, "scale", Vector2(1.25, 0.7), 0.07)
+	tw.tween_property(v, "modulate", Color(2, 2, 2), 0.05)
+	tw.tween_callback(v.refresh)
+	tw.tween_property(v, "scale", Vector2.ONE, 0.1)
+	tw.parallel().tween_property(v, "modulate", Color.WHITE, 0.15)
 
 
 func _float_text(p: Vector2, s: String, c: Color) -> void:
@@ -709,6 +727,17 @@ func _draw_overlay(n: Node2D) -> void:
 	for t in battle.gaze_tiles:
 		n.draw_rect(tile_rect(t), Color(0.7, 0.55, 1.0, 0.35))
 		n.draw_rect(tile_rect(t).grow(-1), Color(0.85, 0.75, 1.0, 0.9), false, 2.0)
+	if battle.gaze_active():
+		# A watching eye over the Attention Point.
+		var c := tile_center(battle.gaze_center) + Vector2(0, -T * 1.6)
+		var pts := PackedVector2Array()
+		for i in 32:
+			var a := TAU * i / 32.0
+			pts.append(c + Vector2(cos(a) * 44, sin(a) * 20 * (1.0 if sin(a) > 0 else 1.0)))
+		n.draw_colored_polygon(pts, Color(0.95, 0.92, 1.0, 0.9))
+		n.draw_polyline(pts + PackedVector2Array([pts[0]]), Color(0.3, 0.2, 0.45), 3.0)
+		n.draw_circle(c, 15, Color(0.45, 0.3, 0.7))
+		n.draw_circle(c, 7, Color(0.08, 0.05, 0.12))
 	# Telegraphed lanes are always visible.
 	for tg in battle.telegraphs:
 		for t in tg.tiles:

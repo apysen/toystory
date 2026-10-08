@@ -35,6 +35,15 @@ func _run() -> void:
 	view._on_hover()
 	await _wait(5)
 	_save(out + "/04_combat_forecast.png")
+	view.cancel()
+	view.cancel()
+	view.battle.noise = 5
+	var toaster := view.battle.board.find_unit("toaster")
+	view.battle.add_noise(2, toaster)
+	await view._play(view.battle.take_events())
+	view._set_camera_pos(view.tile_center(Vector2i(4, 3)))
+	await _wait(30)
+	_save(out + "/05_gaze.png")
 	quit()
 
 

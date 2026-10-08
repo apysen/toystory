@@ -9,6 +9,8 @@ extends RefCounted
 ## Pivot:    <name>_meta.json "foot_pivot": [x, y] (pixel under the feet).
 
 const GROUPS := ["player", "enemies"]
+## Art drawn facing left (from the Aseprite pass). Everything else faces right.
+const NATIVE_LEFT := ["lamp"]
 
 static var _cache := {}
 
@@ -24,6 +26,7 @@ static func load_unit(name: String) -> Variant:
 		if frames == null:
 			frames = _load_static(dir, name)
 		if frames != null:
+			_add_drafts(frames, name)
 			result = {"frames": frames, "pivot": _load_pivot(dir, name), "faces": _load_native_facing(dir, name)}
 			break
 	_cache[name] = result
@@ -39,7 +42,7 @@ static func load_mundane(name: String) -> Variant:
 	var tex := _texture(dir + name + ".png")
 	var result: Variant = null
 	if tex != null:
-		result = {"texture": tex, "pivot": _load_pivot(dir, name)}
+		result = {"texture": tex, "pivot": _load_pivot(dir, name), "faces": _load_native_facing(dir, name)}
 	_cache[key] = result
 	return result
 
@@ -56,13 +59,28 @@ static func _texture(path: String) -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
-static func _load_sheet(dir: String, name: String) -> SpriteFrames:
+## Draft animations awaiting review live in assets/sprites/drafts/<name>_<anim>/.
+## They're used in game until a final version lands in the main sheet.
+const DRAFT_ANIMS := ["move", "attack", "art", "hurt", "broken"]
+
+
+static func _add_drafts(sf: SpriteFrames, name: String) -> void:
+	for anim in DRAFT_ANIMS:
+		if sf.has_animation(anim):
+			continue
+		var base := "%s_%s" % [name, anim]
+		_load_sheet("res://assets/sprites/drafts/%s/" % base, base, sf, name)
+
+
+static func _load_sheet(dir: String, name: String, into: SpriteFrames = null, prefix := "") -> SpriteFrames:
 	var json_path := dir + name + "_sheet.json"
 	if not FileAccess.file_exists(json_path):
 		return null
 	var tex := _texture(dir + name + "_sheet.png")
 	if tex == null:
 		return null
+	if prefix == "":
+		prefix = name
 	var data = JSON.parse_string(FileAccess.get_file_as_string(json_path))
 	if typeof(data) != TYPE_DICTIONARY or not data.has("frames"):
 		return null
@@ -72,13 +90,18 @@ static func _load_sheet(dir: String, name: String) -> SpriteFrames:
 			frame_list.append(data.frames[k])
 	else:
 		frame_list = data.frames
-	var sf := SpriteFrames.new()
-	sf.remove_animation("default")
+	var sf := into
+	if sf == null:
+		sf = SpriteFrames.new()
+		sf.remove_animation("default")
 	var tags: Array = data.get("meta", {}).get("frameTags", [])
 	if tags.is_empty():
 		tags = [{"name": "idle", "from": 0, "to": frame_list.size() - 1}]
 	for tag in tags:
-		var anim: String = tag.name
+		# Tags may be prefixed with the sprite name ("lamp_idle" -> "idle").
+		var anim: String = tag.name.trim_prefix(prefix + "_")
+		if sf.has_animation(anim):
+			continue
 		sf.add_animation(anim)
 		sf.set_animation_loop(anim, true)
 		var first_ms := 100.0
@@ -112,9 +135,13 @@ static func _load_native_facing(dir: String, name: String) -> int:
 	var path := dir + name + "_meta.json"
 	if FileAccess.file_exists(path):
 		var data = JSON.parse_string(FileAccess.get_file_as_string(path))
-		if typeof(data) == TYPE_DICTIONARY and data.get("faces", "right") == "left":
-			return -1
-	return 1
+		if typeof(data) == TYPE_DICTIONARY:
+			var f: String = data.get("faces", data.get("base_facing", ""))
+			if f == "left":
+				return -1
+			if f == "right":
+				return 1
+	return -1 if name in NATIVE_LEFT else 1
 
 
 static func _load_pivot(dir: String, name: String) -> Vector2:

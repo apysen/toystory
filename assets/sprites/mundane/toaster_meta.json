@@ -1,0 +1,13 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  71,
+  120
+ ],
+ "colours": 8,
+ "palette": "player/toaster/toaster_palette.json",
+ "source": "mundane gaze form: plain inanimate object, still frame",
+ "base_facing": "right",
+ "facing_note": "flip_h to face the other way; mirror pivot x as frame_width - x"
+}

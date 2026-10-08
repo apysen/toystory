@@ -1,0 +1,13 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  55,
+  127
+ ],
+ "colours": 8,
+ "palette": "player/lamp/lamp_palette.json",
+ "source": "mundane gaze form: plain inanimate object, still frame",
+ "base_facing": "left",
+ "facing_note": "flip_h to face the other way; mirror pivot x as frame_width - x"
+}

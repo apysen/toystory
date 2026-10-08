@@ -52,6 +52,10 @@ func apply_facing() -> void:
 		sprite.flip_h = flip
 		sprite.position.x = -(w + _base_x) if flip else _base_x
 	if _mundane != null:
+		var mf: Variant = SpriteLib.load_mundane(unit.sprite)
+		if mf == null:
+			mf = SpriteLib.load_mundane(unit.id)
+		flip = mf != null and unit.facing != mf.faces
 		_mundane.flip_h = flip
 		var mw := _mundane.texture.get_width()
 		_mundane.position.x = -(mw + _mundane_base_x) if flip else _mundane_base_x
@@ -74,7 +78,7 @@ func refresh() -> void:
 	if sprite != null:
 		sprite.visible = not (unit.frozen and _mundane != null)
 		# Without a mundane sprite, show the Gaze as a grey tint.
-		sprite.modulate = Color(0.55, 0.55, 0.6) if unit.frozen and _mundane == null else Color.WHITE
+		sprite.modulate = Color(0.42, 0.42, 0.5) if unit.frozen and _mundane == null else Color.WHITE
 	visible = not unit.broken
 	queue_redraw()
 
@@ -126,7 +130,7 @@ func _draw() -> void:
 		draw_string(font, Vector2(rect.position.x, rect.position.y + h * 0.6), label,
 			HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 20, Color.WHITE)
 	if unit.frozen and _mundane == null:
-		draw_string(ThemeDB.fallback_font, Vector2(-w * 0.5, -Defs.TILE_SIZE * 1.05), "watched",
+		draw_string(ThemeDB.fallback_font, Vector2(-w * 0.5, -12), "watched",
 			HORIZONTAL_ALIGNMENT_CENTER, w, 12, Color("d8c8ff"))
 	# HP bar under the feet.
 	var bw := w * 0.7

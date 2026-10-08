@@ -1,0 +1,14 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  62,
+  123
+ ],
+ "colours": 4,
+ "palette": "enemies/rubber/rubber_palette.json",
+ "source": "mundane gaze form: plain inanimate object, still frame",
+ "note": "rubber band lying flat in a loose loop (uses 4 of the 8 palette colours)",
+ "base_facing": "right",
+ "facing_note": "flip_h to face the other way; mirror pivot x as frame_width - x"
+}
