@@ -11,9 +11,10 @@ const IDS := {
 
 static func get_portrait(speaker: String) -> Texture2D:
 	var id: String = IDS.get(speaker, speaker.to_lower())
-	var path := "res://assets/portraits/%s.png" % id
-	if ResourceLoader.exists(path) or FileAccess.file_exists(ProjectSettings.globalize_path(path)):
-		return SpriteLib._texture(path)
+	for pid in [speaker.to_lower().split(" ")[-1], id]:
+		var path := "res://assets/portraits/%s.png" % pid
+		if ResourceLoader.exists(path) or FileAccess.file_exists(ProjectSettings.globalize_path(path)):
+			return SpriteLib._texture(path)
 	var art: Variant = SpriteLib.load_unit(id)
 	if art != null:
 		var sf: SpriteFrames = art.frames
