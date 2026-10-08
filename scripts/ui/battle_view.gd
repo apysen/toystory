@@ -629,7 +629,7 @@ func _play(events: Array) -> void:
 
 
 ## Plays a one-shot effect centred at `p`. Returns immediately; the node frees itself.
-func vfx(name: String, p: Vector2, flip := false) -> void:
+func vfx(name: String, p: Vector2, flip := false, scale_by := 1.0) -> void:
 	var sf := SpriteLib.load_vfx(name)
 	if sf == null:
 		return
@@ -637,6 +637,7 @@ func vfx(name: String, p: Vector2, flip := false) -> void:
 	s.sprite_frames = sf
 	s.position = p
 	s.flip_h = flip
+	s.scale = Vector2(scale_by, scale_by)
 	s.z_index = 50
 	add_child(s)
 	s.play(sf.get_animation_names()[0])
@@ -665,7 +666,9 @@ func projectile(name: String, a: Vector2, b: Vector2) -> void:
 
 ## Quick squash-and-flash used for the Gaze transformation in both directions.
 func _poof(v: UnitView) -> void:
-	vfx("gaze_poof", v.position + Vector2(0, -56))
+	# Sized for 128px units; doubled to cover Large ones.
+	var big := v.unit.is_large()
+	vfx("gaze_poof", v.position + Vector2(0, -112 if big else -56), false, 2.0 if big else 1.0)
 	var tw := create_tween()
 	tw.tween_property(v, "scale", Vector2(1.25, 0.7), 0.07)
 	tw.tween_property(v, "modulate", Color(2, 2, 2), 0.05)
