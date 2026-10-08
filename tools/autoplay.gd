@@ -14,7 +14,7 @@ func _init() -> void:
 	var recruits := 0
 	var gazes := 0
 	for s in range(1, runs + 1):
-		var b := Battle.new(UnderTheDesk.build_board(), s)
+		var b := SliceFixtures.battle(s)
 		b.start()
 		while b.phase == Defs.Phase.PLAYER and b.turn <= 20:
 			for u in b.player_units():

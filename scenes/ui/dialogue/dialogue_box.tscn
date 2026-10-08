@@ -1,0 +1,83 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/ui/dialogue_box.gd" id="1_dialogue"]
+
+[node name="DialogueBox" type="Control" node_paths=PackedStringArray("speaker_label", "line_text", "portrait", "portrait_fallback")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_dialogue")
+speaker_label = NodePath("Panel/Row/Text/Speaker")
+line_text = NodePath("Panel/Row/Text/Line")
+portrait = NodePath("Panel/Row/PortraitFrame/Portrait")
+portrait_fallback = NodePath("Panel/Row/PortraitFrame/Fallback")
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -170.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="Row" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="PortraitFrame" type="Control" parent="Panel/Row"]
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Fallback" type="ColorRect" parent="Panel/Row/PortraitFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Portrait" type="TextureRect" parent="Panel/Row/PortraitFrame"]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Text" type="VBoxContainer" parent="Panel/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Speaker" type="Label" parent="Panel/Row/Text"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+
+[node name="Line" type="RichTextLabel" parent="Panel/Row/Text"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_font_sizes/normal_font_size = 18
+fit_content = true
+
+[node name="Hint" type="Label" parent="Panel/Row/Text"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 2
+text = "Click to continue"
+horizontal_alignment = 2

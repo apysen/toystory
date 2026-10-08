@@ -1,0 +1,31 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/app/app_root.gd" id="1_app"]
+[ext_resource type="Resource" path="res://data/missions/under_the_desk.tres" id="2_mission"]
+[ext_resource type="PackedScene" path="res://scenes/units/unit_profiles.tscn" id="3_profiles"]
+[ext_resource type="PackedScene" path="res://scenes/battle/battle.tscn" id="4_battle"]
+[ext_resource type="PackedScene" path="res://scenes/ui/menus/mission_select.tscn" id="5_select"]
+[ext_resource type="PackedScene" path="res://scenes/ui/menus/team_preview.tscn" id="6_preview"]
+[ext_resource type="PackedScene" path="res://scenes/ui/menus/results_screen.tscn" id="7_results"]
+
+[node name="AppRoot" type="Node" node_paths=PackedStringArray("unit_profiles", "mission_select", "team_preview", "results_screen")]
+script = ExtResource("1_app")
+mission = ExtResource("2_mission")
+unit_profiles = NodePath("UnitProfiles")
+battle_scene = ExtResource("4_battle")
+mission_select = NodePath("Menus/MissionSelect")
+team_preview = NodePath("Menus/TeamPreview")
+results_screen = NodePath("Menus/ResultsScreen")
+
+[node name="UnitProfiles" parent="." instance=ExtResource("3_profiles")]
+
+[node name="Menus" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="MissionSelect" parent="Menus" instance=ExtResource("5_select")]
+
+[node name="TeamPreview" parent="Menus" instance=ExtResource("6_preview")]
+visible = false
+
+[node name="ResultsScreen" parent="Menus" instance=ExtResource("7_results")]
+visible = false

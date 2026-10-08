@@ -1,0 +1,85 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/ui/results_screen.gd" id="1_results"]
+
+[node name="ResultsScreen" type="Panel" node_paths=PackedStringArray("heading_label", "turns_label", "recruit_label", "turn_star_label", "unbroken_label", "broken_label", "stats_label", "metrics_label", "retry_button", "return_button")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"ScreenBackground"
+script = ExtResource("1_results")
+heading_label = NodePath("Center/Column/Heading")
+turns_label = NodePath("Center/Column/Turns")
+recruit_label = NodePath("Center/Column/RecruitStar")
+turn_star_label = NodePath("Center/Column/TurnStar")
+unbroken_label = NodePath("Center/Column/UnbrokenStar")
+broken_label = NodePath("Center/Column/Broken")
+stats_label = NodePath("Center/Column/Stats")
+metrics_label = NodePath("Center/Column/Metrics")
+retry_button = NodePath("Center/Column/Buttons/Retry")
+return_button = NodePath("Center/Column/Buttons/Return")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Heading" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+
+[node name="Turns" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+
+[node name="RecruitStar" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+
+[node name="TurnStar" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+
+[node name="UnbrokenStar" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+
+[node name="Broken" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.941176, 0.501961, 0.501961, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="Stats" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.666667, 0.666667, 0.666667, 1)
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 3
+
+[node name="Metrics" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.666667, 0.666667, 0.666667, 1)
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Column"]
+layout_mode = 2
+
+[node name="Retry" type="Button" parent="Center/Column/Buttons"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Retry"
+
+[node name="Return" type="Button" parent="Center/Column/Buttons"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Return to Missions"

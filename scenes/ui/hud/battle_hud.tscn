@@ -1,0 +1,118 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/ui/battle_hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://src/core/nodes/ui/noise_meter.gd" id="2_noise"]
+
+[node name="BattleHud" type="Control" node_paths=PackedStringArray("turn_label", "noise_meter", "objective_label", "unit_card", "forecast_text", "action_list", "end_turn_button", "log_text", "banner_label", "toast_label")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_hud")
+turn_label = NodePath("TopBar/Row/TurnLabel")
+noise_meter = NodePath("TopBar/Row/NoiseMeter")
+objective_label = NodePath("TopBar/Row/ObjectiveLabel")
+unit_card = NodePath("SidePanel/Column/UnitCard")
+forecast_text = NodePath("SidePanel/Column/Forecast")
+action_list = NodePath("SidePanel/Column/Actions")
+end_turn_button = NodePath("SidePanel/Column/EndTurn")
+log_text = NodePath("SidePanel/Column/Log")
+banner_label = NodePath("Banner")
+toast_label = NodePath("Toast")
+
+[node name="TopBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 40.0
+grow_horizontal = 2
+
+[node name="Row" type="HBoxContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="TurnLabel" type="Label" parent="TopBar/Row"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="NoiseCaption" type="Label" parent="TopBar/Row"]
+layout_mode = 2
+text = "Noise"
+
+[node name="NoiseMeter" type="Control" parent="TopBar/Row"]
+custom_minimum_size = Vector2(132, 24)
+layout_mode = 2
+script = ExtResource("2_noise")
+
+[node name="ObjectiveLabel" type="Label" parent="TopBar/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+
+[node name="SidePanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -340.0
+offset_top = 44.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="SidePanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="UnitCard" type="RichTextLabel" parent="SidePanel/Column"]
+custom_minimum_size = Vector2(324, 150)
+layout_mode = 2
+bbcode_enabled = true
+
+[node name="Forecast" type="RichTextLabel" parent="SidePanel/Column"]
+custom_minimum_size = Vector2(324, 200)
+layout_mode = 2
+bbcode_enabled = true
+
+[node name="Actions" type="VBoxContainer" parent="SidePanel/Column"]
+layout_mode = 2
+
+[node name="EndTurn" type="Button" parent="SidePanel/Column"]
+layout_mode = 2
+text = "End Turn"
+
+[node name="Log" type="RichTextLabel" parent="SidePanel/Column"]
+custom_minimum_size = Vector2(324, 120)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+
+[node name="Banner" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+
+[node name="Toast" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_top = 56.0
+grow_horizontal = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1

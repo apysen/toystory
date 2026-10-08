@@ -1,0 +1,218 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/units/unit_profiles.gd" id="1_2ri4p"]
+[ext_resource type="Script" path="res://src/core/nodes/units/unit_profile.gd" id="2_51tdw"]
+
+[node name="UnitProfiles" type="Node" unique_id=1735029865]
+script = ExtResource("1_2ri4p")
+
+[node name="Lamp" type="Node" parent="." unique_id=1739438932]
+script = ExtResource("2_51tdw")
+unit_id = "lamp"
+display_name = "Lamp"
+start_tile = Vector2i(3, 2)
+max_hp = 30
+power = 8
+defense = 8
+skill = 7
+speed = 6
+might = 4
+arts = PackedStringArray("guard_beam", "flashbulb")
+item = "repair_tape"
+
+[node name="Stapler" type="Node" parent="." unique_id=1918111496]
+script = ExtResource("2_51tdw")
+unit_id = "stapler"
+display_name = "Stapler"
+damage_type = 1
+start_tile = Vector2i(4, 2)
+max_hp = 25
+power = 8
+defense = 4
+skill = 10
+speed = 10
+move = 6
+might = 4
+attack_range = 2
+arts = PackedStringArray("pin", "staple_burst")
+item = "repair_tape"
+
+[node name="Toaster" type="Node" parent="." unique_id=1101399751]
+script = ExtResource("2_51tdw")
+unit_id = "toaster"
+display_name = "Toaster"
+start_tile = Vector2i(3, 3)
+max_hp = 28
+power = 10
+skill = 7
+speed = 6
+might = 5
+attack_range = 2
+arts = PackedStringArray("eject", "flash_bake")
+item = "repair_tape"
+
+[node name="Teacup" type="Node" parent="." unique_id=957843609]
+script = ExtResource("2_51tdw")
+unit_id = "teacup"
+display_name = "Teacup"
+damage_type = 2
+start_tile = Vector2i(4, 3)
+max_hp = 26
+power = 6
+skill = 9
+speed = 7
+attack_range = 2
+arts = PackedStringArray("warm_pour", "steady_sip")
+item = "repair_tape"
+
+[node name="Vacuum" type="Node" parent="." unique_id=394445962]
+script = ExtResource("2_51tdw")
+unit_id = "vacuum"
+display_name = "Vacuum"
+sprite = "vacuum_256"
+damage_type = 2
+footprint = 2
+start_tile = Vector2i(1, 2)
+max_hp = 42
+power = 10
+defense = 9
+skill = 6
+speed = 3
+move = 4
+might = 4
+attack_range = 3
+arts = PackedStringArray("suction", "blowback")
+item = "repair_tape"
+forced_move_reduction = 1
+
+[node name="Umbrella" type="Node" parent="." unique_id=1469402949]
+script = ExtResource("2_51tdw")
+unit_id = "umbrella"
+display_name = "Umbrella"
+faction = 2
+damage_type = 1
+start_tile = Vector2i(13, 4)
+max_hp = 29
+power = 8
+defense = 6
+skill = 8
+speed = 8
+move = 6
+might = 4
+arts = PackedStringArray("lunge", "canopy")
+item = "repair_tape"
+recruiter = "lamp"
+
+[node name="PencilLancerA" type="Node" parent="." unique_id=606856832]
+script = ExtResource("2_51tdw")
+unit_id = "pencil_a"
+display_name = "Pencil Lancer"
+sprite = "pencil"
+faction = 1
+damage_type = 1
+start_tile = Vector2i(7, 3)
+max_hp = 21
+power = 8
+defense = 3
+skill = 8
+speed = 8
+might = 4
+arts = PackedStringArray()
+ai = "pencil"
+
+[node name="RubberBandSnarer" type="Node" parent="." unique_id=1958736358]
+script = ExtResource("2_51tdw")
+unit_id = "rubber"
+display_name = "Rubber Band Snarer"
+faction = 1
+damage_type = 2
+start_tile = Vector2i(7, 6)
+power = 7
+defense = 3
+skill = 7
+speed = 7
+move = 4
+attack_range = 2
+arts = PackedStringArray()
+ai = "snarer"
+
+[node name="BookendGuard" type="Node" parent="." unique_id=752855009]
+script = ExtResource("2_51tdw")
+unit_id = "bookend"
+display_name = "Bookend Guard"
+faction = 1
+start_tile = Vector2i(9, 4)
+max_hp = 28
+power = 8
+defense = 8
+speed = 3
+move = 3
+might = 4
+arts = PackedStringArray()
+ai = "guard"
+forced_move_reduction = 1
+
+[node name="PencilLancerB" type="Node" parent="." unique_id=566525221]
+script = ExtResource("2_51tdw")
+unit_id = "pencil_b"
+display_name = "Pencil Lancer"
+sprite = "pencil"
+faction = 1
+damage_type = 1
+start_tile = Vector2i(11, 3)
+max_hp = 21
+power = 8
+defense = 3
+skill = 8
+speed = 8
+might = 4
+arts = PackedStringArray()
+ai = "pencil"
+
+[node name="TapeDispenser" type="Node" parent="." unique_id=507050080]
+script = ExtResource("2_51tdw")
+unit_id = "tape"
+display_name = "Tape Dispenser"
+faction = 1
+damage_type = 2
+start_tile = Vector2i(11, 7)
+max_hp = 22
+power = 7
+defense = 4
+skill = 6
+move = 4
+attack_range = 2
+arts = PackedStringArray()
+ai = "tape"
+
+[node name="RobotVacuum" type="Node" parent="." unique_id=49318340]
+script = ExtResource("2_51tdw")
+unit_id = "roomba"
+display_name = "Robot Vacuum"
+faction = 1
+damage_type = 2
+start_tile = Vector2i(12, 9)
+max_hp = 22
+power = 7
+speed = 6
+arts = PackedStringArray()
+ai = "roomba"
+expected_behavior = true
+
+[node name="PaperCutterCaptain" type="Node" parent="." unique_id=1970572651]
+script = ExtResource("2_51tdw")
+unit_id = "cutter"
+display_name = "Paper Cutter Captain"
+faction = 1
+damage_type = 1
+start_tile = Vector2i(13, 10)
+max_hp = 40
+power = 10
+defense = 7
+skill = 9
+speed = 6
+move = 3
+might = 5
+arts = PackedStringArray()
+ai = "captain"
+forced_move_reduction = 1

@@ -1,0 +1,73 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/ui/mission_select.gd" id="1_select"]
+
+[node name="MissionSelect" type="Panel" node_paths=PackedStringArray("title_label", "blurb_label", "objective_label", "optional_label", "select_button", "quit_button")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"ScreenBackground"
+script = ExtResource("1_select")
+title_label = NodePath("Center/Column/Card/Inner/Title")
+blurb_label = NodePath("Center/Column/Card/Inner/Blurb")
+objective_label = NodePath("Center/Column/Card/Inner/Objective")
+optional_label = NodePath("Center/Column/Card/Inner/Optional")
+select_button = NodePath("Center/Column/Card/Inner/Select")
+quit_button = NodePath("Center/Column/Quit")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Heading" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "Missions"
+
+[node name="Card" type="PanelContainer" parent="Center/Column"]
+layout_mode = 2
+
+[node name="Inner" type="VBoxContainer" parent="Center/Column/Card"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Column/Card/Inner"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+
+[node name="Blurb" type="Label" parent="Center/Column/Card/Inner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+
+[node name="Objective" type="Label" parent="Center/Column/Card/Inner"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+
+[node name="Optional" type="Label" parent="Center/Column/Card/Inner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878431, 0.815686, 0.501961, 1)
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 3
+
+[node name="Select" type="Button" parent="Center/Column/Card/Inner"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Select"
+
+[node name="Quit" type="Button" parent="Center/Column"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Quit"

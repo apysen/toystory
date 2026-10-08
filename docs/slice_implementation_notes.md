@@ -1,13 +1,13 @@
 # Vertical Slice: Implementation Notes
 
 How the "Under the Desk" slice code reads the design docs, and where it had to choose.
-All values live in `scripts/core/defs.gd`, `scripts/core/arts.gd` and `scripts/data/under_the_desk.gd` so they stay easy to tune.
+Rule constants live in `src/core/models/battle/defs.gd` and `src/core/models/arts/arts.gd`; the map is `data/missions/under_the_desk.tres` and every combatant's stats are on its node in `scenes/units/unit_profiles.tscn`, so they're tuned in the Inspector. The scene trees are described in `battle_composition.md`.
 
 ## Running
 
 - Open the project in Godot 4.7 and press Play. The flow is Mission Select, Team Preview, pre-battle talk, battle, results.
 - Battle controls: left-click to select, move and target; right-click or Esc to go back; WASD/arrows or middle-drag to pan; mouse wheel to zoom out.
-- Rule tests: `godot --headless --path . --script res://tests/run_tests.gd`
+- All tests: `powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1` (structure check, rule tests, full-battle smoke test)
 - Screenshots (needs a display): `godot --path . --script res://tools/screenshot.gd -- <out_dir>`
 
 ## Scale
