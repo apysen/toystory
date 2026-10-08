@@ -52,6 +52,8 @@ src/core/
                               effects, audio and playtest metrics
     ui/                         HUD, dialogue box, menus and their view logic
     units/                      `UnitProfile` and the `UnitProfiles` roster container
+    world/                      The 3D diorama: room, furniture and clutter built from
+                              the mission, floor-to-world mapping, surface materials
   persistence/                  `settings_store.gd` owns `user://settings.cfg`
 tests/
   fixtures/                     Shared setup helpers and the playtest bot

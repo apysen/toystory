@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/ui/team_preview.gd" id="1_preview"]
-[ext_resource type="PackedScene" path="res://scenes/ui/menus/unit_card.tscn" id="2_card"]
+[ext_resource type="PackedScene" path="res://scenes/ui/menus/squad_card.tscn" id="2_card"]
 
 [node name="TeamPreview" type="Panel" node_paths=PackedStringArray("card_grid", "back_button", "start_button")]
 anchors_preset = 15

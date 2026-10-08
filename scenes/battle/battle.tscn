@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/battle/battle_root.gd" id="1_root"]
 [ext_resource type="Resource" path="res://data/missions/under_the_desk.tres" id="2_mission"]
@@ -6,29 +6,67 @@
 [ext_resource type="Script" path="res://src/core/nodes/battle/playtest_metrics.gd" id="4_metrics"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/battle_audio.gd" id="5_audio"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/battle_camera.gd" id="6_camera"]
-[ext_resource type="Script" path="res://src/core/nodes/battle/board_view.gd" id="7_board"]
+[ext_resource type="Script" path="res://src/core/nodes/world/diorama.gd" id="7_diorama"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/effects_layer.gd" id="8_effects"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/event_player.gd" id="9_events"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/battle_hud.tscn" id="10_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue/dialogue_box.tscn" id="11_dialogue"]
+[ext_resource type="AudioStream" path="res://assets/audio/music/under_the_desk_theme.ogg" id="12_theme"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/audio_settings.gd" id="13_settings"]
 [ext_resource type="PackedScene" path="res://scenes/ui/menus/pause_menu.tscn" id="14_pause"]
-[ext_resource type="AudioStream" path="res://assets/audio/music/under_the_desk_theme.ogg" id="12_theme"]
+[ext_resource type="Script" path="res://src/core/nodes/battle/ground_overlays.gd" id="15_overlays"]
+[ext_resource type="Script" path="res://src/core/nodes/battle/threat_arcs.gd" id="16_arcs"]
+[ext_resource type="Script" path="res://src/core/nodes/ui/unit_plates.gd" id="17_plates"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/action_ring.tscn" id="18_ring"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/battle_preview.tscn" id="19_preview"]
 
-[node name="BattleRoot" type="Node2D" node_paths=PackedStringArray("unit_profiles", "metrics", "audio", "board_view", "camera", "event_player", "effects", "hud", "dialogue", "audio_settings", "pause_menu")]
-texture_filter = 1
+[sub_resource type="Environment" id="Environment_room"]
+background_mode = 1
+background_color = Color(0.12, 0.1, 0.095, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.64, 0.57, 0.5, 1)
+ambient_light_energy = 0.55
+tonemap_mode = 2
+tonemap_white = 6.0
+ssao_enabled = true
+ssao_radius = 1.4
+ssao_intensity = 2.2
+ssil_enabled = true
+ssil_radius = 4.0
+glow_enabled = true
+glow_intensity = 0.55
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.5, 0.43, 0.38, 1)
+fog_density = 0.006
+adjustment_enabled = true
+adjustment_contrast = 1.06
+adjustment_saturation = 1.1
+
+[sub_resource type="CameraAttributesPractical" id="CameraAttributes_dof"]
+dof_blur_far_enabled = true
+dof_blur_near_enabled = true
+dof_blur_amount = 0.06
+
+[node name="BattleRoot" type="Node3D" node_paths=PackedStringArray("unit_profiles", "metrics", "audio", "audio_settings", "camera", "diorama", "units_root", "overlays", "arcs", "effects", "event_player", "hud", "plates", "ring", "preview", "dialogue", "pause_menu")]
 script = ExtResource("1_root")
 mission = ExtResource("2_mission")
 unit_profiles = NodePath("GameplayComponents/UnitProfiles")
 metrics = NodePath("GameplayComponents/PlaytestMetrics")
 audio = NodePath("GameplayComponents/BattleAudio")
-board_view = NodePath("BoardView")
-camera = NodePath("BattleCamera")
-event_player = NodePath("EventPlayer")
-effects = NodePath("Effects")
-hud = NodePath("Interface/BattleHud")
-dialogue = NodePath("Interface/DialogueBox")
 audio_settings = NodePath("GameplayComponents/AudioSettings")
+camera = NodePath("BattleCamera")
+diorama = NodePath("World/Diorama")
+units_root = NodePath("World/Units")
+overlays = NodePath("World/GroundOverlays")
+arcs = NodePath("World/ThreatArcs")
+effects = NodePath("World/Effects")
+event_player = NodePath("EventPlayer")
+hud = NodePath("Interface/BattleHud")
+plates = NodePath("Interface/UnitPlates")
+ring = NodePath("Interface/ActionRing")
+preview = NodePath("Interface/BattlePreview")
+dialogue = NodePath("Interface/DialogueBox")
 pause_menu = NodePath("Interface/PauseMenu")
 
 [node name="GameplayComponents" type="Node" parent="."]
@@ -49,40 +87,77 @@ music_player = NodePath("Music")
 [node name="Music" type="AudioStreamPlayer" parent="GameplayComponents/BattleAudio"]
 process_mode = 3
 
-[node name="BattleCamera" type="Camera2D" parent="."]
-script = ExtResource("6_camera")
+[node name="World" type="Node3D" parent="."]
 
-[node name="BoardView" type="Node2D" parent="." node_paths=PackedStringArray("floor_layer", "overlay_layer", "units_layer", "top_layer")]
-script = ExtResource("7_board")
-floor_layer = NodePath("Floor")
-overlay_layer = NodePath("Overlay")
-units_layer = NodePath("Units")
-top_layer = NodePath("Top")
+[node name="WorldEnvironment" type="WorldEnvironment" parent="World"]
+environment = SubResource("Environment_room")
 
-[node name="Floor" type="Node2D" parent="BoardView"]
+[node name="Sun" type="DirectionalLight3D" parent="World"]
+transform = Transform3D(0.81915, 0, -0.57358, -0.43939, 0.64279, -0.62751, 0.36869, 0.76604, 0.52654, 8, 14, -3)
+light_color = Color(1, 0.88, 0.72, 1)
+light_energy = 1.8
+light_angular_distance = 1.2
+shadow_enabled = true
+shadow_blur = 1.4
+directional_shadow_max_distance = 45.0
 
-[node name="Overlay" type="Node2D" parent="BoardView"]
+[node name="UnderDeskGlow" type="OmniLight3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 4.5, -5)
+light_color = Color(1, 0.76, 0.52, 1)
+light_energy = 0.7
+omni_range = 9.0
 
-[node name="Units" type="Node2D" parent="BoardView"]
-y_sort_enabled = true
+[node name="Diorama" type="Node3D" parent="World"]
+script = ExtResource("7_diorama")
 
-[node name="Top" type="Node2D" parent="BoardView"]
+[node name="GroundOverlays" type="Node3D" parent="World"]
+script = ExtResource("15_overlays")
 
-[node name="Effects" type="Node2D" parent="."]
+[node name="Units" type="Node3D" parent="World"]
+
+[node name="ThreatArcs" type="MeshInstance3D" parent="World"]
+script = ExtResource("16_arcs")
+
+[node name="Effects" type="Node3D" parent="World"]
 script = ExtResource("8_effects")
 
-[node name="EventPlayer" type="Node" parent="." node_paths=PackedStringArray("board_view", "camera", "effects", "audio", "hud", "dialogue")]
+[node name="BattleCamera" type="Node3D" parent="." node_paths=PackedStringArray("camera")]
+script = ExtResource("6_camera")
+camera = NodePath("Camera3D")
+
+[node name="Camera3D" type="Camera3D" parent="BattleCamera"]
+attributes = SubResource("CameraAttributes_dof")
+fov = 38.0
+near = 0.1
+far = 200.0
+
+[node name="EventPlayer" type="Node" parent="." node_paths=PackedStringArray("camera", "effects", "audio", "hud", "dialogue", "overlays", "diorama")]
 script = ExtResource("9_events")
-board_view = NodePath("../BoardView")
 camera = NodePath("../BattleCamera")
-effects = NodePath("../Effects")
+effects = NodePath("../World/Effects")
 audio = NodePath("../GameplayComponents/BattleAudio")
 hud = NodePath("../Interface/BattleHud")
 dialogue = NodePath("../Interface/DialogueBox")
+overlays = NodePath("../World/GroundOverlays")
+diorama = NodePath("../World/Diorama")
 
 [node name="Interface" type="CanvasLayer" parent="."]
 
+[node name="UnitPlates" type="Control" parent="Interface"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("17_plates")
+
 [node name="BattleHud" parent="Interface" instance=ExtResource("10_hud")]
+
+[node name="ActionRing" parent="Interface" instance=ExtResource("18_ring")]
+
+[node name="BattlePreview" parent="Interface" instance=ExtResource("19_preview")]
 
 [node name="DialogueBox" parent="Interface" instance=ExtResource("11_dialogue")]
 

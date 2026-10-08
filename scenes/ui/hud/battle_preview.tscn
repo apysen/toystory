@@ -1,0 +1,227 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/ui/battle_preview.gd" id="1_preview"]
+
+[node name="BattlePreview" type="Control" node_paths=PackedStringArray("left_header", "left_name", "left_portrait", "left_hp", "left_bar", "left_stats", "right_card", "right_header", "right_name", "right_portrait", "right_hp", "right_bar", "right_stats", "title_label", "strike_list", "effect_label", "confirm_hint")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_preview")
+left_header = NodePath("Bottom/Row/LeftCard/Column/Header")
+left_name = NodePath("Bottom/Row/LeftCard/Column/Header/Name")
+left_portrait = NodePath("Bottom/Row/LeftCard/Column/Pad/Body/Portrait")
+left_hp = NodePath("Bottom/Row/LeftCard/Column/Pad/Body/Numbers/HP")
+left_bar = NodePath("Bottom/Row/LeftCard/Column/Pad/Body/Numbers/Bar")
+left_stats = NodePath("Bottom/Row/LeftCard/Column/Pad/Body/Numbers/Stats")
+right_card = NodePath("Bottom/Row/RightCard")
+right_header = NodePath("Bottom/Row/RightCard/Column/Header")
+right_name = NodePath("Bottom/Row/RightCard/Column/Header/Name")
+right_portrait = NodePath("Bottom/Row/RightCard/Column/Pad/Body/Portrait")
+right_hp = NodePath("Bottom/Row/RightCard/Column/Pad/Body/Numbers/HP")
+right_bar = NodePath("Bottom/Row/RightCard/Column/Pad/Body/Numbers/Bar")
+right_stats = NodePath("Bottom/Row/RightCard/Column/Pad/Body/Numbers/Stats")
+title_label = NodePath("Bottom/Row/Tape/Column/Title")
+strike_list = NodePath("Bottom/Row/Tape/Column/Strikes")
+effect_label = NodePath("Bottom/Row/Tape/Column/Effect")
+confirm_hint = NodePath("Bottom/Row/Tape/Column/Hint")
+
+[node name="Bottom" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -210.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/margin_left = 300
+theme_override_constants/margin_right = 300
+theme_override_constants/margin_bottom = 18
+
+[node name="Row" type="HBoxContainer" parent="Bottom"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = -6
+alignment = 1
+
+[node name="LeftCard" type="PanelContainer" parent="Bottom/Row"]
+custom_minimum_size = Vector2(270, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"ToyCard"
+
+[node name="Column" type="VBoxContainer" parent="Bottom/Row/LeftCard"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Header" type="Panel" parent="Bottom/Row/LeftCard/Column"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Name" type="Label" parent="Bottom/Row/LeftCard/Column/Header"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.98, 0.94, 1)
+theme_override_colors/font_outline_color = Color(0.12, 0.08, 0.14, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Pad" type="MarginContainer" parent="Bottom/Row/LeftCard/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+
+[node name="Body" type="HBoxContainer" parent="Bottom/Row/LeftCard/Column/Pad"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="Portrait" type="TextureRect" parent="Bottom/Row/LeftCard/Column/Pad/Body"]
+texture_filter = 1
+custom_minimum_size = Vector2(88, 88)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Numbers" type="VBoxContainer" parent="Bottom/Row/LeftCard/Column/Pad/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+alignment = 1
+
+[node name="HP" type="Label" parent="Bottom/Row/LeftCard/Column/Pad/Body/Numbers"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+
+[node name="Bar" type="Control" parent="Bottom/Row/LeftCard/Column/Pad/Body/Numbers"]
+custom_minimum_size = Vector2(130, 12)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Stats" type="Label" parent="Bottom/Row/LeftCard/Column/Pad/Body/Numbers"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.168627, 0.133333, 0.188235, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="Tape" type="PanelContainer" parent="Bottom/Row"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"MaskingTape"
+
+[node name="Column" type="VBoxContainer" parent="Bottom/Row/Tape"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="Bottom/Row/Tape/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.168627, 0.133333, 0.188235, 1)
+theme_override_font_sizes/font_size = 18
+horizontal_alignment = 1
+
+[node name="Strikes" type="VBoxContainer" parent="Bottom/Row/Tape/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Effect" type="Label" parent="Bottom/Row/Tape/Column"]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.415686, 0.352941, 0.266667, 1)
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Hint" type="Label" parent="Bottom/Row/Tape/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.541176, 0.462745, 0.337255, 1)
+theme_override_font_sizes/font_size = 12
+text = "Confirm: Space / A     Back: Esc / B     Change target: ◀ ▶"
+horizontal_alignment = 1
+
+[node name="RightCard" type="PanelContainer" parent="Bottom/Row"]
+custom_minimum_size = Vector2(270, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"ToyCard"
+
+[node name="Column" type="VBoxContainer" parent="Bottom/Row/RightCard"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Header" type="Panel" parent="Bottom/Row/RightCard/Column"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Name" type="Label" parent="Bottom/Row/RightCard/Column/Header"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.98, 0.94, 1)
+theme_override_colors/font_outline_color = Color(0.12, 0.08, 0.14, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Pad" type="MarginContainer" parent="Bottom/Row/RightCard/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+
+[node name="Body" type="HBoxContainer" parent="Bottom/Row/RightCard/Column/Pad"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+alignment = 2
+
+[node name="Numbers" type="VBoxContainer" parent="Bottom/Row/RightCard/Column/Pad/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+alignment = 1
+
+[node name="HP" type="Label" parent="Bottom/Row/RightCard/Column/Pad/Body/Numbers"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 2
+
+[node name="Bar" type="Control" parent="Bottom/Row/RightCard/Column/Pad/Body/Numbers"]
+custom_minimum_size = Vector2(130, 12)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Stats" type="Label" parent="Bottom/Row/RightCard/Column/Pad/Body/Numbers"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.168627, 0.133333, 0.188235, 1)
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 2
+
+[node name="Portrait" type="TextureRect" parent="Bottom/Row/RightCard/Column/Pad/Body"]
+texture_filter = 1
+custom_minimum_size = Vector2(88, 88)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5

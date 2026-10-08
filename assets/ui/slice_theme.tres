@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=12 format=3]
+[gd_resource type="Theme" load_steps=15 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/ui/skin/panel.png" id="1_panel"]
 [ext_resource type="Texture2D" path="res://assets/ui/skin/button_normal.png" id="2_normal"]
@@ -64,6 +64,54 @@ texture_margin_bottom = 8.0
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_screen"]
 bg_color = Color(0.117647, 0.101961, 0.133333, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_toycard"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 10.0
+bg_color = Color(0.956863, 0.917647, 0.823529, 0.97)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 5
+border_color = Color(0.168627, 0.133333, 0.188235, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 6
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tape"]
+content_margin_left = 18.0
+content_margin_top = 10.0
+content_margin_right = 18.0
+content_margin_bottom = 10.0
+bg_color = Color(0.913725, 0.862745, 0.690196, 0.95)
+border_width_top = 1
+border_width_bottom = 1
+border_color = Color(0.784314, 0.721569, 0.54902, 1)
+shadow_color = Color(0, 0, 0, 0.25)
+shadow_size = 4
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hudchip"]
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+bg_color = Color(0.113725, 0.101961, 0.133333, 0.82)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.380392, 0.341176, 0.439216, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
 [resource]
 Button/colors/font_color = Color(0.972549, 0.937255, 0.878431, 1)
 Button/colors/font_disabled_color = Color(0.6, 0.580392, 0.627451, 1)
@@ -79,3 +127,9 @@ ScreenBackground/base_type = &"Panel"
 ScreenBackground/styles/panel = SubResource("StyleBoxFlat_screen")
 RichTextLabel/font_sizes/normal_font_size = 14
 RichTextLabel/font_sizes/bold_font_size = 15
+ToyCard/base_type = &"PanelContainer"
+ToyCard/styles/panel = SubResource("StyleBoxFlat_toycard")
+MaskingTape/base_type = &"PanelContainer"
+MaskingTape/styles/panel = SubResource("StyleBoxFlat_tape")
+HudChip/base_type = &"PanelContainer"
+HudChip/styles/panel = SubResource("StyleBoxFlat_hudchip")

@@ -1,7 +1,7 @@
 class_name TeamPreview
 extends Control
 
-## The squad about to deploy, one `UnitCard` each. Reports start or back.
+## The squad about to deploy, one `SquadCard` each. Reports start or back.
 
 signal start_requested
 signal back_requested
@@ -22,6 +22,6 @@ func show_squad(defs: Array[Dictionary]) -> void:
 	for c in card_grid.get_children():
 		c.queue_free()
 	for def in defs:
-		var card: UnitCard = card_scene.instantiate()
+		var card: SquadCard = card_scene.instantiate()
 		card_grid.add_child(card)
 		card.show_unit(def)

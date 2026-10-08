@@ -1,9 +1,10 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/ui/battle_hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://src/core/nodes/ui/noise_meter.gd" id="2_noise"]
+[ext_resource type="Script" path="res://src/core/nodes/ui/minimap.gd" id="3_minimap"]
 
-[node name="BattleHud" type="Control" node_paths=PackedStringArray("turn_label", "noise_meter", "objective_label", "menu_button", "unit_card", "forecast_text", "action_list", "end_turn_button", "log_text", "banner_label", "toast_label")]
+[node name="BattleHud" type="Control" node_paths=PackedStringArray("objective_label", "stars_label", "turn_label", "phase_label", "noise_meter", "end_turn_button", "hint_label", "banner_label", "toast_label", "notice_label", "minimap")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,90 +13,119 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_hud")
-turn_label = NodePath("TopBar/Row/TurnLabel")
-noise_meter = NodePath("TopBar/Row/NoiseMeter")
-objective_label = NodePath("TopBar/Row/ObjectiveLabel")
-menu_button = NodePath("TopBar/Row/MenuButton")
-unit_card = NodePath("SidePanel/Column/UnitCard")
-forecast_text = NodePath("SidePanel/Column/Forecast")
-action_list = NodePath("SidePanel/Column/Actions")
-end_turn_button = NodePath("SidePanel/Column/EndTurn")
-log_text = NodePath("SidePanel/Column/Log")
+objective_label = NodePath("Objective/Column/Objective")
+stars_label = NodePath("Objective/Column/Stars")
+turn_label = NodePath("TurnPanel/Column/Top/Turn")
+phase_label = NodePath("TurnPanel/Column/Top/Phase")
+noise_meter = NodePath("TurnPanel/Column/Noise/Meter")
+end_turn_button = NodePath("TurnPanel/Column/EndTurn")
+hint_label = NodePath("Hint")
 banner_label = NodePath("Banner")
 toast_label = NodePath("Toast")
+notice_label = NodePath("Notice")
+minimap = NodePath("Minimap")
 
-[node name="TopBar" type="PanelContainer" parent="."]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 40.0
-grow_horizontal = 2
+[node name="Objective" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 14.0
+offset_right = 420.0
+offset_bottom = 74.0
+mouse_filter = 2
+theme_type_variation = &"HudChip"
 
-[node name="Row" type="HBoxContainer" parent="TopBar"]
+[node name="Column" type="VBoxContainer" parent="Objective"]
 layout_mode = 2
-theme_override_constants/separation = 24
+mouse_filter = 2
+theme_override_constants/separation = 0
 
-[node name="TurnLabel" type="Label" parent="TopBar/Row"]
+[node name="Objective" type="Label" parent="Objective/Column"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 
-[node name="NoiseCaption" type="Label" parent="TopBar/Row"]
+[node name="Stars" type="Label" parent="Objective/Column"]
 layout_mode = 2
-text = "Noise"
+theme_override_colors/font_color = Color(0.878431, 0.815686, 0.501961, 1)
+theme_override_font_sizes/font_size = 13
 
-[node name="NoiseMeter" type="Control" parent="TopBar/Row"]
-custom_minimum_size = Vector2(132, 24)
-layout_mode = 2
-script = ExtResource("2_noise")
-
-[node name="ObjectiveLabel" type="Label" parent="TopBar/Row"]
-layout_mode = 2
-size_flags_horizontal = 3
-horizontal_alignment = 2
-
-[node name="MenuButton" type="Button" parent="TopBar/Row"]
-layout_mode = 2
-focus_mode = 0
-text = "Menu"
-
-[node name="SidePanel" type="PanelContainer" parent="."]
+[node name="TurnPanel" type="PanelContainer" parent="."]
 layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
+anchors_preset = 2
+anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = -340.0
-offset_top = 44.0
-grow_horizontal = 0
-grow_vertical = 2
+offset_left = 16.0
+offset_top = -150.0
+offset_right = 266.0
+offset_bottom = -16.0
+grow_vertical = 0
+theme_type_variation = &"HudChip"
 
-[node name="Column" type="VBoxContainer" parent="SidePanel"]
+[node name="Column" type="VBoxContainer" parent="TurnPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Top" type="HBoxContainer" parent="TurnPanel/Column"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Turn" type="Label" parent="TurnPanel/Column/Top"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+
+[node name="Phase" type="Label" parent="TurnPanel/Column/Top"]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_font_sizes/font_size = 14
+
+[node name="Noise" type="HBoxContainer" parent="TurnPanel/Column"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="UnitCard" type="RichTextLabel" parent="SidePanel/Column"]
-custom_minimum_size = Vector2(324, 150)
+[node name="Caption" type="Label" parent="TurnPanel/Column/Noise"]
 layout_mode = 2
-bbcode_enabled = true
+theme_override_font_sizes/font_size = 14
+text = "Noise"
 
-[node name="Forecast" type="RichTextLabel" parent="SidePanel/Column"]
-custom_minimum_size = Vector2(324, 200)
+[node name="Meter" type="Control" parent="TurnPanel/Column/Noise"]
+custom_minimum_size = Vector2(156, 26)
 layout_mode = 2
-bbcode_enabled = true
+script = ExtResource("2_noise")
 
-[node name="Actions" type="VBoxContainer" parent="SidePanel/Column"]
+[node name="EndTurn" type="Button" parent="TurnPanel/Column"]
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
+focus_mode = 0
+text = "End Turn  (T)"
 
-[node name="EndTurn" type="Button" parent="SidePanel/Column"]
-layout_mode = 2
-text = "End Turn"
+[node name="Hint" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 282.0
+offset_top = -34.0
+offset_right = 1100.0
+offset_bottom = -12.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.94, 0.92, 0.88, 0.85)
+theme_override_colors/font_outline_color = Color(0.06, 0.04, 0.08, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 13
 
-[node name="Log" type="RichTextLabel" parent="SidePanel/Column"]
-custom_minimum_size = Vector2(324, 120)
-layout_mode = 2
-size_flags_vertical = 3
-bbcode_enabled = true
-scroll_following = true
+[node name="Minimap" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -296.0
+offset_top = -226.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("3_minimap")
 
 [node name="Banner" type="Label" parent="."]
 layout_mode = 1
@@ -104,11 +134,12 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
+offset_top = -140.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 40
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 46
 horizontal_alignment = 1
 
 [node name="Toast" type="Label" parent="."]
@@ -116,9 +147,22 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_top = 56.0
+offset_top = 70.0
 grow_horizontal = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+
+[node name="Notice" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_top = 116.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.03, 0.06, 1)
 theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 18
 horizontal_alignment = 1

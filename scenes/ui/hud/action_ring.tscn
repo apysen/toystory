@@ -1,0 +1,67 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/nodes/ui/action_ring.gd" id="1_ring"]
+
+[node name="ActionRing" type="Control" node_paths=PackedStringArray("left_button", "right_button", "info_panel", "title_label", "desc_label", "cost_label")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_ring")
+left_button = NodePath("Left")
+right_button = NodePath("Right")
+info_panel = NodePath("Info")
+title_label = NodePath("Info/Column/Title")
+desc_label = NodePath("Info/Column/Description")
+cost_label = NodePath("Info/Column/Cost")
+
+[node name="Left" type="Button" parent="."]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 20
+text = "◀"
+
+[node name="Right" type="Button" parent="."]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 20
+text = "▶"
+
+[node name="Info" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 0
+offset_right = 300.0
+offset_bottom = 90.0
+mouse_filter = 2
+
+[node name="Column" type="VBoxContainer" parent="Info"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="Info/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 19
+horizontal_alignment = 1
+
+[node name="Description" type="Label" parent="Info/Column"]
+custom_minimum_size = Vector2(276, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.86, 0.84, 0.8, 1)
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Cost" type="Label" parent="Info/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 1

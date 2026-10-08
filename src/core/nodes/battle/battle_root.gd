@@ -1,52 +1,78 @@
 class_name BattleRoot
-extends Node2D
+extends Node3D
 
-## Composition root of one tactical battle. It owns the player's turn flow (select,
-## move, choose an action, pick a target, end the phase) and coordinates the peers
-## that do the work: `Battle` resolves the rules, `BoardView` draws, `EventPlayer`
-## plays back what happened, `BattleHud` and `DialogueBox` present, and
-## `PlaytestMetrics` records. It implements none of their rules.
+## Composition root of one tactical battle. It owns the player's turn flow and
+## coordinates the peers that do the work: `Battle` resolves the rules, `Diorama`
+## and the unit cards show the room, `GroundOverlays` and `ThreatArcs` paint the
+## forecast, `EventPlayer` plays back what happened, and the interface presents.
+## It implements none of their rules.
 ##
-## The battle reports upward: `battle_finished` after the closing conversation has
-## played, or `battle_abandoned` when the player leaves from the pause menu.
+## The flow (Mario + Rabbids: Sparks of Hope style):
+##   IDLE     free camera. Click a unit, or Tab / RB, to take control of it.
+##   CONTROL  steer it anywhere inside its movement area (WASD / left stick, or
+##            click a spot). Enemy arcs and the predicted HP follow it. Z / X undoes
+##            the move, Esc / B lets go, Space / A opens the action ring.
+##   MENU     the action ring above the unit.
+##   TARGET   pick a target (left/right, or click) or aim a cone; the battle preview
+##            shows the whole exchange. Confirm to act; any action ends the turn.
+##
+## The battle reports upward: `battle_finished` after the closing conversation, or
+## `battle_abandoned` when the player leaves from the pause menu.
 
 signal battle_finished(result: Dictionary)
 signal battle_abandoned
 
 const Mode := BattleSelection.Mode
-const NONE := BattleSelection.NONE
 
 @export_group("Mission")
-## The map to fight on.
 @export var mission: MissionDefinition
-## The combatants: squad, neutral recruit and opposition.
 @export var unit_profiles: UnitProfiles
 
 @export_group("Gameplay Components")
 @export var metrics: PlaytestMetrics
-@export var audio_settings: AudioSettings
 @export var audio: BattleAudio
+@export var audio_settings: AudioSettings
 
-@export_group("Presentation")
-@export var board_view: BoardView
+@export_group("World")
 @export var camera: BattleCamera
-@export var event_player: EventPlayer
+@export var diorama: Diorama
+@export var units_root: Node3D
+@export var overlays: GroundOverlays
+@export var arcs: ThreatArcs
 @export var effects: EffectsLayer
+@export var event_player: EventPlayer
 
 @export_group("Interface")
 @export var hud: BattleHud
+@export var plates: UnitPlates
+@export var ring: ActionRing
+@export var preview: BattlePreview
 @export var dialogue: DialogueBox
 @export var pause_menu: PauseMenu
 
+@export_group("Control")
+## Metres per second a controlled unit moves.
+@export var move_speed := 3.6
+## Degrees a cone turns per left/right press while aiming with keys or the D-pad.
+@export var aim_step_degrees := 20.0
+## Extra metres around a unit's body that still count as clicking it.
+@export var click_slack := 0.25
+
 var battle: Battle
 var selection := BattleSelection.new()
+var cards: Dictionary = {} # unit id -> UnitCard
+
+var _threats: Forecast.ThreatMap
+var _forecast_at := Vector2.INF
+var _walk_path: Array[Vector2] = []
+var _was_moving := false
 
 
 func _ready() -> void:
 	hud.end_turn_requested.connect(end_turn)
-	hud.action_chosen.connect(on_action)
-	hud.back_requested.connect(cancel)
-	hud.pause_requested.connect(open_pause)
+	hud.minimap.focus_requested.connect(func(p: Vector2) -> void: camera.look_at_point(BattleSpace.to_world(p)))
+	ring.chosen.connect(choose_action)
+	ring.cancelled.connect(_close_menu)
 	pause_menu.setup(audio_settings)
 	pause_menu.opened.connect(_set_paused.bind(true))
 	pause_menu.closed.connect(_set_paused.bind(false))
@@ -54,15 +80,45 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	# Never leave the tree paused behind a battle that is going away.
 	if get_tree().paused and pause_menu.is_open():
 		get_tree().paused = false
 
 
+## Starts a fresh battle. `intro` plays before the first Player Phase.
+func start(seed_value := 0, intro: Array = []) -> void:
+	battle = Battle.new(MissionSetup.build_field(mission, unit_profiles.definitions()), seed_value)
+	battle.start()
+	battle.take_events()
+	diorama.setup(battle.field, mission)
+	for u in battle.field.units:
+		var c := UnitCard.new()
+		c.name = u.id
+		units_root.add_child(c)
+		c.setup(u)
+		cards[u.id] = c
+	overlays.setup(battle)
+	event_player.setup(battle, cards)
+	hud.setup(battle, mission.objective_text)
+	hud.minimap.setup(battle, camera)
+	plates.setup(cards)
+	metrics.begin()
+	camera.frame_map(battle.field.size, BattleSpace.to_world(MissionSetup.tile_center(mission.camera_start_tile)))
+	audio.start_music()
+	selection.mode = Mode.BUSY
+	_update_hint()
+	if not intro.is_empty():
+		await dialogue.play(intro)
+	await hud.banner("Player Phase  -  Turn %d" % battle.turn)
+	selection.mode = Mode.IDLE
+	_update_hint()
+
+
+func card_of(u: Unit) -> UnitCard:
+	return cards[u.id]
+
+
 # --- Pause ------------------------------------------------------------------------
 
-## Pausing stops the whole battle: input, camera, playback and tweens. The pause
-## menu and the music keep running.
 func open_pause() -> void:
 	if selection.mode != Mode.DONE:
 		pause_menu.open()
@@ -78,29 +134,65 @@ func _abandon() -> void:
 	battle_abandoned.emit()
 
 
-## Starts a fresh battle. `intro` plays before the first Player Phase.
-func start(seed_value := 0, intro: Array = []) -> void:
-	battle = Battle.new(MissionSetup.build_board(mission, unit_profiles.definitions()), seed_value)
-	battle.start()
-	battle.take_events()
-	board_view.setup(battle, selection)
-	event_player.setup(battle)
-	hud.setup(battle, selection, mission.objective_text)
-	metrics.begin()
-	camera.frame_map(board_view.map_rect(), board_view.tile_center(mission.camera_start_tile))
-	audio.start_music()
-	_refresh()
-	selection.mode = Mode.BUSY
-	if not intro.is_empty():
-		await dialogue.play(intro)
-	await hud.banner("Player Phase  -  Turn %d" % battle.turn)
-	selection.mode = Mode.IDLE
-	_refresh()
+# --- Per frame ----------------------------------------------------------------------
+
+func _process(delta: float) -> void:
+	if battle == null or selection.mode != Mode.CONTROL:
+		return
+	var u := selection.controlled
+	var c := card_of(u)
+	var from := u.pos
+	var stick := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var want := from
+	if stick.length() > 0.05:
+		_walk_path.clear()
+		want = from + camera.floor_direction(stick).normalized() * move_speed * delta * minf(stick.length(), 1.0)
+	elif not _walk_path.is_empty():
+		var next := _walk_path[0]
+		var step := move_speed * delta
+		if from.distance_to(next) <= step:
+			want = next
+			_walk_path.remove_at(0)
+		else:
+			want = from + (next - from).normalized() * step
+	var moving := false
+	if want != from:
+		var to := _slide(u, from, want)
+		if to.distance_to(from) > 0.0005 and battle.move_unit(u, to):
+			c.position = BattleSpace.to_world(to)
+			c.face_along(to - from)
+			moving = true
+		else:
+			_walk_path.clear()
+	if moving != _was_moving:
+		c.set_moving(moving)
+		_was_moving = moving
+	if u.pos.distance_to(_forecast_at) > 0.05:
+		_refresh_forecast()
 
 
-func _refresh() -> void:
-	board_view.redraw()
-	hud.refresh()
+## Moves as far toward `want` as the area allows, sliding along its edge.
+func _slide(u: Unit, from: Vector2, want: Vector2) -> Vector2:
+	var r := battle.reach(u)
+	if r.can_reach(want):
+		return want
+	for alt in [Vector2(want.x, from.y), Vector2(from.x, want.y)]:
+		if alt != from and r.can_reach(alt):
+			return alt
+	return r.clamp_step(from, want)
+
+
+func _refresh_forecast() -> void:
+	var u := selection.controlled
+	if u == null:
+		return
+	if _threats == null or _threats.unit != u or not _threats.is_current():
+		_threats = Forecast.ThreatMap.new(battle, u)
+	selection.forecast = Forecast.for_destination(battle, u, u.pos, _threats)
+	_forecast_at = u.pos
+	arcs.show_forecast(selection.forecast, u, u.pos)
+	plates.set_prediction(u, selection.forecast.predicted_hp, selection.forecast.risk)
+	overlays.show_trail(battle.reach(u).path_to(u.pos))
 
 
 # --- Input ------------------------------------------------------------------------
@@ -108,238 +200,410 @@ func _refresh() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if battle == null or selection.mode == Mode.DONE:
 		return
-	# Esc with nothing to back out of opens the pause menu, even mid-playback.
-	if event.is_action_pressed("ui_cancel") and selection.mode in [Mode.IDLE, Mode.BUSY]:
+	if event.is_action_pressed("pause") or (event.is_action_pressed("cancel") and selection.mode in [Mode.IDLE, Mode.BUSY]):
 		open_pause()
 		get_viewport().set_input_as_handled()
 		return
-	if selection.mode == Mode.BUSY:
+	if selection.mode == Mode.BUSY or selection.mode == Mode.MENU:
 		return
-	if event is InputEventMouseMotion:
-		var t := board_view.px_to_tile(get_global_mouse_position())
-		if t != selection.hover:
-			selection.hover = t
-			if selection.mode == Mode.SELECTED and selection.move_set.has(t):
-				audio.play("ui_move", -14.0)
-			_on_hover()
-	elif event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			_on_click(board_view.px_to_tile(get_global_mouse_position()))
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			cancel()
-	elif event.is_action_pressed("ui_cancel"):
-		cancel()
-
-
-## Re-reads the hovered tile (tools set `selection.hover` directly, then call this).
-func refresh_hover() -> void:
-	_on_hover()
-
-
-func _on_hover() -> void:
-	selection.hover_target = null
-	match selection.mode:
-		Mode.SELECTED:
-			if selection.move_set.has(selection.hover):
-				selection.forecast = Forecast.for_destination(battle, selection.selected, selection.hover)
-			else:
-				selection.forecast = {}
-		Mode.TARGET:
-			selection.hover_target = _target_at(selection.hover)
-	_refresh()
-
-
-func _on_click(t: Vector2i) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var p := _floor_under_mouse(event.position)
+		if p != Vector2.INF:
+			_on_click(p)
+		return
+	if event is InputEventMouseMotion and selection.mode == Mode.TARGET:
+		var p := _floor_under_mouse(event.position)
+		if p != Vector2.INF:
+			_on_target_hover(p)
+		return
+	var handled := true
 	match selection.mode:
 		Mode.IDLE:
-			if t == NONE:
-				return
-			var u := battle.board.unit_at(t)
-			if u != null and u.can_activate():
-				select(u)
-			elif u != null and u.faction == Defs.Faction.ENEMY:
-				selection.inspected_enemy = null if selection.inspected_enemy == u else u
-				metrics.threat_inspections += 1
-				_refresh()
+			if event.is_action_pressed("next_unit") or event.is_action_pressed("confirm"):
+				_cycle_unit(1)
+			elif event.is_action_pressed("prev_unit"):
+				_cycle_unit(-1)
+			elif event.is_action_pressed("end_turn"):
+				end_turn()
 			else:
-				selection.inspected_enemy = null
-				_refresh()
-		Mode.SELECTED:
-			if t == NONE:
-				return
-			var u := battle.board.unit_at(t)
-			if u != null and u != selection.selected and u.can_activate() and not selection.move_set.has(t):
-				select(u)
-				return
-			if selection.move_set.has(t):
-				move_to(t)
+				handled = false
+		Mode.CONTROL:
+			if event.is_action_pressed("confirm"):
+				open_menu()
+			elif event.is_action_pressed("cancel"):
+				release()
+			elif event.is_action_pressed("undo_move"):
+				undo()
+			elif event.is_action_pressed("next_unit"):
+				_cycle_unit(1)
+			elif event.is_action_pressed("prev_unit"):
+				_cycle_unit(-1)
+			elif event.is_action_pressed("end_turn"):
+				end_turn()
+			else:
+				handled = false
 		Mode.TARGET:
-			var tgt: Variant = _target_at(t)
-			if tgt != null:
-				execute_target(tgt)
+			if event.is_action_pressed("confirm"):
+				execute()
+			elif event.is_action_pressed("cancel"):
+				_back_to_menu()
+			elif event.is_action_pressed("ring_left") or (event is InputEventJoypadMotion and event.is_action_pressed("move_left")):
+				_step_target(-1)
+			elif event.is_action_pressed("ring_right") or (event is InputEventJoypadMotion and event.is_action_pressed("move_right")):
+				_step_target(1)
+			else:
+				handled = false
+	if handled:
+		get_viewport().set_input_as_handled()
 
 
-# --- Turn flow ----------------------------------------------------------------------
-
-func select(u: Unit) -> void:
-	audio.play("ui_select")
-	selection.selected = u
-	selection.inspected_enemy = null
-	selection.move_set.clear()
-	for a in battle.move_options(u):
-		selection.move_set[a] = true
-	metrics.record_selection(u, selection.move_set.size())
-	selection.forecast = Forecast.for_destination(battle, u, u.pos)
-	selection.mode = Mode.SELECTED
-	_refresh()
+func _floor_under_mouse(screen: Vector2) -> Vector2:
+	var cam := camera.camera
+	var origin := cam.project_ray_origin(screen)
+	var dir := cam.project_ray_normal(screen)
+	if absf(dir.y) < 0.0001:
+		return Vector2.INF
+	var t := -origin.y / dir.y
+	if t < 0.0:
+		return Vector2.INF
+	return BattleSpace.to_floor(origin + dir * t)
 
 
-func cancel() -> void:
-	audio.play("ui_cancel")
+func _unit_near(p: Vector2) -> Unit:
+	var best: Unit = null
+	var best_d := INF
+	for u in battle.field.living_units():
+		var d := u.pos.distance_to(p) - u.radius
+		if d <= click_slack and d < best_d:
+			best = u
+			best_d = d
+	return best
+
+
+func _on_click(p: Vector2) -> void:
+	var u := _unit_near(p)
 	match selection.mode:
-		Mode.SELECTED:
-			selection.selected = null
-			selection.forecast = {}
-			selection.mode = Mode.IDLE
-		Mode.MENU:
-			var u := selection.selected
-			if u.moved and not u.acted:
-				battle.undo_move(u)
-				battle.take_events()
-				board_view.place(u)
-			hud.hide_actions()
-			select(u)
-			return
+		Mode.IDLE, Mode.CONTROL:
+			if u != null and u == selection.controlled:
+				open_menu()
+			elif u != null and u.can_activate():
+				control(u)
+			elif u != null and u.faction == Defs.Faction.ENEMY:
+				_inspect(u)
+			elif selection.mode == Mode.CONTROL:
+				var c := selection.controlled
+				if battle.reach(c).can_reach(p):
+					# Walk there from where the unit stands now; each step is still
+					# checked against the area measured from where its move began.
+					var from_here := ReachField.compute(battle.field, c, c.pos, battle.field.size.length())
+					_walk_path = from_here.path_to(p)
+					if not _walk_path.is_empty():
+						_walk_path.remove_at(0)
 		Mode.TARGET:
-			_open_menu()
-			return
-	_refresh()
+			if selection.is_aiming():
+				execute()
+				return
+			for k in selection.targets.size():
+				var t: Variant = selection.targets[k]
+				var hit: bool = (t is Unit and t == u) or (t is String and battle.field.objects.has(t) and battle.field.objects[t].rect.grow(0.2).has_point(p))
+				if hit:
+					if k == selection.target_index:
+						execute()
+					else:
+						selection.target_index = k
+						_refresh_target()
+					return
 
 
-func move_to(t: Vector2i) -> void:
-	var u := selection.selected
-	selection.mode = Mode.BUSY
-	if t != u.pos:
-		battle.commit_move(u, t)
-	else:
-		battle.stay(u)
-	await event_player.play(battle.take_events())
-	_open_menu()
+func _on_target_hover(p: Vector2) -> void:
+	if selection.is_aiming():
+		var d := p - selection.controlled.pos
+		if d.length() > 0.2:
+			selection.aim = d.normalized()
+			_refresh_target()
+		return
+	var u := _unit_near(p)
+	if u != null and selection.targets.has(u):
+		var k := selection.targets.find(u)
+		if k != selection.target_index:
+			selection.target_index = k
+			_refresh_target()
 
 
-func _open_menu() -> void:
+# --- Control ------------------------------------------------------------------------
+
+func control(u: Unit) -> void:
+	if not u.can_activate():
+		return
+	if selection.mode == Mode.CONTROL and selection.controlled != null:
+		card_of(selection.controlled).set_moving(false)
+	audio.play("ui_select")
+	selection.controlled = u
+	selection.inspected_enemy = null
+	selection.mode = Mode.CONTROL
+	_walk_path.clear()
+	_was_moving = false
+	overlays.hide_enemy_reach()
+	var r := battle.reach(u)
+	overlays.show_move_area(r, u.turn_start, u.radius)
+	metrics.record_selection(u, r.standing_spots(0.5).size())
+	camera.follow = card_of(u)
+	camera.free_pan = false
+	hud.minimap.set_controlled(u)
+	_threats = null
+	_forecast_at = Vector2.INF
+	_refresh_forecast()
+	_update_hint()
+
+
+func release() -> void:
+	if selection.controlled != null:
+		card_of(selection.controlled).set_moving(false)
+	selection.controlled = null
+	selection.mode = Mode.IDLE
+	selection.clear_action()
+	_walk_path.clear()
+	arcs.clear()
+	plates.set_prediction(null)
+	overlays.hide_all()
+	preview.hide_preview()
+	ring.close()
+	camera.follow = null
+	camera.free_pan = true
+	hud.minimap.set_controlled(null)
+	_update_hint()
+
+
+func undo() -> void:
+	var u := selection.controlled
+	if u == null or u.acted:
+		return
+	audio.play("ui_cancel")
+	_walk_path.clear()
+	battle.undo_move(u)
+	battle.take_events()
+	card_of(u).position = BattleSpace.to_world(u.pos)
+	_refresh_forecast()
+
+
+func _cycle_unit(step: int) -> void:
+	var ready := battle.player_units().filter(func(o: Unit) -> bool: return o.can_activate())
+	if ready.is_empty():
+		hud.pulse_end_turn()
+		return
+	var k := ready.find(selection.controlled)
+	k = 0 if k < 0 and step > 0 else posmod(k + step, ready.size())
+	control(ready[k])
+
+
+func _inspect(e: Unit) -> void:
+	if selection.inspected_enemy == e:
+		selection.inspected_enemy = null
+		overlays.hide_enemy_reach()
+		return
+	selection.inspected_enemy = e
+	metrics.threat_inspections += 1
+	overlays.show_enemy_reach(ReachField.compute(battle.field, e, e.pos, battle.effective_move(e)))
+
+
+# --- Action ring ------------------------------------------------------------------
+
+func open_menu() -> void:
+	var u := selection.controlled
+	if u == null:
+		return
+	_walk_path.clear()
+	card_of(u).set_moving(false)
+	_was_moving = false
 	selection.mode = Mode.MENU
-	selection.forecast = Forecast.for_destination(battle, selection.selected, selection.selected.pos)
-	hud.show_actions(selection.selected, _action_list(selection.selected))
-	_refresh()
+	var actions := _action_list(u)
+	ring.open(card_of(u), 1.9 if u.is_large() else 1.05, actions, selection.ring_memory.get(u.id, 0))
+	audio.play("ui_select")
+	_update_hint()
 
 
-## [{id, label, enabled, tooltip}]
+func _close_menu() -> void:
+	ring.close()
+	audio.play("ui_cancel")
+	selection.mode = Mode.CONTROL
+	_update_hint()
+
+
+## [{id, label, enabled, tooltip, icon, noise?, reason?, triggers_gaze?}]
 func _action_list(u: Unit) -> Array:
 	var out: Array = []
 	var can_attack := not battle.basic_targets(u).is_empty() or not battle.object_targets(u).is_empty()
-	out.append({"id": "attack", "label": "Attack", "enabled": can_attack, "tooltip": "Basic Attack, 0 Noise"})
+	out.append({"id": "attack", "label": "Attack", "icon": "attack", "enabled": can_attack, "noise": 0,
+		"reason": "Nothing within reach", "tooltip": "Basic Attack. Reach %.1f m, Might %d. Makes no Noise." % [u.attack_range, u.might]})
 	for a in u.arts:
 		var art := Arts.get_art(a)
 		var chk := battle.art_check(u, a)
-		var label := "%s  (+%d)" % [art.name, art.noise]
-		var tip: String = art.desc if chk.ok else "%s\n%s" % [chk.reason, art.desc]
-		if chk.ok and art.noise > 0 and battle.noise + art.noise >= Defs.NOISE_THRESHOLD:
-			label += "  TRIGGERS GAZE"
-			tip += "\nNoise reaches %d: the human looks at a 3x3 area around %s." % [Defs.NOISE_THRESHOLD, u.name]
-		out.append({"id": "art:" + a, "label": label, "enabled": chk.ok, "tooltip": tip})
+		out.append({"id": "art:" + a, "label": art.name, "icon": a, "enabled": chk.ok, "noise": art.noise,
+			"reason": chk.reason, "tooltip": art.desc,
+			"triggers_gaze": chk.ok and art.noise > 0 and battle.noise + art.noise >= Defs.NOISE_THRESHOLD})
 	if u.item != "":
 		var it: Dictionary = Arts.ITEMS[u.item]
-		out.append({"id": "item", "label": it.name, "enabled": u.hp < u.max_hp, "tooltip": it.desc})
+		out.append({"id": "item", "label": it.name, "icon": "item", "enabled": u.hp < u.max_hp,
+			"reason": "Already at full HP", "tooltip": it.desc})
 	if not battle.talk_targets(u).is_empty():
-		out.append({"id": "talk", "label": "Talk", "enabled": true, "tooltip": "Recruit Umbrella. Uses the Action."})
-	out.append({"id": "wait", "label": "Wait", "enabled": true, "tooltip": "End this unit's activation."})
+		out.append({"id": "talk", "label": "Talk", "icon": "talk", "enabled": true, "tooltip": "Recruit Umbrella. Uses the Action."})
+	out.append({"id": "wait", "label": "Wait", "icon": "wait", "enabled": true, "tooltip": "End this unit's turn where it stands."})
 	return out
 
 
-func on_action(id: String) -> void:
-	if selection.mode != Mode.MENU:
-		return
-	var u := selection.selected
-	hud.hide_actions()
+## What happens when an action is picked on the ring (tests call this directly).
+func choose_action(id: String) -> void:
+	var u := selection.controlled
+	selection.ring_memory[u.id] = _action_list(u).map(func(a): return a.id).find(id)
+	ring.close()
 	match id:
 		"wait":
 			battle.wait(u)
 			await _after_action()
+			return
 		"item":
 			battle.use_item(u)
 			await _after_action()
+			return
+	if id.begins_with("art:") and Arts.get_art(id.substr(4)).target == "self":
+		battle.use_art(u, id.substr(4), u)
+		await _after_action()
+		return
+	selection.action = id
+	selection.target_index = 0
+	match id:
 		"attack":
-			selection.target_kind = "attack"
-			selection.target_options = battle.basic_targets(u)
-			selection.target_options.append_array(battle.object_targets(u))
-			selection.mode = Mode.TARGET
+			selection.targets = battle.basic_targets(u)
+			selection.targets.append_array(battle.object_targets(u))
 		"talk":
-			selection.target_kind = "talk"
-			selection.target_options = battle.talk_targets(u)
-			selection.mode = Mode.TARGET
+			selection.targets = battle.talk_targets(u)
 		_:
-			var art_id := id.substr(4)
-			if Arts.get_art(art_id).target == "self":
-				battle.use_art(u, art_id, u)
-				await _after_action()
-				return
-			selection.target_kind = id
-			selection.target_options = battle.art_targets(u, art_id)
-			selection.mode = Mode.TARGET
-	_refresh()
-
-
-## Maps a hovered tile to a target option: a Unit, a cover tile, or a direction.
-func _target_at(t: Vector2i) -> Variant:
-	if t == NONE:
-		return null
-	var directional := selection.is_art_kind("direction")
-	for o in selection.target_options:
-		if o is Unit and o.occupies(t):
-			return o
-		if o is Vector2i and directional:
-			if Arts.cone_tiles(selection.selected, selection.selected.pos, o).has(t):
-				return o
-		elif o is Vector2i and o == t:
-			return o
-	return null
-
-
-func execute_target(tgt: Variant) -> void:
-	var u := selection.selected
-	selection.mode = Mode.BUSY
-	match selection.target_kind:
-		"attack":
-			if tgt is Unit:
-				battle.attack(u, tgt)
+			var art := Arts.get_art(id.substr(4))
+			if art.target == "direction":
+				selection.targets = []
+				selection.aim = _default_aim(u)
 			else:
-				battle.attack_object(u, tgt)
+				selection.targets = battle.art_targets(u, id.substr(4))
+	selection.mode = Mode.TARGET
+	audio.play("ui_select")
+	_refresh_target()
+	_update_hint()
+
+
+func _default_aim(u: Unit) -> Vector2:
+	var best := Vector2.RIGHT * float(u.facing)
+	var bd := INF
+	for e in battle.enemy_units():
+		if battle.can_target(u, e) and u.gap_to(e) < bd:
+			bd = u.gap_to(e)
+			best = (e.pos - u.pos).normalized()
+	return best
+
+
+func _back_to_menu() -> void:
+	selection.clear_action()
+	overlays.hide_reach_ring()
+	overlays.hide_cone()
+	overlays.clear_targets()
+	preview.hide_preview()
+	open_menu()
+
+
+func _step_target(step: int) -> void:
+	if selection.is_aiming():
+		selection.aim = selection.aim.rotated(deg_to_rad(aim_step_degrees) * -step)
+	elif not selection.targets.is_empty():
+		selection.target_index = posmod(selection.target_index + step, selection.targets.size())
+	audio.play("ui_move", -12.0)
+	_refresh_target()
+
+
+func _refresh_target() -> void:
+	var u := selection.controlled
+	var id := selection.action
+	var friendly := selection.is_friendly_action()
+	overlays.show_reach_ring(u.pos, _reach_radius(u, id), friendly)
+	var target: Variant
+	if selection.is_aiming():
+		var cone := battle.cone_for(u, id.substr(4), selection.aim)
+		overlays.show_cone(cone)
+		overlays.show_targets(battle.units_in_cone(u, cone).filter(func(o): return battle.can_target(u, o)), null)
+		target = selection.aim
+	else:
+		overlays.hide_cone()
+		target = selection.current_target()
+		overlays.show_targets(selection.targets, target, friendly)
+	if target == null:
+		preview.hide_preview()
+		return
+	if target is Unit:
+		card_of(u).face_along(target.pos - u.pos)
+	preview.show_exchange(Exchange.preview(battle, u, id, target))
+
+
+func _reach_radius(u: Unit, id: String) -> float:
+	if id == "attack":
+		return u.radius + u.attack_range
+	if id == "talk":
+		return u.radius + Defs.ADJACENT_GAP
+	var art := Arts.get_art(id.substr(4))
+	match art.target:
+		"direction":
+			return u.radius + float(art.length)
+		"lunge":
+			return u.radius + float(art.dash)
+	return u.radius + float(art.get("max", 0.0))
+
+
+func execute() -> void:
+	var u := selection.controlled
+	var target: Variant = selection.aim if selection.is_aiming() else selection.current_target()
+	if target == null:
+		return
+	selection.mode = Mode.BUSY
+	overlays.hide_all()
+	preview.hide_preview()
+	arcs.clear()
+	plates.set_prediction(null)
+	match selection.action:
+		"attack":
+			if target is Unit:
+				battle.attack(u, target)
+			else:
+				battle.attack_object(u, target)
 		"talk":
-			battle.talk(u, tgt)
+			battle.talk(u, target)
 		_:
-			battle.use_art(u, selection.target_kind.substr(4), tgt)
+			battle.use_art(u, selection.action.substr(4), target)
 	await _after_action()
 
 
 func _after_action() -> void:
 	selection.mode = Mode.BUSY
+	overlays.hide_all()
+	preview.hide_preview()
+	arcs.clear()
+	plates.set_prediction(null)
+	_update_hint()
 	await event_player.play(battle.take_events())
-	selection.clear_action()
+	release()
 	if await _check_finished():
 		return
 	selection.mode = Mode.IDLE
-	_refresh()
+	_update_hint()
 	if battle.all_player_done():
 		hud.pulse_end_turn()
 
 
+# --- Phases -------------------------------------------------------------------------
+
 func end_turn() -> void:
-	if not selection.can_end_turn():
+	if selection.mode != Mode.IDLE and selection.mode != Mode.CONTROL:
 		return
-	selection.clear_action()
+	release()
 	selection.mode = Mode.BUSY
-	_refresh()
+	_update_hint()
+	var home := camera.focus
 	await hud.banner("Enemy Phase")
 	var predicted := {}
 	for u in battle.player_units():
@@ -348,10 +612,11 @@ func end_turn() -> void:
 	battle.end_player_phase()
 	metrics.record_predictions(predicted)
 	await event_player.play(battle.take_events())
+	await camera.glide_to(home)
 	if await _check_finished():
 		return
 	selection.mode = Mode.IDLE
-	_refresh()
+	_update_hint()
 
 
 func _check_finished() -> bool:
@@ -359,14 +624,14 @@ func _check_finished() -> bool:
 		return false
 	selection.mode = Mode.DONE
 	camera.input_enabled = false
-	_refresh()
+	_update_hint()
 	var victory := battle.phase == Defs.Phase.VICTORY
 	var result := {
 		"victory": victory,
 		"turns": battle.turn,
 		"stars": battle.stars(),
 		"stats": battle.stats.duplicate(),
-		"broken": battle.board.units.filter(func(u): return u.faction == Defs.Faction.PLAYER and u.broken).map(func(u): return u.name),
+		"broken": battle.field.units.filter(func(u): return u.faction == Defs.Faction.PLAYER and u.broken).map(func(u): return u.name),
 		"recruited": battle.recruited,
 		"metrics": metrics.summary(battle),
 	}
@@ -386,3 +651,18 @@ func _closing_lines(result: Dictionary) -> Array:
 	if result.recruited and result.stars.recruit:
 		lines.append_array(SliceDialogue.VICTORY_WITH_UMBRELLA)
 	return lines
+
+
+func _update_hint() -> void:
+	hud.set_end_turn_enabled(selection.mode == Mode.IDLE or selection.mode == Mode.CONTROL)
+	match selection.mode:
+		Mode.IDLE:
+			hud.set_hint("Click a unit or Tab / RB to take control   ·   WASD pan   ·   Q E / right-drag orbit   ·   wheel zoom   ·   T end turn")
+		Mode.CONTROL:
+			hud.set_hint("WASD / stick or click to move   ·   Space / A actions   ·   Z / X undo move   ·   Tab next unit   ·   Esc let go")
+		Mode.MENU:
+			hud.set_hint("◀ ▶ turn the ring   ·   Space / A choose   ·   Esc / B back")
+		Mode.TARGET:
+			hud.set_hint("◀ ▶ or mouse to change target   ·   Space / A confirm   ·   Esc / B back")
+		_:
+			hud.set_hint("")

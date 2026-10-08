@@ -33,7 +33,7 @@ func _run() -> void:
 	var menu := view.pause_menu
 
 	var esc := InputEventAction.new()
-	esc.action = "ui_cancel"
+	esc.action = "cancel"
 	esc.pressed = true
 	root.push_input(esc)
 	await process_frame
@@ -51,9 +51,12 @@ func _run() -> void:
 	await process_frame
 	check(not menu.is_open() and not paused, "Resume closes the menu and unpauses")
 
-	view.hud.menu_button.pressed.emit()
+	var start_button := InputEventAction.new()
+	start_button.action = "pause"
+	start_button.pressed = true
+	root.push_input(start_button)
 	await process_frame
-	check(menu.is_open() and paused, "the HUD Menu button opens the menu")
+	check(menu.is_open() and paused, "the controller's Start button opens the menu")
 	menu.main_menu_button.pressed.emit()
 	await process_frame
 	check(abandoned[0] and not paused, "Return to Missions leaves the battle unpaused")

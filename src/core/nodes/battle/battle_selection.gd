@@ -1,59 +1,49 @@
 class_name BattleSelection
 extends RefCounted
 
-## What the player is pointing at and choosing right now: the interface state of
-## one battle, separate from the battle rules.
-##
-## `BattleRoot` is the only writer. `BoardView` and `BattleHud` are handed the same
-## instance through their `setup()` and only read it, so the board's highlights and
-## the side panel can never disagree about what is selected.
+## What the player is doing right now: the interface state of one battle,
+## separate from the battle rules. BattleRoot is the only writer; the overlays and
+## HUD read it.
 
-enum Mode { IDLE, SELECTED, MENU, TARGET, BUSY, DONE }
-
-const NONE := Vector2i(-99, -99)
+## IDLE: free camera, nobody controlled. CONTROL: steering a unit inside its
+## movement area. MENU: the action ring is open. TARGET: picking a target or
+## aiming, with the battle preview showing. BUSY: playback. DONE: battle over.
+enum Mode { IDLE, CONTROL, MENU, TARGET, BUSY, DONE }
 
 var mode := Mode.IDLE
-var selected: Unit = null
-var hover := NONE
+var controlled: Unit = null
 ## "attack", "art:<id>" or "talk" while picking a target.
-var target_kind := ""
-## Units, cover tiles, or cone directions the current action may pick.
-var target_options: Array = []
-var hover_target: Variant = null
-## Anchor tiles the selected unit can move to: tile -> true.
-var move_set := {}
-## Movement forecast for the hovered destination (see `Forecast.for_destination`).
+var action := ""
+## Units, cover ids, or (for cones) nothing: cones aim with `aim`.
+var targets: Array = []
+var target_index := 0
+## Aim direction for cones, on the floor.
+var aim := Vector2.RIGHT
+## Movement forecast for the controlled unit where it stands.
 var forecast := {}
 ## Enemy whose reach is shown after clicking it.
 var inspected_enemy: Unit = null
+## Index the action ring last showed, per unit id, so reopening keeps your place.
+var ring_memory := {}
+
+
+func current_target() -> Variant:
+	if targets.is_empty():
+		return null
+	return targets[clampi(target_index, 0, targets.size() - 1)]
+
+
+func is_aiming() -> bool:
+	return action.begins_with("art:") and Arts.get_art(action.substr(4)).target == "direction"
+
+
+func is_friendly_action() -> bool:
+	if action == "talk":
+		return true
+	return action.begins_with("art:") and Arts.get_art(action.substr(4)).target == "ally"
 
 
 func clear_action() -> void:
-	selected = null
-	forecast = {}
-	target_options = []
-	hover_target = null
-
-
-## Whether the player may end the phase now.
-func can_end_turn() -> bool:
-	return mode == Mode.IDLE or mode == Mode.SELECTED
-
-
-## The current action is an Art whose target kind is `kind` ("direction", "ally", ...).
-func is_art_kind(kind: String) -> bool:
-	if not target_kind.begins_with("art:"):
-		return false
-	return Arts.get_art(target_kind.substr(4)).target == kind
-
-
-## The unit the side panel describes: the selection, else the hovered unit, else
-## the inspected enemy.
-func focus_unit(board: Board) -> Unit:
-	if selected != null:
-		return selected
-	if hover != NONE:
-		var u := board.unit_at(hover)
-		if u != null:
-			return u
-	return inspected_enemy
+	action = ""
+	targets = []
+	target_index = 0
