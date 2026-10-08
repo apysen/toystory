@@ -1,0 +1,105 @@
+{
+ "frames": {
+  "bookend_attack 0.aseprite": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 144,
+    "h": 128
+   },
+   "duration": 110
+  },
+  "bookend_attack 1.aseprite": {
+   "frame": {
+    "x": 144,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 144,
+    "h": 128
+   },
+   "duration": 90
+  },
+  "bookend_attack 2.aseprite": {
+   "frame": {
+    "x": 288,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 144,
+    "h": 128
+   },
+   "duration": 100
+  },
+  "bookend_attack 3.aseprite": {
+   "frame": {
+    "x": 432,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 144,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 144,
+    "h": 128
+   },
+   "duration": 120
+  }
+ },
+ "meta": {
+  "app": "tools/bake_unit_anims.py",
+  "image": "bookend_attack_sheet.png",
+  "size": {
+   "w": 576,
+   "h": 128
+  },
+  "frameTags": [
+   {
+    "name": "attack",
+    "from": 0,
+    "to": 3,
+    "direction": "forward"
+   }
+  ],
+  "note": "Wider frames so the lunge isn't clipped; left edge and foot pivot match the still."
+ }
+}

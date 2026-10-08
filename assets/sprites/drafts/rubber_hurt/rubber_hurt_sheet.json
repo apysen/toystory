@@ -1,0 +1,84 @@
+{
+ "frames": {
+  "rubber_hurt 0.aseprite": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   },
+   "duration": 70
+  },
+  "rubber_hurt 1.aseprite": {
+   "frame": {
+    "x": 128,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   },
+   "duration": 90
+  },
+  "rubber_hurt 2.aseprite": {
+   "frame": {
+    "x": 256,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   },
+   "duration": 110
+  }
+ },
+ "meta": {
+  "app": "tools/bake_unit_anims.py",
+  "image": "rubber_hurt_sheet.png",
+  "size": {
+   "w": 384,
+   "h": 128
+  },
+  "frameTags": [
+   {
+    "name": "hurt",
+    "from": 0,
+    "to": 2,
+    "direction": "forward"
+   }
+  ],
+  "note": "Frame 0 carries the white hit flash, so the view doesn't tint it again."
+ }
+}

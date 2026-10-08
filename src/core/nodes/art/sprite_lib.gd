@@ -81,7 +81,7 @@ static func _texture(path: String) -> Texture2D:
 
 ## Draft animations awaiting review live in assets/sprites/drafts/<name>_<anim>/.
 ## They're used in game until a final version lands in the main sheet.
-const DRAFT_ANIMS := ["move", "attack", "art", "hurt", "broken"]
+const DRAFT_ANIMS := ["move", "attack", "art", "hurt", "broken", "gaze_in", "gaze_out"]
 
 
 static func _add_drafts(sf: SpriteFrames, name: String) -> void:

@@ -66,9 +66,12 @@ func float_text(p: Vector2, text: String, c: Color) -> void:
 	tw.tween_callback(l.queue_free)
 
 
-## Squash-and-flash used for the Gaze transformation in both directions. The view
-## swaps to its new form at the flash.
+## Squash-and-flash used for the Gaze transformation in both directions. A unit
+## being watched first squashes down ("gaze_in"); the view swaps to its new form at
+## the flash and springs back out ("gaze_out") when the human looks away.
 func gaze_poof(v: UnitView) -> void:
+	if v.unit.frozen and v.has_anim("gaze_in"):
+		await v.play_once("gaze_in", false)
 	# The puff is sized for 128px units; doubled to cover Large ones.
 	var big := v.unit.is_large()
 	burst("gaze_poof", v.position + Vector2(0, -112 if big else -56), false, 2.0 if big else 1.0)
