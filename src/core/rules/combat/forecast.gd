@@ -2,50 +2,86 @@ class_name Forecast
 extends RefCounted
 ## Dynamic movement forecast (vertical_slice_plan.md section 18): "what happens
 ## if Enemy Phase began with the battlefield in its current state?"
+##
+## Free movement asks this every frame, so the slow part (where every enemy could
+## stand) is computed once into a ThreatMap when a unit is selected, and each query
+## only checks reach and line of sight from those spots.
 
 
-## Threats against `u` if it ended its move at `anchor`.
-## Returns {threats: Array, telegraph_damage, expected, predicted_hp, max_damage, risk}.
-## Each threat: {enemy, from, preview, displacement: {dir, dist} or {}}.
-static func for_destination(battle: Battle, u: Unit, anchor: Vector2i) -> Dictionary:
-	var board := battle.board
-	var saved := u.pos
-	u.pos = anchor
+## Where each enemy could attack from this Enemy Phase, computed with `u` lifted
+## off the floor so it doesn't block the paths it is being warned about.
+class ThreatMap:
+	var battle: Battle
+	var unit: Unit
+	var version := -1
+	## [{enemy, spots: Array[Vector2]}], spots cheapest first
+	var entries: Array = []
+
+	func _init(b: Battle, u: Unit) -> void:
+		battle = b
+		unit = u
+		rebuild()
+
+	func is_current() -> bool:
+		return version == battle.version
+
+	func rebuild() -> void:
+		version = battle.version
+		entries.clear()
+		var saved := unit.pos
+		unit.pos = Vector2(-1000, -1000)
+		for e in battle.enemy_units():
+			if not Forecast._may_threaten(battle, e):
+				continue
+			var r := ReachField.compute(battle.field, e, e.pos, battle.effective_move(e))
+			var spots: Array[Vector2] = []
+			for s in r.standing_spots(0.35):
+				if e.ai == "guard" and not EnemyAI.guard_may_stand(battle, e, s):
+					continue
+				spots.append(s)
+			entries.append({"enemy": e, "spots": spots})
+		unit.pos = saved
+
+
+## Threats against `u` if it ended its move at `p`. Pass the unit's ThreatMap
+## when asking repeatedly. Returns {threats, telegraph_damage, expected,
+## predicted_hp, max_damage, risk}; each threat is {enemy, from, preview,
+## displacement: {dir, dist} or {}}.
+static func for_destination(battle: Battle, u: Unit, p: Vector2, map: ThreatMap = null) -> Dictionary:
+	var field := battle.field
+	if map == null or map.unit != u or not map.is_current():
+		map = ThreatMap.new(battle, u)
 	var threats: Array = []
 	var expected := 0.0
 	var max_damage := 0
-	var watched := battle.gaze_active() and battle.in_gaze(u)
+	var watched := battle.gaze_active() and battle.in_gaze_at(u, p)
 	if not watched and not u.frozen:
-		for e in battle.enemy_units():
-			if e.frozen:
+		for entry in map.entries:
+			var e: Unit = entry.enemy
+			if not e.is_hostile_to(u):
 				continue
-			if battle.gaze_active() and (e.expected_behavior or battle.in_gaze(e)):
-				continue
-			if e.ai == "captain" and _captain_resolving(battle, e):
-				continue # it spends its turn on the Cutting Line
-			var spot := _attack_spot(battle, e, u)
-			if spot == Vector2i(-99, -99):
+			var spot := _attack_spot(battle, e, entry.spots, u, p)
+			if spot == Vector2.INF:
 				continue
 			var spec := {"might": e.might, "type": e.dmg_type}
-			var pv := Combat.preview(board, e, spot, u, anchor, spec)
+			if e.ai == "pencil" and spot.distance_to(e.pos) >= 3.0:
+				spec["dmg_mult"] = 1.2
+			var pv := Combat.preview(field, e, spot, u, p, spec)
 			var disp := {}
 			match e.ai:
 				"snarer":
-					disp = {"dir": Battle._straight_dir(anchor, spot), "dist": maxi(1 - u.forced_move_reduction, 0)}
+					disp = {"dir": (spot - p).normalized(), "dist": maxf(1.0 - u.forced_move_reduction, 0.0)}
 				"roomba":
-					disp = {"dir": Battle._straight_dir(spot, anchor), "dist": maxi(1 - u.forced_move_reduction, 0)}
+					disp = {"dir": (p - spot).normalized(), "dist": maxf(1.0 - u.forced_move_reduction, 0.0)}
 			threats.append({"enemy": e, "from": spot, "preview": pv, "displacement": disp})
 			expected += pv.expected
 			max_damage += pv.damage * Defs.CRIT_MULT if pv.crit > 0 else pv.damage
 	var tele := 0
 	for tg in battle.telegraphs:
-		for t in u.tiles():
-			if tg.tiles.has(t):
-				var pv := Combat.preview(board, tg.owner, tg.owner.pos, u, anchor,
-					{"might": tg.might, "type": Defs.DmgType.PIERCE, "auto_hit": true, "no_crit": true})
-				tele += pv.damage
-				break
-	u.pos = saved
+		if Geometry.circle_hits_strip(p, u.radius, tg.a, tg.b, tg.half_width):
+			var pv := Combat.preview(field, tg.owner, tg.owner.pos, u, p,
+				{"might": tg.might, "type": Defs.DmgType.PIERCE, "auto_hit": true, "no_crit": true})
+			tele += pv.damage
 	expected += tele
 	max_damage += tele
 	var predicted := maxi(int(round(u.hp - expected)), 0)
@@ -60,50 +96,28 @@ static func for_destination(battle: Battle, u: Unit, anchor: Vector2i) -> Dictio
 		"predicted_hp": predicted, "max_damage": max_damage, "risk": risk}
 
 
-static func _captain_resolving(battle: Battle, e: Unit) -> bool:
-	for tg in battle.telegraphs:
-		if tg.owner == e:
-			return true
-	return false
+## Whether `e` takes part in the next Enemy Phase's attacks at all.
+static func _may_threaten(battle: Battle, e: Unit) -> bool:
+	if e.frozen:
+		return false
+	if battle.gaze_active() and (e.expected_behavior or battle.in_gaze(e)):
+		return false
+	if e.ai == "captain":
+		for tg in battle.telegraphs:
+			if tg.owner == e:
+				return false # it spends its turn on the Cutting Line
+	return true
 
 
-## A tile the enemy could reach this Enemy Phase and attack `target` from, or (-99,-99).
-static func _attack_spot(battle: Battle, e: Unit, target: Unit) -> Vector2i:
-	var board := battle.board
-	if not target.is_hostile_to(e) and not e.is_hostile_to(target):
-		return Vector2i(-99, -99)
-	var m := board.reach_map(e, e.pos, battle.effective_move(e))
-	var best := Vector2i(-99, -99)
-	var best_cost := 1 << 30
-	for a in m:
-		if a != e.pos and not board.can_stand(e, a):
+## The cheapest spot `e` could reach and attack `target` at `p` from, or INF.
+static func _attack_spot(battle: Battle, e: Unit, spots: Array, target: Unit, p: Vector2) -> Vector2:
+	var reach := e.attack_range + e.radius + target.radius
+	for s: Vector2 in spots:
+		var d := s.distance_to(p)
+		if d > reach + 0.001 or d - e.radius - target.radius < e.min_range - 0.001:
 			continue
-		if e.ai == "guard" and Defs.manhattan(a, e.status.get("home", e.pos)) > EnemyAI.GUARD_LEASH:
+		if s.distance_to(p) < e.radius + target.radius - 0.001:
 			continue
-		if not Combat.in_range(e, a, target, target.pos, e.min_range, e.attack_range):
-			continue
-		if not board.has_los(e, a, target, target.pos):
-			continue
-		if m[a].cost < best_cost:
-			best_cost = m[a].cost
-			best = a
-	return best
-
-
-## Every tile some enemy could attack this phase (danger overlay).
-static func danger_tiles(battle: Battle) -> Dictionary:
-	var board := battle.board
-	var out := {}
-	for e in battle.enemy_units():
-		if e.frozen or (battle.gaze_active() and e.expected_behavior):
-			continue
-		var m := board.reach_map(e, e.pos, battle.effective_move(e))
-		for a in m:
-			if a != e.pos and not board.can_stand(e, a):
-				continue
-			for x in range(a.x - e.attack_range, a.x + e.size + e.attack_range):
-				for y in range(a.y - e.attack_range, a.y + e.size + e.attack_range):
-					var t := Vector2i(x, y)
-					if board.in_bounds(t) and e.distance_from(a, t) <= e.attack_range and e.distance_from(a, t) >= e.min_range:
-						out[t] = true
-	return out
+		if battle.field.has_los(s, p):
+			return s
+	return Vector2.INF

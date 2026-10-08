@@ -16,7 +16,8 @@ extends Resource
 @export var optional_objectives := PackedStringArray()
 
 @export_group("Map")
-## Width and height in tiles. Bottom-left is (1, 1).
+## Width and height in metres. The layout is authored on a 1 m grid whose
+## bottom-left tile is (1, 1).
 @export var map_size := Vector2i(15, 11)
 ## Impassable furniture that blocks sight: tile -> art kind.
 @export var full_cover: Dictionary[Vector2i, String] = {}
@@ -26,5 +27,14 @@ extends Resource
 @export var cover_durability: Dictionary[String, int] = {}
 ## Spilled-drink tiles: entering one costs extra movement.
 @export var spill_tiles: Array[Vector2i] = []
+## Footprint in metres each furniture kind takes inside its tile. Kinds not listed
+## fill the whole tile.
+@export var kind_footprints: Dictionary[String, Vector2] = {}
+## Kinds whose tiles form one piece of furniture (the cabinet spans four tiles).
+@export var merged_kinds := PackedStringArray()
 ## Where the camera starts, in tiles.
 @export var camera_start_tile := Vector2i(4, 3)
+
+
+func footprint(kind: String) -> Vector2:
+	return kind_footprints.get(kind, Vector2.ONE)

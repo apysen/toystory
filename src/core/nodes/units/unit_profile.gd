@@ -20,7 +20,7 @@ extends Node
 @export_range(1, 2) var footprint := 1
 
 @export_group("Deployment")
-## Bottom-left tile of the unit's footprint when the battle starts.
+## Bottom-left tile of the unit's footprint on the mission's 1 m layout grid.
 @export var start_tile := Vector2i.ONE
 
 @export_group("Stats")
@@ -29,10 +29,12 @@ extends Node
 @export var defense := 5
 @export var skill := 5
 @export var speed := 5
-@export var move := 5
+## Metres of path per activation.
+@export var move := 5.0
 @export var might := 3
-@export var attack_range := 1
-@export var min_range := 1
+## Basic Attack reach: the edge-to-edge gap in metres (0.6 is melee).
+@export var attack_range := 0.6
+@export var min_range := 0.0
 
 @export_group("Kit")
 ## Art ids from `Arts.DATA`.
@@ -41,8 +43,8 @@ extends Node
 @export var item := ""
 ## Enemy AI archetype id read by `EnemyAI`; empty for player units.
 @export var ai := ""
-## Heavy Frame / Heavy Chassis: forced movement against this unit is reduced by this much.
-@export var forced_move_reduction := 0
+## Heavy Frame / Heavy Chassis: metres taken off any push or pull against this unit.
+@export var forced_move_reduction := 0.0
 ## Robot Vacuum: keeps moving while watched by a human, but can't attack.
 @export var expected_behavior := false
 ## For a neutral unit: the id of the player unit that can Talk to recruit it.
@@ -53,7 +55,7 @@ extends Node
 func to_def() -> Dictionary:
 	return {
 		"id": unit_id, "name": display_name, "sprite": sprite if sprite != "" else unit_id,
-		"faction": faction, "type": damage_type, "size": footprint, "pos": start_tile,
+		"faction": faction, "type": damage_type, "size": footprint, "start_tile": start_tile,
 		"hp": max_hp, "pow": power, "def": defense, "skl": skill, "spd": speed, "mov": move,
 		"might": might, "range": attack_range, "min_range": min_range,
 		"arts": Array(arts), "item": item, "ai": ai, "forced_move_reduction": forced_move_reduction,

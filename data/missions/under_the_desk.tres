@@ -31,3 +31,12 @@ cover_durability = Dictionary[String, int]({
 "small_box": 8
 })
 spill_tiles = Array[Vector2i]([Vector2i(9, 6), Vector2i(10, 6), Vector2i(11, 6), Vector2i(10, 7)])
+kind_footprints = Dictionary[String, Vector2]({
+"books": Vector2(0.85, 0.7),
+"box": Vector2(0.85, 0.85),
+"cabinet": Vector2(0.95, 0.95),
+"chair_leg": Vector2(0.5, 0.5),
+"desk_leg": Vector2(0.7, 0.7),
+"small_box": Vector2(0.65, 0.65)
+})
+merged_kinds = PackedStringArray("cabinet")

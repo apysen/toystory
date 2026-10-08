@@ -28,7 +28,7 @@ func _init() -> void:
 		if b.phase == Defs.Phase.VICTORY:
 			wins += 1
 			turns_total += b.turn
-		for u in b.board.units:
+		for u in b.field.units:
 			if u.faction == Defs.Faction.PLAYER and u.broken:
 				broken_total += 1
 		if b.recruited:
@@ -44,8 +44,7 @@ func _play_unit(b: Battle, u: Unit) -> void:
 	if best.is_empty():
 		b.wait(u)
 		return
-	if best.anchor != u.pos:
-		b.commit_move(u, best.anchor)
+	b.move_unit(u, best.spot)
 	match best.kind:
 		"attack":
 			b.attack(u, best.target)

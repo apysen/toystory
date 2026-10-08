@@ -2,17 +2,21 @@ class_name EnemyAI
 extends RefCounted
 ## Readable enemy behaviour (vertical_slice_plan.md section 14).
 
-const CUTTING_LINE_LENGTH := 5
+const CUTTING_LINE_LENGTH := 5.0
+const CUTTING_LINE_HALF_WIDTH := 0.45
 const CUTTING_LINE_MIGHT := 7
-const GUARD_LEASH := 2
+## Metres the Bookend Guard strays from where it started until the defence collapses.
+const GUARD_LEASH := 2.0
+## Spacing of the standing spots a planner considers.
+const SPOT_SPACING := 0.4
 
 var battle: Battle
-var board: Board
+var field: Field
 
 
 func _init(b: Battle) -> void:
 	battle = b
-	board = b.board
+	field = b.field
 
 
 func run_phase() -> void:
@@ -21,9 +25,9 @@ func run_phase() -> void:
 			return
 		if u.broken or u.frozen:
 			continue
-		u.move_path_len = 0
+		u.moved_distance = 0.0
 		act(u)
-		if battle._check_end():
+		if battle.check_end():
 			return
 
 
@@ -35,96 +39,92 @@ func act(u: Unit) -> void:
 	if plan.is_empty():
 		_advance(u)
 		return
-	battle.enemy_move(u, plan.anchor, plan.path)
+	battle.enemy_move(u, plan.path)
 	if plan.target != null and battle.can_target(u, plan.target):
 		battle.enemy_attack(u, plan.target)
 
 
-## Best (anchor, target) pair by archetype score, or {} if no target is reachable.
+## Best (spot, target) pair by archetype score, or {} if no target is reachable.
 func best_plan(u: Unit) -> Dictionary:
-	var m := board.reach_map(u, u.pos, battle.effective_move(u))
+	var r := ReachField.compute(field, u, u.pos, battle.effective_move(u))
 	var best := {}
 	var best_score := -INF
-	for anchor in m:
-		if anchor != u.pos and not board.can_stand(u, anchor):
+	for s in r.standing_spots(SPOT_SPACING):
+		if u.ai == "guard" and not guard_may_stand(battle, u, s):
 			continue
-		if u.ai == "guard" and not _guard_may_use(u, anchor):
-			continue
-		for t in board.living_units():
+		var cost := r.cost_at(s)
+		for t in field.living_units():
 			if not battle.can_target(u, t):
 				continue
-			if not Combat.in_range(u, anchor, t, t.pos, u.min_range, u.attack_range):
+			if not Combat.in_range(u, s, t, t.pos, u.min_range, u.attack_range) or not field.has_los(s, t.pos):
 				continue
-			var saved := u.pos
-			u.pos = anchor
-			var los := board.has_los(u, anchor, t, t.pos)
-			u.pos = saved
-			if not los:
-				continue
-			var s := score(u, anchor, t, m[anchor].cost)
-			if s > best_score:
-				best_score = s
-				best = {"anchor": anchor, "target": t, "path": Board.path_from(m, anchor), "score": s}
+			var sc := score(u, s, t, cost)
+			if sc > best_score:
+				best_score = sc
+				best = {"spot": s, "target": t, "score": sc}
+	if not best.is_empty():
+		best["path"] = r.path_to(best.spot)
+		if best.path.is_empty():
+			best.path = [u.pos] as Array[Vector2]
 	return best
 
 
-func score(u: Unit, anchor: Vector2i, t: Unit, cost: int) -> float:
+func score(u: Unit, s: Vector2, t: Unit, cost: float) -> float:
 	var spec := {"might": u.might, "type": u.dmg_type}
-	if u.ai == "pencil" and cost >= 3:
+	if u.ai == "pencil" and cost >= 3.0:
 		spec["dmg_mult"] = 1.2
-	var pv := Combat.preview(board, u, anchor, t, t.pos, spec)
-	var s: float = pv.expected
+	var pv := Combat.preview(field, u, s, t, t.pos, spec)
+	var sc: float = pv.expected
 	if pv.damage >= t.hp:
-		s += 10.0
+		sc += 10.0
 	var hp_frac := float(t.hp) / t.max_hp
 	match u.ai:
 		"pencil":
 			if pv.type_rel > 0:
-				s += 10.0
+				sc += 10.0
 			if not pv.cover:
-				s += 5.0
-			s += (1.0 - hp_frac) * 8.0
+				sc += 5.0
+			sc += (1.0 - hp_frac) * 8.0
 		"snarer":
 			if _in_cover(t):
-				s += 12.0
+				sc += 12.0
 		"tape":
-			if not board.slow_tiles.has(t.pos):
-				s += 6.0
+			if not field.is_slow(t.pos):
+				sc += 6.0
 			if t.is_large():
-				s += 4.0
+				sc += 4.0
 		"roomba":
-			s += 2.0
-		"guard":
-			s += 0.0
+			sc += 2.0
 	# Neutral recruits are a secondary target.
 	if t.faction == Defs.Faction.NEUTRAL:
-		s -= 3.0
+		sc -= 3.0
 	# Slight preference for not walking further than needed.
-	s -= cost * 0.05
-	return s
+	sc -= cost * 0.05
+	return sc
 
 
+## Whether a unit is tucked against half cover (the Snarer wants to pull it out).
 func _in_cover(t: Unit) -> bool:
 	if t.is_large():
 		return false
-	for d in Defs.DIRS:
-		if board.terrain_at(t.pos + d) == Defs.Terrain.HALF_COVER:
+	for o in field.objects.values():
+		if o.cover == Defs.Cover.HALF and Geometry.circle_hits_rect(t.pos, t.radius + 0.4, o.rect):
 			return true
 	return false
 
 
 ## Bookend Guard holds the central route unless the local defence has collapsed.
-func _guard_may_use(u: Unit, anchor: Vector2i) -> bool:
-	var home: Vector2i = u.status.get("home", u.pos)
+static func guard_may_stand(b: Battle, u: Unit, s: Vector2) -> bool:
+	var home: Vector2 = u.status.get("home", u.pos)
 	u.status["home"] = home
-	if _defence_collapsed():
+	if defence_collapsed(b):
 		return true
-	return Defs.manhattan(anchor, home) <= GUARD_LEASH
+	return s.distance_to(home) <= GUARD_LEASH
 
 
-func _defence_collapsed() -> bool:
+static func defence_collapsed(b: Battle) -> bool:
 	var down := 0
-	for e in board.units:
+	for e in b.field.units:
 		if e.faction == Defs.Faction.ENEMY and e.broken:
 			down += 1
 	return down >= 3
@@ -133,66 +133,35 @@ func _defence_collapsed() -> bool:
 ## No target in reach: walk along the real path toward the closest hostile.
 ## The Bookend Guard holds its lane instead.
 func _advance(u: Unit) -> void:
-	if u.ai == "guard" and not _defence_collapsed():
+	if u.ai == "guard" and not defence_collapsed(battle):
 		return
 	var budget := battle.effective_move(u)
-	if budget <= 0:
+	if budget <= 0.0:
 		return
 	var goal := _nearest_hostile(u)
 	if goal == null:
 		return
-	var field := _distance_field(u, goal)
-	var m := board.reach_map(u, u.pos, budget)
-	var best_anchor := u.pos
-	var best_d: int = field.get(u.pos, 1 << 20)
-	for a in m:
-		if a != u.pos and not board.can_stand(u, a):
-			continue
-		var d: int = field.get(a, 1 << 20)
-		if d < best_d:
+	# How far each spot is from the goal, walking around furniture.
+	var toward := ReachField.compute(field, u, goal.pos, field.size.length() * 2.0, true)
+	var r := ReachField.compute(field, u, u.pos, budget)
+	var best := u.pos
+	var best_d := toward.cost_at(u.pos)
+	for s in r.standing_spots(SPOT_SPACING):
+		var d := toward.cost_at(s)
+		if d < best_d - 0.05:
 			best_d = d
-			best_anchor = a
-	battle.enemy_move(u, best_anchor, Board.path_from(m, best_anchor))
-
-
-## Steps from each anchor to any anchor in attack range of `goal`, by terrain only.
-func _distance_field(u: Unit, goal: Unit) -> Dictionary:
-	var field := {}
-	var queue: Array[Vector2i] = []
-	for x in range(1, board.width + 1):
-		for y in range(1, board.height + 1):
-			var a := Vector2i(x, y)
-			if _terrain_ok(u, a) and u.distance_to_unit(a, goal, goal.pos) <= u.attack_range \
-					and u.distance_to_unit(a, goal, goal.pos) >= 1:
-				field[a] = 0
-				queue.append(a)
-	var i := 0
-	while i < queue.size():
-		var at := queue[i]
-		i += 1
-		for d in Defs.DIRS:
-			var n: Vector2i = at + d
-			if field.has(n) or not _terrain_ok(u, n):
-				continue
-			field[n] = field[at] + board.step_cost(u, n)
-			queue.append(n)
-	return field
-
-
-func _terrain_ok(u: Unit, a: Vector2i) -> bool:
-	for t in u.tiles_at(a):
-		if not board.in_bounds(t) or board.is_blocking_terrain(t):
-			return false
-	return true
+			best = s
+	if best != u.pos:
+		battle.enemy_move(u, r.path_to(best))
 
 
 func _nearest_hostile(u: Unit) -> Unit:
 	var best: Unit = null
-	var bd := 1 << 30
-	for t in board.living_units():
-		if not u.is_hostile_to(t) or t.broken:
+	var bd := INF
+	for t in field.living_units():
+		if not u.is_hostile_to(t):
 			continue
-		var d := u.distance_to_unit(u.pos, t, t.pos)
+		var d := u.gap_to(t)
 		if d < bd:
 			bd = d
 			best = t
@@ -209,7 +178,7 @@ func _captain(u: Unit) -> void:
 			return
 	var plan := best_plan(u)
 	if not plan.is_empty():
-		battle.enemy_move(u, plan.anchor, plan.path)
+		battle.enemy_move(u, plan.path)
 		if battle.can_target(u, plan.target):
 			battle.enemy_attack(u, plan.target)
 	else:
@@ -218,31 +187,42 @@ func _captain(u: Unit) -> void:
 		return
 	var lane := best_lane(u)
 	if not lane.is_empty():
-		battle.add_telegraph(u, lane.tiles, lane.dir, CUTTING_LINE_MIGHT)
+		battle.add_telegraph(u, lane.a, lane.b, CUTTING_LINE_HALF_WIDTH, CUTTING_LINE_MIGHT)
 
 
-func lane_tiles(u: Unit, dir: Vector2i) -> Array:
-	var out: Array = []
-	var at := u.pos
-	for i in CUTTING_LINE_LENGTH:
-		at += dir
-		if not board.in_bounds(at) or board.blocks_sight(at):
+## The lane from the Captain along `dir`, cut short by full cover.
+func lane(u: Unit, dir: Vector2) -> Dictionary:
+	var a := u.pos + dir * u.radius
+	var b := a
+	var step := 0.1
+	var travelled := 0.0
+	while travelled < CUTTING_LINE_LENGTH:
+		var nxt := b + dir * step
+		if not field.bounds().has_point(nxt) or not field.has_los(a, nxt):
 			break
-		out.append(at)
-	return out
+		b = nxt
+		travelled += step
+	return {"a": a, "b": b, "dir": dir}
 
 
-## Lane with the most player units in it; none if it would hit nobody.
+## The lane through the most player-side units; none if it would hit nobody.
+## Aims straight at each unit within reach of the blade, and at eight compass points.
 func best_lane(u: Unit) -> Dictionary:
+	var dirs: Array[Vector2] = []
+	for k in 8:
+		dirs.append(Vector2.RIGHT.rotated(TAU * k / 8.0))
+	for t in field.living_units():
+		if t.faction != Defs.Faction.ENEMY and u.gap_to(t) <= CUTTING_LINE_LENGTH:
+			dirs.append((t.pos - u.pos).normalized())
 	var best := {}
 	var best_n := 0
-	for d in Defs.DIRS:
-		var tiles := lane_tiles(u, d)
+	for d in dirs:
+		var l := lane(u, d)
 		var n := 0
-		for o in battle.units_in_tiles(tiles):
+		for o in battle.units_in_strip(l.a, l.b, CUTTING_LINE_HALF_WIDTH):
 			if o.faction != Defs.Faction.ENEMY:
 				n += 1
 		if n > best_n:
 			best_n = n
-			best = {"dir": d, "tiles": tiles}
+			best = l
 	return best

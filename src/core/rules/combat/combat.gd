@@ -4,10 +4,10 @@ extends RefCounted
 
 
 ## spec keys: might, type, accuracy (default BASE_ACCURACY), auto_hit, no_crit,
-## dmg_mult (extra multiplier, e.g. Opportunist), power_bonus
-static func preview(board: Board, attacker: Unit, att_anchor: Vector2i, defender: Unit, def_anchor: Vector2i, spec: Dictionary) -> Dictionary:
-	var dist := attacker.distance_to_unit(att_anchor, defender, def_anchor)
-	var ranged := dist >= 2
+## dmg_mult (extra multiplier, e.g. Opportunist), power_bonus, crit_bonus
+static func preview(field: Field, attacker: Unit, att_pos: Vector2, defender: Unit, def_pos: Vector2, spec: Dictionary) -> Dictionary:
+	var gap := Geometry.gap(att_pos, attacker.radius, def_pos, defender.radius)
+	var ranged := gap > Defs.MELEE_REACH
 	var rel := Defs.type_relation(spec.get("type", attacker.dmg_type), defender.dmg_type)
 
 	var power := attacker.power + int(spec.get("power_bonus", 0))
@@ -17,14 +17,12 @@ static func preview(board: Board, attacker: Unit, att_anchor: Vector2i, defender
 	mult *= float(spec.get("dmg_mult", 1.0))
 	if defender.status.has("guard_beam"):
 		mult *= 0.5
-	var dmg := int(round(base * mult))
-	dmg = maxi(dmg, 1)
+	var dmg := maxi(int(round(base * mult)), 1)
 
 	var cover := false
 	var evade := 0
 	if ranged:
-		var att_tile := _nearest_tile(attacker, att_anchor, def_anchor)
-		cover = board.has_half_cover(defender, def_anchor, att_tile) or defender.status.has("canopy")
+		cover = field.has_half_cover(defender, def_pos, att_pos) or defender.status.has("canopy")
 		if cover:
 			evade += Defs.HALF_COVER_EVASION
 		elif defender.id == "umbrella":
@@ -44,20 +42,10 @@ static func preview(board: Board, attacker: Unit, att_anchor: Vector2i, defender
 	}
 
 
-static func _nearest_tile(u: Unit, anchor: Vector2i, target: Vector2i) -> Vector2i:
-	var best := anchor
-	var bd := 1 << 30
-	for t in u.tiles_at(anchor):
-		var d := Defs.manhattan(t, target)
-		if d < bd:
-			bd = d
-			best = t
-	return best
-
-
-static func in_range(attacker: Unit, att_anchor: Vector2i, defender: Unit, def_anchor: Vector2i, min_r: int, max_r: int) -> bool:
-	var d := attacker.distance_to_unit(att_anchor, defender, def_anchor)
-	return d >= min_r and d <= max_r
+## Whether `defender` is within the edge-to-edge reach [min_r, max_r] of `attacker`.
+static func in_range(attacker: Unit, att_pos: Vector2, defender: Unit, def_pos: Vector2, min_r: float, max_r: float) -> bool:
+	var g := Geometry.gap(att_pos, attacker.radius, def_pos, defender.radius)
+	return g >= min_r - 0.001 and g <= max_r + 0.001
 
 
 static func collision_damage(u: Unit) -> int:

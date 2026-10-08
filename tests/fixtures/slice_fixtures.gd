@@ -1,7 +1,7 @@
 class_name SliceFixtures
 extends RefCounted
 
-## Builds the "Under the Desk" starting board from the same authored mission and
+## Builds the "Under the Desk" starting field from the same authored mission and
 ## roster the battle scene uses, so tests and tools never keep a copy of the data.
 
 const MISSION_PATH := "res://data/missions/under_the_desk.tres"
@@ -19,9 +19,9 @@ static func roster() -> Array[Dictionary]:
 	return defs
 
 
-static func board() -> Board:
-	return MissionSetup.build_board(mission(), roster())
+static func field() -> Field:
+	return MissionSetup.build_field(mission(), roster())
 
 
 static func battle(seed_value := 1) -> Battle:
-	return Battle.new(board(), seed_value)
+	return Battle.new(field(), seed_value)
