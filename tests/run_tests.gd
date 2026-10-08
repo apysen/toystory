@@ -144,7 +144,8 @@ func test_push_collision() -> void:
 	var hp := pencil.hp
 	b.forced_move(pencil, Vector2i(-1, 0), 2)
 	check(pencil.pos == Vector2i(7, 3), "push into desk leg stops")
-	check(pencil.hp == hp - 2, "collision = ceil(10 pct of 18) = 2, got %d" % (hp - pencil.hp))
+	check(pencil.hp == hp - Combat.collision_damage(pencil), "collision = ceil(10 pct of max HP), got %d" % (hp - pencil.hp))
+	check(Combat.collision_damage(pencil) == ceili(pencil.max_hp * 0.1), "collision rounds up")
 
 
 func test_heavy_frame() -> void:

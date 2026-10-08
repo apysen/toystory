@@ -35,11 +35,14 @@ var _env: Dictionary = {}
 var _props: Array = []
 var destroyed_cover := {} # tile -> kind
 var _camera: Camera2D
+var sfx: Sfx
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_env = EnvArt.load_all()
+	sfx = Sfx.new()
+	add_child(sfx)
 	_floor = _layer("Floor", _draw_floor)
 	_overlay = _layer("Overlay", _draw_overlay)
 	_units_layer = Node2D.new()
@@ -194,6 +197,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var t := px_to_tile(get_global_mouse_position())
 		if t != hover:
 			hover = t
+			if mode == Mode.SELECTED and move_set.has(t):
+				sfx.play("ui_move", -14.0)
 			_on_hover()
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -249,6 +254,7 @@ func _on_click(t: Vector2i) -> void:
 
 
 func select(u: Unit) -> void:
+	sfx.play("ui_select")
 	selected = u
 	inspected_enemy = null
 	move_set.clear()
@@ -260,6 +266,7 @@ func select(u: Unit) -> void:
 
 
 func cancel() -> void:
+	sfx.play("ui_cancel")
 	match mode:
 		Mode.SELECTED:
 			selected = null
@@ -431,6 +438,7 @@ func _check_finished() -> bool:
 		"broken": battle.board.units.filter(func(u): return u.faction == Defs.Faction.PLAYER and u.broken).map(func(u): return u.name),
 		"recruited": battle.recruited,
 	}
+	sfx.play("victory" if result.victory else "defeat", 0.0)
 	await _hud.banner("Victory" if result.victory else "Defeat")
 	battle_finished.emit(result)
 	return true
@@ -455,11 +463,13 @@ func _play(events: Array) -> void:
 			"strike":
 				var tv: UnitView = _views[e.target.id]
 				var av: UnitView = _views[e.attacker.id]
+				sfx.play(Sfx.attack_sound(e.attacker), -10.0)
 				var lunge := (tv.position - av.position).normalized() * 10.0
 				var tw := create_tween()
 				tw.tween_property(av, "position", av.position + lunge, 0.08)
 				tw.tween_property(av, "position", av.position, 0.08)
 				await tw.finished
+				sfx.play("miss" if not e.hit else ("crit" if e.crit else "hit"))
 				var txt := "Miss"
 				if e.hit:
 					txt = ("CRIT %d" if e.crit else "%d") % e.damage
@@ -480,20 +490,24 @@ func _play(events: Array) -> void:
 				var v: UnitView = _views[e.unit.id]
 				v.shown_hp = e.hp
 				v.queue_redraw()
+				sfx.play("heal")
 				_float_text(v.position + Vector2(0, -90), "+%d" % e.amount, Color("80ff90"))
 				_hud.log_line("%s recovers %d HP." % [e.unit.name, e.amount])
 				await get_tree().create_timer(0.25).timeout
 			"broken":
 				var v: UnitView = _views[e.unit.id]
 				_hud.log_line("%s is Broken." % e.unit.name)
+				sfx.play("broken")
 				var tw := create_tween()
 				tw.tween_property(v, "modulate:a", 0.0, 0.35)
 				await tw.finished
 				v.refresh()
 			"collision":
 				_hud.log_line("%s collides!" % e.unit.name)
+				sfx.play("collision")
 			"art":
 				_hud.log_line("%s uses %s." % [e.unit.name, e.name])
+				sfx.play(Sfx.ART_SOUNDS.get(e.art, ""))
 				await _hud.toast(e.name)
 			"area":
 				var col := Color(1, 0.6, 0.2, 0.45)
@@ -518,16 +532,19 @@ func _play(events: Array) -> void:
 				_hud.refresh()
 			"gaze":
 				_hud.log_line("Human Gaze! The human looks down.")
+				sfx.play("gaze", 0.0)
 				_sync_all()
 				await _hud.banner("Human Gaze")
 			"gaze_end":
 				_hud.log_line("The human looks away.")
+				sfx.play("gaze_end")
 				_sync_all()
 			"talk":
 				await _dialogue.play(SliceDialogue.RECRUIT)
 				_hud.log_line("Umbrella will join next Player Phase.")
 			"telegraph":
 				_hud.log_line("Paper Cutter marks a Cutting Line!")
+				sfx.play("telegraph")
 				_overlay.queue_redraw()
 				await get_tree().create_timer(0.35).timeout
 			"telegraph_cancel":
@@ -540,6 +557,7 @@ func _play(events: Array) -> void:
 			"phase":
 				_sync_all()
 				if e.phase == Defs.Phase.PLAYER:
+					sfx.play("phase")
 					await _hud.banner("Player Phase  -  Turn %d" % e.turn)
 		_sync_all()
 
@@ -673,7 +691,8 @@ func _draw_overlay(n: Node2D) -> void:
 	if mode == Mode.SELECTED and selected != null:
 		for a in move_set:
 			for t in selected.tiles_at(a):
-				n.draw_rect(tile_rect(t).grow(-2), Color(0.3, 0.6, 1.0, 0.33))
+				n.draw_rect(tile_rect(t).grow(-3), Color(0.35, 0.65, 1.0, 0.22))
+				n.draw_rect(tile_rect(t).grow(-3), Color(0.55, 0.8, 1.0, 0.45), false, 2.0)
 	# Target highlights.
 	if mode == Mode.TARGET:
 		for o in target_options:

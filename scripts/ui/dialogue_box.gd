@@ -24,6 +24,7 @@ func _ready() -> void:
 	_panel.offset_left = 24
 	_panel.offset_right = -24
 	_panel.offset_bottom = -16
+	_panel.add_theme_stylebox_override("panel", BattleHud.panel_style())
 	add_child(_panel)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)

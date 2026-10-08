@@ -1,0 +1,16 @@
+{
+ "frame_width": 256,
+ "frame_height": 256,
+ "footprint_tiles": [
+  2,
+  2
+ ],
+ "foot_pivot": [
+  118,
+  255
+ ],
+ "colours": 8,
+ "fps": 8,
+ "source": "assets/animations/vacuum/vacuum_idle (64px originals, unchanged) via the 128 conversion's palette",
+ "note": "rebuilt at 4x with 1px linework (Scale4x + outline thinning + dither pass), not a nearest upscale; two near-duplicate rows removed for a 1px margin"
+}

@@ -28,6 +28,7 @@ func _ready() -> void:
 	bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	bar.offset_bottom = 40
 	bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	bar.add_theme_stylebox_override("panel", panel_style())
 	add_child(bar)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 24)
@@ -51,6 +52,7 @@ func _ready() -> void:
 	side.offset_left = -PANEL_W
 	side.offset_top = 44
 	side.mouse_filter = Control.MOUSE_FILTER_STOP
+	side.add_theme_stylebox_override("panel", panel_style())
 	add_child(side)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
@@ -86,6 +88,15 @@ func _ready() -> void:
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.visible = false
 	add_child(_toast)
+
+
+static func panel_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("1d1a22f0")
+	sb.border_color = Color("4a4256")
+	sb.set_border_width_all(2)
+	sb.set_content_margin_all(10)
+	return sb
 
 
 func _rich(parent: Node, min_h: int) -> RichTextLabel:

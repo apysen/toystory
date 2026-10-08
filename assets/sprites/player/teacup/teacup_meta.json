@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  61,
+  123
+ ],
+ "colours": 8,
+ "fps": 8,
+ "source": "assets/animations/teacup/ (your originals, unchanged)"
+}

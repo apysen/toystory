@@ -1,0 +1,12 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  58,
+  114
+ ],
+ "colours": 8,
+ "fps": 8,
+ "source": "assets/animations/umbrella/umbrella_idle/ (your originals, unchanged)",
+ "note": "quantised to the existing umbrella palette; light outline-gap pixels closed to black"
+}

@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  66,
+  119
+ ],
+ "colours": 8,
+ "fps": 8,
+ "source": "assets/animations/toaster/ (your originals, unchanged)"
+}
