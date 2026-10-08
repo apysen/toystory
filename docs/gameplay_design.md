@@ -11,7 +11,7 @@ The combat direction combines three major influences:
 - **Mario + Rabbids: Sparks of Hope** for compact battlefields, readable movement zones, cover, destructible terrain, and highly positional ability use.
 - **Into the Breach-style clarity** for telegraphed high-impact enemy actions and a strong emphasis on understanding danger before committing to a move.
 
-The unique mechanic is **Human Gaze**. Powerful abilities create Noise. When enough Noise is generated, a human looks toward the battlefield. Objects caught in that gaze revert to mundane object form and stop fighting temporarily. While any Gaze is active, all Noise-generating Arts are disabled across the entire battlefield.
+The unique mechanic is **Human Gaze**. Player Arts can create Noise. When enough Noise is generated, a human looks toward the battlefield. Objects caught in that gaze revert to mundane object form and stop fighting temporarily. While any Gaze is active, all player Noise-generating Arts are disabled across the entire battlefield. Regular enemies do not use the player Noise/Art economy.
 
 The goal is not to make the game mechanically dense. The goal is to create a small number of systems that interact cleanly and produce interesting positioning decisions.
 
@@ -98,7 +98,7 @@ Once the Action is committed, that character's activation ends.
 
 All enemies activate according to their AI priorities.
 
-High-impact enemy Arts are often telegraphed during the preceding Player Phase so the player has an opportunity to respond.
+High-impact enemy **Techniques** are often telegraphed during the preceding Player Phase so the player has an opportunity to respond. Regular enemies do not use player-style Art menus or the shared Noise economy.
 
 ## No Universal Action Points
 
@@ -581,9 +581,9 @@ Example:
 
 ## Global Quiet Rule
 
-While **any Human Gaze is active anywhere on the battlefield**, no Noise-generating Art may be used by anyone on the field.
+While **any Human Gaze is active anywhere on the battlefield**, no player Noise-generating Art may be used.
 
-This applies even to units outside the watched area.
+This applies even to playable units outside the watched area. Regular enemies do not have Noise Arts, so they do not interact with this restriction through the Noise system.
 
 Allowed actions outside the watched area include:
 
@@ -664,7 +664,7 @@ Cable still cannot:
 
 Routine enemy Basic Attacks are chosen during Enemy Phase.
 
-High-impact enemy Arts should often be telegraphed in advance.
+High-impact enemy **Techniques** should often be telegraphed in advance. Enemy Techniques are not player Arts and do not use Noise. They exist to create clear tactical problems rather than to give enemies full player-style movesets.
 
 Examples:
 
@@ -832,22 +832,82 @@ Prototype reference map:
 
 ---
 
-# 28. Prototype Enemy Archetypes
+# 28. Enemy Design and Prototype Archetypes
 
-The reusable enemy vocabulary currently includes:
+## 28.1 Enemy Design Philosophy
 
-| Enemy | Type | Role |
-|---|---|---|
-| Bookend Guard | Smash | Defensive blocker |
-| Pencil Lancer | Pierce | Mobile attacker |
-| Rubber Band Snarer | Bind | Pull/control |
-| Battery Cell | Neutral | Support |
-| Wind-Up Toy | Smash | Charging aggressor |
-| Paper Cutter | Pierce | Slow telegraphed heavy striker |
-| Tape Dispenser | Bind | Terrain control |
-| Robot Vacuum | Bind | Expected Behavior positioning unit |
+Enemies should **not** use the same full moveset structure as playable characters.
 
-Faction identity should often modify behavior rather than requiring a completely new enemy roster.
+Playable characters are designed to create combinations. Enemies are designed to create clear tactical problems.
+
+The average enemy should be understandable almost immediately from its silhouette, type, Basic Attack, and one defining behavior. The player should not need to open several ability pages to understand what a normal enemy can do.
+
+Regular enemies also do **not** use the shared Noise meter and do not have player-style Noise Arts. Human Attention caused by enemies should come from explicit, telegraphed encounter mechanics such as an alarm, ringing object, squeaky mechanism, or boss-specific effect rather than hidden Noise generation.
+
+### Regular Enemies
+
+A normal enemy has:
+
+- **1 Basic Attack**
+- **1 defining Trait or built-in attack effect**
+
+The defining mechanic may be something like pulling, charging, resisting displacement, or creating terrain. It should usually be part of the enemy's normal behavior rather than a menu containing several choices.
+
+### Specialist Enemies
+
+A less-common specialist may have:
+
+- **1 Basic Attack**
+- **1 Technique**
+
+The Technique should be the primary reason that enemy matters. It may be telegraphed when appropriate.
+
+### Elite or Named Enemies
+
+An elite or recurring rival may have:
+
+- **1 Basic Attack**
+- **1 Technique**
+- **1 Passive or faction-specific Trait**
+
+This is enough to make an elite distinctive without giving it a playable-character-sized kit.
+
+### Bosses
+
+Bosses may have:
+
+- **1 Basic Attack**
+- **2 to 3 encounter mechanics or Techniques**
+- **1 Passive or phase change when needed**
+
+Boss complexity should come primarily from the encounter, map, telegraphs, Human Gaze interactions, reinforcements, and objectives rather than from a large ability bar.
+
+## 28.2 Prototype Enemy Archetypes
+
+| Enemy | Type | Basic Attack | Defining Mechanic |
+|---|---|---|---|
+| **Bookend Guard** | Smash | **Bash** | Difficult to displace and holds/protects a lane |
+| **Pencil Lancer** | Pierce | **Thrust** | Gains value from straight-line approach or charge movement |
+| **Rubber Band Snarer** | Bind | **Snap** | Successful attacks pull the target 1 tile |
+| **Battery Cell** | Neutral | **Zap** | Specialist Technique: temporarily powers up one nearby ally |
+| **Wind-Up Toy** | Smash | **Ram** | Ram becomes stronger or pushes farther after a long approach |
+| **Paper Cutter** | Pierce | **Cut** | Specialist Technique: telegraphed **Cutting Line** attack |
+| **Tape Dispenser** | Bind | **Tape Lash** | Creates sticky terrain as part of its attack pattern |
+| **Robot Vacuum** | Bind | **Bump** | **Expected Behavior:** may move during Human Gaze, but cannot attack while watched |
+
+Faction identity should modify how these archetypes behave rather than requiring a completely new enemy roster for every faction.
+
+## 28.3 Readability Rule
+
+When the player inspects a regular enemy, the UI should normally need to communicate only:
+
+- type;
+- movement and attack range;
+- Basic Attack;
+- defining Trait or Technique;
+- current telegraph, if any.
+
+If a normal enemy requires the player to memorize several cooldowns or conditional abilities, the enemy is probably too complicated.
 
 ---
 
