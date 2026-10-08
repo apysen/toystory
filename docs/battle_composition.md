@@ -43,6 +43,7 @@ BattleRoot (Node3D)        (src/core/nodes/battle/battle_root.gd)
 ├── GameplayComponents
 │   ├── UnitProfiles       (scenes/units/unit_profiles.tscn)
 │   ├── AudioSettings
+│   ├── DisplaySettings
 │   ├── PlaytestMetrics
 │   └── BattleAudio
 │       └── Music
@@ -92,6 +93,7 @@ of their rules:
 | `EventPlayer` | Turning battle events into movement, animation, effects, sound and notices |
 | `EffectsLayer` | One-shot bursts, projectiles, floating numbers, the Gaze puff |
 | `BattleAudio`, `AudioSettings` | Effect voices, the battle theme; the volume slider's bus and saved setting |
+| `DisplaySettings` | Windowed or fullscreen (pause menu, F11), saved between sessions; also on `AppRoot` so the menus start in the saved mode |
 | `PlaytestMetrics` | The section 26 playtest numbers and the per-battle JSON file |
 
 | Sub-scene | Reports |

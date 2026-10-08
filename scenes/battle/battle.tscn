@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/battle/battle_root.gd" id="1_root"]
 [ext_resource type="Resource" path="res://data/missions/under_the_desk.tres" id="2_mission"]
@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://src/core/nodes/battle/audio_settings.gd" id="13_settings"]
 [ext_resource type="PackedScene" path="res://scenes/ui/menus/pause_menu.tscn" id="14_pause"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/ground_overlays.gd" id="15_overlays"]
+[ext_resource type="Script" path="res://src/core/nodes/app/display_settings.gd" id="20_display"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/threat_arcs.gd" id="16_arcs"]
 [ext_resource type="Script" path="res://src/core/nodes/ui/unit_plates.gd" id="17_plates"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/action_ring.tscn" id="18_ring"]
@@ -48,13 +49,14 @@ dof_blur_far_enabled = true
 dof_blur_near_enabled = true
 dof_blur_amount = 0.06
 
-[node name="BattleRoot" type="Node3D" node_paths=PackedStringArray("unit_profiles", "metrics", "audio", "audio_settings", "camera", "diorama", "units_root", "overlays", "arcs", "effects", "event_player", "hud", "plates", "ring", "preview", "dialogue", "pause_menu")]
+[node name="BattleRoot" type="Node3D" node_paths=PackedStringArray("unit_profiles", "metrics", "audio", "audio_settings", "display_settings", "camera", "diorama", "units_root", "overlays", "arcs", "effects", "event_player", "hud", "plates", "ring", "preview", "dialogue", "pause_menu")]
 script = ExtResource("1_root")
 mission = ExtResource("2_mission")
 unit_profiles = NodePath("GameplayComponents/UnitProfiles")
 metrics = NodePath("GameplayComponents/PlaytestMetrics")
 audio = NodePath("GameplayComponents/BattleAudio")
 audio_settings = NodePath("GameplayComponents/AudioSettings")
+display_settings = NodePath("GameplayComponents/DisplaySettings")
 camera = NodePath("BattleCamera")
 diorama = NodePath("World/Diorama")
 units_root = NodePath("World/Units")
@@ -75,6 +77,9 @@ pause_menu = NodePath("Interface/PauseMenu")
 
 [node name="AudioSettings" type="Node" parent="GameplayComponents"]
 script = ExtResource("13_settings")
+
+[node name="DisplaySettings" type="Node" parent="GameplayComponents"]
+script = ExtResource("20_display")
 
 [node name="PlaytestMetrics" type="Node" parent="GameplayComponents"]
 script = ExtResource("4_metrics")

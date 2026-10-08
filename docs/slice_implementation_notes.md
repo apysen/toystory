@@ -25,6 +25,7 @@ Rule constants live in `src/core/models/battle/defs.gd` and `src/core/models/art
 | Pan the camera (nobody controlled) | WASD, middle-drag, click the minimap | Left stick |
 | End turn | T, or the End Turn button | LB-left bumper (button 4) |
 | Pause | Esc with nobody controlled | Start |
+| Fullscreen | F11, or the pause menu | Pause menu |
 
 ## Scale and space
 

@@ -22,8 +22,6 @@ const CARD_HEIGHT := 0.45
 ## Half-width of the line in metres: thin, a little thicker for heavier hits.
 @export var min_width := 0.012
 @export var max_width := 0.022
-## Half-width of the arrowhead at the target end.
-@export var head_width := 0.08
 ## Arc height as a share of its length.
 @export var lift := 0.28
 
@@ -87,16 +85,12 @@ func _arc(im: ImmediateMesh, cam: Camera3D, a: Vector3, b: Vector3, width: float
 		var side := tangent.cross(to_cam).normalized() * width
 		var u0 := float(k) / segments
 		var u1 := float(k + 1) / segments
-		# A thin line, flaring into an arrowhead over the last two segments.
-		var head := side.normalized() * head_width
-		var w0 := side if k < segments - 2 else head * float(segments - k) / 2.0
-		var w1 := side if k < segments - 2 else head * float(segments - k - 1) / 2.0
-		_vert(im, p0 + w0, Vector2(u0, 0), col)
-		_vert(im, p0 - w0, Vector2(u0, 1), col)
-		_vert(im, p1 - w1, Vector2(u1, 1), col)
-		_vert(im, p0 + w0, Vector2(u0, 0), col)
-		_vert(im, p1 - w1, Vector2(u1, 1), col)
-		_vert(im, p1 + w1, Vector2(u1, 0), col)
+		_vert(im, p0 + side, Vector2(u0, 0), col)
+		_vert(im, p0 - side, Vector2(u0, 1), col)
+		_vert(im, p1 - side, Vector2(u1, 1), col)
+		_vert(im, p0 + side, Vector2(u0, 0), col)
+		_vert(im, p1 - side, Vector2(u1, 1), col)
+		_vert(im, p1 + side, Vector2(u1, 0), col)
 
 
 func _floor_arrow(im: ImmediateMesh, from: Vector2, to: Vector2, col: Color) -> void:

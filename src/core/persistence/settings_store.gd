@@ -7,6 +7,7 @@ extends RefCounted
 
 const PATH := "user://settings.cfg"
 const AUDIO_SECTION := "audio"
+const DISPLAY_SECTION := "display"
 
 
 static func read_volume(key: String, fallback: float) -> float:
@@ -21,4 +22,18 @@ static func write_volume(key: String, value: float) -> void:
 	var config := ConfigFile.new()
 	config.load(PATH)
 	config.set_value(AUDIO_SECTION, key, clampf(value, 0.0, 1.0))
+	config.save(PATH)
+
+
+static func read_flag(key: String, fallback: bool) -> bool:
+	var config := ConfigFile.new()
+	if config.load(PATH) != OK:
+		return fallback
+	return bool(config.get_value(DISPLAY_SECTION, key, fallback))
+
+
+static func write_flag(key: String, value: bool) -> void:
+	var config := ConfigFile.new()
+	config.load(PATH)
+	config.set_value(DISPLAY_SECTION, key, value)
 	config.save(PATH)

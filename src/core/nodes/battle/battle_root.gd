@@ -32,6 +32,7 @@ const Mode := BattleSelection.Mode
 @export var metrics: PlaytestMetrics
 @export var audio: BattleAudio
 @export var audio_settings: AudioSettings
+@export var display_settings: DisplaySettings
 
 @export_group("World")
 @export var camera: BattleCamera
@@ -73,7 +74,7 @@ func _ready() -> void:
 	hud.minimap.focus_requested.connect(func(p: Vector2) -> void: camera.look_at_point(BattleSpace.to_world(p)))
 	ring.chosen.connect(choose_action)
 	ring.cancelled.connect(_close_menu)
-	pause_menu.setup(audio_settings)
+	pause_menu.setup(audio_settings, display_settings)
 	pause_menu.opened.connect(_set_paused.bind(true))
 	pause_menu.closed.connect(_set_paused.bind(false))
 	pause_menu.main_menu_requested.connect(_abandon)

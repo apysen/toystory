@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/app/app_root.gd" id="1_app"]
 [ext_resource type="Resource" path="res://data/missions/under_the_desk.tres" id="2_mission"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/menus/mission_select.tscn" id="5_select"]
 [ext_resource type="PackedScene" path="res://scenes/ui/menus/team_preview.tscn" id="6_preview"]
 [ext_resource type="PackedScene" path="res://scenes/ui/menus/results_screen.tscn" id="7_results"]
+[ext_resource type="Script" path="res://src/core/nodes/app/display_settings.gd" id="8_display"]
 
 [node name="AppRoot" type="Node" node_paths=PackedStringArray("unit_profiles", "mission_select", "team_preview", "results_screen")]
 script = ExtResource("1_app")
@@ -18,6 +19,9 @@ team_preview = NodePath("Menus/TeamPreview")
 results_screen = NodePath("Menus/ResultsScreen")
 
 [node name="UnitProfiles" parent="." instance=ExtResource("3_profiles")]
+
+[node name="DisplaySettings" type="Node" parent="."]
+script = ExtResource("8_display")
 
 [node name="Menus" type="CanvasLayer" parent="."]
 layer = 5
