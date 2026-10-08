@@ -8,10 +8,13 @@ The game is a compact turn-based tactics RPG about ordinary household objects th
 The combat direction combines three major influences:
 
 - **Fire Emblem** for player-phase and enemy-phase structure, combat forecasts, counterattacks, character recruitment, leveling, and a simple type triangle.
-- **Mario + Rabbids: Sparks of Hope** for compact battlefields, readable movement zones, cover, destructible terrain, and highly positional ability use.
+- **Mario + Rabbids: Sparks of Hope** for compact battlefields, free movement inside a movement radius (no grid), a free camera centred on the character being moved, cover, destructible terrain, and highly positional ability use.
+- **XCOM** for ranges measured as a set radius per attack and ability, with a hit chance that cover lowers.
 - **Into the Breach-style clarity** for telegraphed high-impact enemy actions and a strong emphasis on understanding danger before committing to a move.
 
 The unique mechanic is **Human Gaze**. Player Arts can create Noise. When enough Noise is generated, a human looks toward the battlefield. Objects caught in that gaze revert to mundane object form and stop fighting temporarily. While any Gaze is active, all player Noise-generating Arts are disabled across the entire battlefield. Regular enemies do not use the player Noise/Art economy.
+
+Presentation is **HD-2D** (Square Enix's Octopath / Triangle Strategy look, and the Kowloon project's diorama): lit, modelled 3D environments with 2D pixel-art characters on cards that turn to face the camera. See section 4.5.
 
 The goal is not to make the game mechanically dense. The goal is to create a small number of systems that interact cleanly and produce interesting positioning decisions.
 
@@ -78,7 +81,7 @@ The player activates deployed characters in any order.
 
 Each character receives:
 
-1. **Movement**
+1. **Movement** — free movement anywhere inside the character's movement radius
 2. **One Action**
 
 The Action can be:
@@ -90,9 +93,9 @@ The Action can be:
 - Recruitment conversation
 - Mission objective action
 
-A character normally moves first, then acts.
+A character normally moves first, then acts. Until it acts, its move can be undone (it returns to where its activation began), and the player can switch to another character and come back; a character left without acting stays where it was left.
 
-Once the Action is committed, that character's activation ends.
+Once the Action is committed, that character's activation ends. There is no dash, team jump, or movement after acting.
 
 ## Enemy Phase
 
@@ -110,17 +113,19 @@ The simple movement-plus-action structure should remain the baseline unless a sp
 
 # 4. Movement and Tactical Preview
 
-## 4.1 Movement Zone
+## 4.1 Movement Area
 
-Selecting a character displays the full set of reachable tiles as a clear movement region.
+There is no grid. Selecting a character takes control of it: the camera centres on it and it can be steered freely (stick, keys, or a click on the floor) anywhere inside its movement area.
 
-The player should not need to manually count tiles.
+The area is drawn on the floor. It is measured as a walking distance from where the activation began (Move, in metres), so it bends around furniture, shrinks through spilled liquid, and is blocked by enemies; allies can be walked past but not stood on. A marker shows where the move began, so undoing it is always obvious.
 
-## 4.2 Dynamic Threat Lines
+The player should never need to measure distances by eye: the area shows where the character can go, and each action's reach is drawn as a ring when it is chosen.
 
-While the player moves the cursor through reachable tiles, the game dynamically evaluates the proposed destination.
+## 4.2 Dynamic Threat Arcs
 
-Every enemy capable of threatening that character from that tile displays a line toward the destination.
+While the player moves a character, the game continuously evaluates where it stands (Fire Emblem Fortune's Weave style).
+
+Every enemy capable of threatening that character there draws a thin pulsing arc from itself to the character. Colour says what kind of hit it is (normal, high crit, type advantage, push or pull); brightness follows the hit chance; pulses travel toward the target.
 
 Threat lines should distinguish between:
 
@@ -136,7 +141,7 @@ Lower-risk attacks can be displayed less prominently, but they remain visible.
 
 ## 4.3 Predicted HP
 
-While hovering a destination, the selected character's HP bar displays a ghosted projected result.
+As the character moves, the HP bar above it shows the projected result of stopping where it currently is: the HP it would lose pulses, and a red X appears when it could be Broken.
 
 Example:
 
@@ -157,7 +162,7 @@ The interface can also show a simple warning such as:
 - **High Risk**
 - **Broken Risk**
 
-Hovering a specific threat line can show exact details such as:
+Inspecting a specific threat (clicking the enemy) can show exact details such as:
 
 - enemy name;
 - damage;
@@ -168,7 +173,7 @@ Hovering a specific threat line can show exact details such as:
 
 ## 4.4 Displacement Preview
 
-If a threatened attack could push or pull the selected unit, the projected movement should be shown with an arrow.
+If a threatened attack could push or pull the selected unit, the projected movement is shown with an arrow on the floor.
 
 If collision damage would occur, the preview should state it explicitly.
 
@@ -177,6 +182,15 @@ Example for a unit with 30 Max HP:
 **8 Damage + 3 Collision**
 
 The preview should always show the actual integer HP loss, even when the underlying effect is percentage-based.
+
+## 4.5 Presentation, Camera, and Choosing an Action
+
+- **Environment:** a modelled 3D room at toy scale, lit and shaded; furniture placed exactly where the rules put it, so what blocks a character is what the player sees.
+- **Characters:** 2D pixel art on cards that face the camera. Side views only; a card mirrors to show which way the character is heading relative to the camera. Cards stay whole in front of or behind furniture, and show as a silhouette when hidden.
+- **Camera:** a free perspective orbit (rotate, tilt within limits, zoom, pan). It centres on the character being controlled and glides to each enemy as it acts.
+- **Interface:** just the game, a minimap (bottom right, click to move the camera), the objective (top left), and the turn number and Noise meter (bottom left). Units carry small HP bars.
+- **Action ring:** when the player is ready to act, a ring of every available action appears above the character (Paper Mario: The Thousand-Year Door). The hovered action's description sits in a box above the ring; arrows either side, left/right or the D-pad turn it one action at a time.
+- **Battle preview:** after an action and target are chosen, a head-to-head preview appears at the bottom of the screen with Fire Emblem's information — both sides' HP before and after, damage, hit and crit for each strike in order including counters — and a red X beside any strike that would Break its target. It is styled in the game's own toy-box personality.
 
 ---
 
@@ -200,14 +214,16 @@ Their physical footprint is already a substantial tactical cost.
 
 There are only two gameplay size categories.
 
+Units are circles on the floor; ranges are measured edge to edge.
+
 ## Normal
 
-- Occupies 1 tile.
+- Body radius 0.3 m.
 - Covers the majority of playable and enemy units.
 
 ## Large
 
-- Occupies a 2x2 footprint.
+- Body radius 0.75 m (the old 2x2 footprint).
 - Usually has higher HP and Defense.
 - Often has lower Move.
 - Requires wider routes.
@@ -394,6 +410,8 @@ Prototype effect:
 
 **+25 percentage points ranged evasion**
 
+It applies to a ranged attack when the half-cover object stands close to the target (within about 1.2 m), between it and the shot. Half cover blocks movement but not line of sight. Large units are too big to hide behind it.
+
 Often destructible.
 
 Examples:
@@ -405,7 +423,7 @@ Examples:
 
 ## Full Cover
 
-Blocks direct line of sight.
+Blocks direct line of sight: any shot whose line crosses it is impossible.
 
 Usually indestructible or much harder to destroy.
 
@@ -448,6 +466,8 @@ Characters such as Vacuum, Fan, Cable, and Smash-focused units rely on displacem
 ## Collision
 
 If a unit is pushed into solid terrain, it takes collision damage that scales with the unit rather than becoming irrelevant later in the campaign.
+
+Push and pull distances are in metres (one old tile = 1 m). A pushed unit slides in a straight line and stops at whatever it hits; a pulled unit stops when it touches the puller or something is in the way.
 
 Prototype value:
 
@@ -546,11 +566,11 @@ Human Gaze is the signature battlefield mechanic.
 
 When Noise reaches the threshold, the action that crossed the threshold resolves first.
 
-Then the acting character's tile becomes the default **Attention Point**.
+Then the acting character's position becomes the default **Attention Point**.
 
 Prototype Gaze area:
 
-**3x3 tiles centered around the Attention Point**
+**A circle of 1.6 m radius around the Attention Point** (the old 3x3 tiles)
 
 ## Watched Units
 
@@ -562,7 +582,7 @@ Ordinary awakened objects caught in Gaze:
 - cannot attack;
 - cannot counterattack;
 - cannot be attacked;
-- still physically occupy their tiles.
+- still physically occupy their space.
 
 This means transformed units can temporarily become physical obstacles.
 
@@ -649,7 +669,7 @@ Cable's paralogue later unlocks **Slip the Gaze**.
 
 Slip the Gaze allows Cable to:
 
-- move up to 3 tiles while watched;
+- move up to 3 m while watched;
 - perform noncombat interactions while watched.
 
 Cable still cannot:
@@ -828,7 +848,7 @@ Map size should be determined by tactical pacing rather than a fixed universal d
 
 Prototype reference map:
 
-**15 x 11 tiles**
+**15 m x 11 m** (authored on a 1 m layout grid; play itself has no grid)
 
 ---
 
@@ -888,7 +908,7 @@ Boss complexity should come primarily from the encounter, map, telegraphs, Human
 |---|---|---|---|
 | **Bookend Guard** | Smash | **Bash** | Difficult to displace and holds/protects a lane |
 | **Pencil Lancer** | Pierce | **Thrust** | Gains value from straight-line approach or charge movement |
-| **Rubber Band Snarer** | Bind | **Snap** | Successful attacks pull the target 1 tile |
+| **Rubber Band Snarer** | Bind | **Snap** | Successful attacks pull the target 1 m |
 | **Battery Cell** | Neutral | **Zap** | Specialist Technique: temporarily powers up one nearby ally |
 | **Wind-Up Toy** | Smash | **Ram** | Ram becomes stronger or pushes farther after a long approach |
 | **Paper Cutter** | Pierce | **Cut** | Specialist Technique: telegraphed **Cutting Line** attack |

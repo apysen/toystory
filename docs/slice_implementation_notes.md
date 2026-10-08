@@ -5,37 +5,63 @@ Rule constants live in `src/core/models/battle/defs.gd` and `src/core/models/art
 
 ## Running
 
-- Open the project in Godot 4.7 and press Play. The flow is Mission Select, Team Preview, pre-battle talk, battle, results.
-- Battle controls: left-click to select, move and target; right-click or Esc to go back; WASD/arrows or middle-drag to pan; mouse wheel to zoom out.
-- All tests: `powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1` (structure check, rule tests, full-battle smoke test)
-- Screenshots (needs a display): `godot --path . --script res://tools/screenshot.gd -- <out_dir>`
+- Open the project in Godot 4.7 (Forward+) and press Play. The flow is Mission Select, Team Preview, pre-battle talk, battle, results.
+- All tests: `powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1` (structure check, rule tests, pause menu, full-battle smoke test).
+- Screenshots (needs a display): `godot --path . --script res://tools/screenshot.gd -- <out_dir>`.
+- Balance check with the bot: `godot --headless --path . --script res://tools/autoplay.gd -- [runs]`.
 
-## Scale
+## Controls
 
-- Tiles are 128px (chosen by Apy on 2026-10-08) so each 128x128 character sprite fits its own tile. The 15x11 map is 1920x1408, so the camera scrolls.
-- Sprites and map art load from `assets/sprites/...` when present; anything missing draws as a graybox block.
+| | Keyboard and mouse | Controller |
+|---|---|---|
+| Take control of a unit | Click it, or Tab | RB / LB |
+| Move the controlled unit | WASD / arrows, or click a spot inside its area | Left stick |
+| Undo the move | Z | X |
+| Let go of the unit | Esc | B |
+| Open the action ring | Space / Enter, or click the unit | A |
+| Turn the ring / change target / turn a cone | ← → (or A / D), arrow buttons, mouse | D-pad, left stick |
+| Confirm / back | Space / Esc | A / B |
+| Orbit, tilt, zoom the camera | Q / E, R / F, mouse wheel; right-drag to orbit and tilt | Right stick, triggers |
+| Pan the camera (nobody controlled) | WASD, middle-drag, click the minimap | Left stick |
+| End turn | T, or the End Turn button | LB-left bumper (button 4) |
+| Pause | Esc with nobody controlled | Start |
+
+## Scale and space
+
+- Play has no grid. The floor is 15 m x 11 m, authored on a 1 m grid: tile (x, y) is the square from (x-1, y-1) to (x, y) metres, and "up the map" is world -z.
+- Units are circles (Normal 0.3 m, Large 0.75 m); ranges are edge-to-edge gaps in metres (old range r tiles = r - 0.4 m; 0.6 m is melee).
+- Movement areas come from `ReachField`: Dijkstra over 0.25 m samples with diagonal steps, so the area follows furniture; spill and tape cost three times the distance. The area is measured from where the activation began, which is what makes undo and switching units work.
+- Sprites are drawn at 128 px per metre on cards. Cards lean back toward the camera (`UnitCard.lean`, 0.75) so a steep camera still sees the character; shadow casters stay upright.
 
 ## Choices the docs left open
 
 | Topic | Implementation |
 |---|---|
-| Enemy stats | Proposed in `under_the_desk.gd` (the docs only give types and traits). |
-| Half cover | Impassable. Gives +25 evasion against ranged attacks (distance 2+) when it sits on the side facing the attacker. Large units can't use it. |
-| Line of sight | Blocked by full cover between tile centres; grazing a corner doesn't block. |
-| Passing units | Units can pass through non-frozen allies but not enemies, neutrals or frozen objects. |
-| Gaze centre | The acting unit's tile (its bottom-left tile for Vacuum). |
+| Enemy stats | Proposed on their `UnitProfile` nodes (the docs only give types and traits). |
+| Furniture footprints | Per kind in the mission: desk legs 0.7 m, chair column 0.5 m, books 0.85 x 0.7 m, boxes 0.85 m and 0.65 m, cabinet one 2 x 2 m block. |
+| Half cover | Blocks movement, not sight. +25 evasion against a ranged attack (gap > 0.6 m) when it stands within 1.2 m of the target, on the line of the shot. Large units can't use it. |
+| Line of sight | Blocked when the line between unit centres crosses full cover. |
+| Passing units | Units can walk past non-frozen allies but not enemies, neutrals or frozen objects, and can't end overlapping anyone. |
+| Gaze | A 1.6 m circle around the acting unit; a unit is watched when its centre is within the radius plus half its body. |
+| Cones | Flashbulb, Flash Bake and Blowback reach 1.8 m past the user's edge with a 40° half-angle, aimed in any direction. |
+| Lunge | A clear straight dash of up to 3 m that stops in front of the target, then attacks (Might 6). |
 | Robot Vacuum | Never transforms. While any Gaze is active it moves but can't attack; inside the watched area it also can't be attacked. |
-| Pencil Lancer | Charge: +20% damage after moving 3+ tiles. |
-| Rubber Band Snarer | Snap pulls the target 1 tile on hit. AI prefers targets next to half cover. |
-| Tape Dispenser | Tape Lash on hit makes the target's tile sticky (+2 to enter) and gives -2 Move on its next activation. |
-| Bookend Guard | Stays within 2 tiles of its start until 3 enemies are Broken. Forced movement reduced by 1. |
-| Paper Cutter | Alternates: acts and marks a 1x5 Cutting Line, then resolves it next Enemy Phase (auto-hit, Might 7, destroys cardboard). Cancelled if the Captain was displaced or is watched. |
+| Pencil Lancer | Charge: +20% damage after moving 3 m or more. |
+| Rubber Band Snarer | Snap pulls the target 1 m on hit. AI prefers targets tucked against half cover. |
+| Tape Dispenser | Tape Lash on hit leaves a 0.55 m sticky patch (x3 cost) and -2 m Move on its next activation. |
+| Bookend Guard | Stays within 2 m of its start until 3 enemies are Broken. Forced movement reduced by 1 m. |
+| Paper Cutter | Alternates: acts and marks a 5 m Cutting Line (0.9 m wide) aimed at the player's units, then resolves it next Enemy Phase (auto-hit, Might 7, cuts through cardboard). Cancelled if the Captain was displaced or is watched. |
 | Paper Guard | The plan says the Captain starts near cardboard, but none was listed near (13,10), so a box was added at (12,10). |
-| Watchful | Lamp intercepts automatically, once per Enemy Phase, unless the hit could take half of Lamp's HP. |
-| Cones | Short cone = one row the user's width in front, then a row one tile wider on each side. |
-| Lunge | Dash 1-3 tiles straight, then attack an enemy directly ahead (Might 6). |
-| Staple Burst | Two Might 2 attacks; the second retargets if the first target falls. |
-| Eject | Push 2 only if the attack hits. |
+| Watchful | Lamp intercepts automatically, once per Enemy Phase, for an ally within 0.7 m, unless the hit could take half of Lamp's HP. |
+| Adjacent | Talk, Watchful, Canopy and Comforting Presence use an edge gap of 0.7 m. |
+| Threat arcs | Red normal, yellow crit 15%+, purple type advantage, blue push/pull (with a floor arrow). Brightness follows the hit chance. Telegraphed lanes are painted on the floor instead. |
+| Predicted HP | Expected damage from every threat plus any telegraphed lane the unit stands in. A red X shows when the worst case could Break it. |
+| Battle preview | Every strike in order, including counters and Staple Burst's second hit; "HP after" assumes every strike lands, and a strike that would Break its target gets a red X. |
 | Items | Each slice character carries Repair Tape (heal 40% max HP). |
 | Defeat | Lamp Broken, or every player unit Broken. |
 | Neutral Umbrella | Enemies may attack it (low priority). Recruiting turns it player-controlled on the next Player Phase. |
+
+## Performance
+
+- The forecast while moving is about 0.2 ms per query: enemy standing spots are cached per selection in `Forecast.ThreatMap` (about 200 ms to build) and only rebuilt after the board changes.
+- The battle runs at roughly 240 fps at 1600x900 on the development machine.

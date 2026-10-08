@@ -25,6 +25,18 @@ Signature abilities are unlocked through character-specific paralogues.
 
 Noise costs are part of character identity. A character who creates strong effects repeatedly should usually create more Human Attention.
 
+### Distances
+
+There is no grid in play (see gameplay_design.md section 4). Distances in this document are written in **tiles** as authored; one tile is **1 m** on the battlefield floor:
+
+- **Move** is a walking distance in metres.
+- **Range r** is an edge-to-edge reach of **r − 0.4 m** (range 1 = 0.6 m, melee; range 2 = 1.6 m; range 3 = 2.6 m). A minimum range of 2 becomes a minimum gap of 0.9 m.
+- **Push, pull, dash and reposition** distances are metres.
+- **Areas:** a 3x3 area becomes a 1.6 m-radius circle; a "short cone" reaches 1.8 m past the user with a 40° half-angle and can be aimed in any direction; a line of N tiles is a strip N m long.
+- **Adjacent** means an edge-to-edge gap of 0.7 m or less.
+
+The slice's values live in `scenes/units/unit_profiles.tscn` and `src/core/models/arts/arts.gd` already converted.
+
 ### Action-Economy Timing Rule
 
 A character normally gets **one Movement and one Action per activation**. Ability durations and self-buffs must respect that structure.

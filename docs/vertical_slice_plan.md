@@ -91,11 +91,12 @@ This tests:
 
 Prototype map:
 
-**15 x 11 tiles**
+**15 m x 11 m of floor**
 
-Coordinate system:
+Play has no grid: units move freely inside their movement radius (gameplay_design.md section 4). The map is still *authored* on a 1 m layout grid, and the coordinates in this document are tiles on that grid:
 
-- bottom-left = (1,1)
+- bottom-left tile = (1,1), covering the floor from (0 m, 0 m) to (1 m, 1 m);
+- a unit starts centred on its footprint; a piece of furniture stands inside its tile(s) at its own footprint size.
 
 The map represents the study floor underneath and around a desk.
 
@@ -132,7 +133,7 @@ These objects:
 - block direct line of sight;
 - define major lanes.
 
-Large-unit routes must remain at least two tiles wide where Vacuum is expected to travel.
+Large-unit routes must remain at least 1.5 m wide (Vacuum's body) where Vacuum is expected to travel.
 
 ---
 
@@ -169,7 +170,7 @@ A spilled drink occupies:
 
 Effect:
 
-**Entering a spill tile costs +2 movement.**
+**Moving through the spill costs three times the distance** (the old "+2 per tile").
 
 No damage.
 
@@ -325,11 +326,11 @@ The boss should test mechanics rather than simply have inflated stats.
 
 ## Heavy Frame
 
-Push/pull distance against the Captain is reduced by 1 tile.
+Push/pull distance against the Captain is reduced by 1 m.
 
 ## Cutting Line
 
-Telegraphs a 1x5 attack lane.
+Telegraphs a 5 m attack lane, aimed straight at the player's units (or a compass direction), cut short by full cover.
 
 The attack resolves on the following Enemy Phase unless:
 
@@ -356,7 +357,7 @@ The player can:
 The slice uses:
 
 - Noise threshold: 6
-- Gaze area: 3x3
+- Gaze area: a circle of 1.6 m radius (the old 3x3)
 - Overflow enabled
 - Gaze duration: until start of next Player Phase
 
@@ -381,7 +382,7 @@ This sequence is the most important mechanical test in the slice.
 
 When a unit transforms under Human Gaze:
 
-- it still occupies its tile;
+- it still occupies its space;
 - other units cannot move through it;
 - it cannot be attacked;
 - it cannot attack.
@@ -398,18 +399,18 @@ Potential later use:
 
 # 18. Dynamic Movement Forecast Requirements
 
-When the player selects a character and hovers a destination, the slice must display:
+When the player takes control of a character and moves it, the slice must display, for wherever it currently stands:
 
-- reachable movement area;
-- every enemy that can threaten the proposed tile;
-- threat lines from those enemies;
-- projected HP after expected enemy damage;
+- the movement area on the floor, and where the move began;
+- every enemy that can threaten that spot;
+- a thin pulsing arc from each of those enemies to the character (Fire Emblem Fortune's Weave style), coloured by attack type;
+- projected HP after expected enemy damage, on the HP bar above the character;
 - telegraphed attack zones;
 - displacement arrows where relevant;
 - cover effect;
 - triangle information on individual threat inspection.
 
-The forecast must update continuously as the cursor moves.
+The forecast must update continuously as the character moves.
 
 The forecast represents:
 
@@ -423,34 +424,35 @@ It must recalculate after every player action that changes the board.
 
 The slice needs only the UI required to test the real game.
 
+The screen is the game itself plus a handful of small elements. There is no side panel.
+
 ## Always Visible
 
-- current phase;
-- selected character HP;
-- Noise meter;
-- turn count;
-- current objective;
-- optional objective summary.
+- top left: current objective and optional objective summary;
+- bottom left: turn count, current phase, Noise meter, End Turn;
+- bottom right: minimap (click to move the camera);
+- small HP bars above every unit.
 
-## On Character Selection
+## While Controlling a Character
 
-- movement area;
-- Basic Attack range;
-- Arts;
-- item;
-- character portrait/name;
-- current HP and stats.
+- movement area and the start-of-move marker;
+- threat arcs and predicted HP (section 18).
+
+## Choosing an Action
+
+A ring of every available action above the character (Paper Mario: The Thousand-Year Door):
+
+- the hovered action at the front, its description in a small box above the ring;
+- arrows either side, left/right or the D-pad/stick to turn it one action;
+- Basic Attack, each Art (with its Noise cost), item, Talk when available, Wait;
+- unavailable actions stay on the ring, greyed, with the reason.
 
 ## On Target Selection
 
-Fire Emblem-style combat forecast:
-
-- damage;
-- Hit;
-- Crit;
-- counter damage;
-- type advantage/disadvantage;
-- cover influence.
+- the chosen action's reach drawn as a ring on the floor (cones aim freely);
+- a head-to-head battle preview at the bottom of the screen with Fire Emblem's information: both portraits, HP before and after, and every strike in order with damage, Hit and Crit, including counters; type advantage and cover are reflected in the numbers;
+- a red X beside any strike that would Break its target;
+- styled with the game's own toy-box personality rather than copying Fire Emblem's look.
 
 ## During Gaze
 
@@ -482,6 +484,10 @@ The purpose is to test conversation flow, portraits, and recruitment without req
 
 # 21. Art Requirements
 
+## Look
+
+**HD-2D**: modelled, textured and lit 3D environments with 2D pixel-art characters on cards that turn to face the camera (Square Enix's Octopath Traveler / Triangle Strategy, and the Kowloon project). Characters keep side-view art only; a card mirrors to show which way the character is heading relative to the camera. The camera is a free perspective orbit.
+
 ## Battle Sprites
 
 Playable and enemy battle sprites use the agreed low-resolution style.
@@ -497,7 +503,7 @@ Key rules:
 - strong silhouettes;
 - minimal tiny detail;
 - side-profile presentation where practical;
-- same pixel density across characters, environment, humans, transformation sprites, and VFX.
+- same pixel density across characters, humans, transformation sprites, and VFX (128 px per metre on the cards). The environment is modelled 3D rather than pixel art.
 
 A larger object or human may occupy more pixels, but should not use a different apparent pixel density.
 
@@ -648,16 +654,16 @@ Qualitative questions:
 
 # 27. Recommended Development Order
 
-## Milestone 1: Graybox Grid
+## Milestone 1: Graybox Floor
 
 Implement:
 
-- 15x11 grid;
-- movement;
+- 15 m x 11 m floor laid out from the 1 m authoring grid;
+- free movement inside a movement radius, with undo;
 - turn phases;
 - placeholder units;
-- basic pathfinding;
-- 1x1 and 2x2 footprints.
+- pathfinding around furniture;
+- Normal and Large bodies.
 
 No art polish.
 
@@ -727,7 +733,7 @@ Implement:
 
 ## Milestone 8: Art Pass
 
-Replace placeholder assets with final-style 64x64 pixel sprites and room assets.
+Replace placeholder assets with final-style pixel sprites on camera-facing cards, and a modelled, lit 3D room.
 
 ## Milestone 9: Narrative and Menus
 
@@ -778,8 +784,8 @@ The vertical slice exists to answer whether the core game is worth expanding.
 
 The vertical slice is successful when a new player can:
 
-1. understand movement without manual tile counting;
-2. read threat lines while hovering destinations;
+1. understand where a character can move without measuring anything;
+2. read the threat arcs while moving a character;
 3. understand the predicted HP display;
 4. recognize Smash/Pierce/Bind advantage;
 5. use cover intentionally;
