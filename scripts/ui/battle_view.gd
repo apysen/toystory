@@ -531,11 +531,16 @@ func _play(events: Array) -> void:
 			"damage":
 				var v: UnitView = _views[e.unit.id]
 				v.shown_hp = e.hp
-				var tw := create_tween()
-				tw.tween_property(v, "modulate", Color(1, 0.4, 0.4), 0.06)
-				tw.tween_property(v, "modulate", Color.WHITE, 0.12)
 				v.queue_redraw()
-				await tw.finished
+				# The hurt animation has its own baked flash; tint only units without one.
+				if v.has_anim("hurt"):
+					if v.sprite.animation != "hurt":
+						v.play_once("hurt")
+				else:
+					var tw := create_tween()
+					tw.tween_property(v, "modulate", Color(1, 0.4, 0.4), 0.06)
+					tw.tween_property(v, "modulate", Color.WHITE, 0.12)
+					await tw.finished
 			"heal":
 				var v: UnitView = _views[e.unit.id]
 				v.shown_hp = e.hp
@@ -779,6 +784,11 @@ func _draw_overlay(n: Node2D) -> void:
 		n.draw_rect(tile_rect(t).grow(-1), Color(0.85, 0.75, 1.0, 0.9), false, 2.0)
 	if battle.gaze_active():
 		# A watching eye over the Attention Point.
+		var c := tile_center(battle.gaze_center) + Vector2(0, -T * 1.6)
+		var eye := SpriteLib.load_ui("eye")
+		if eye != null:
+			n.draw_texture(eye, (c - eye.get_size() / 2).round())
+	if battle.gaze_active() and SpriteLib.load_ui("eye") == null:
 		var c := tile_center(battle.gaze_center) + Vector2(0, -T * 1.6)
 		var pts := PackedVector2Array()
 		for i in 32:

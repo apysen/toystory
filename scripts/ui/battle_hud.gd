@@ -131,6 +131,15 @@ func _star(on: bool) -> String:
 	return "★" if on else "☆"
 
 
+## Type name with its icon from assets/sprites/ui/type_<name>.png when present.
+func _type_tag(type: int) -> String:
+	var name: String = Defs.TYPE_NAMES[type]
+	var path := "res://assets/sprites/ui/type_%s.png" % name.to_lower()
+	if SpriteLib.load_ui("type_" + name.to_lower()) != null and ResourceLoader.exists(path):
+		return "[img=24x24]%s[/img] %s" % [path, name]
+	return name
+
+
 func _refresh_card() -> void:
 	var u: Unit = view.selected
 	if u == null and view.hover != BattleView.NONE:
@@ -140,7 +149,7 @@ func _refresh_card() -> void:
 	if u == null:
 		_card.text = "[color=#aaa]Click a character to move. Click an enemy to see its reach. Right-click to cancel.[/color]"
 		return
-	var t := "[b]%s[/b]  %s%s\n" % [u.name, Defs.TYPE_NAMES[u.dmg_type], "  (Large)" if u.is_large() else ""]
+	var t := "[b]%s[/b]  %s%s\n" % [u.name, _type_tag(u.dmg_type), "  (Large)" if u.is_large() else ""]
 	var hp_line := "HP %d / %d" % [u.hp, u.max_hp]
 	if u == view.selected and not view.forecast.is_empty() and u.faction == Defs.Faction.PLAYER:
 		var f: Dictionary = view.forecast
@@ -240,7 +249,7 @@ func _combat_forecast(tgt: Variant) -> String:
 	var rel: String = ["[color=#f88]Disadvantage[/color]", "Neutral", "[color=#8f8]Advantage[/color]"][pv.type_rel + 1]
 	var s := "[b]%s[/b] -> %s\n" % [title, target.name]
 	s += "Damage %d   Hit %d%%   Crit %d%%\n" % [pv.damage, pv.hit, pv.crit]
-	s += "%s (%s vs %s)%s\n" % [rel, Defs.TYPE_NAMES[spec.type], Defs.TYPE_NAMES[target.dmg_type], "   [color=#9cf]Target in cover -25 Hit[/color]" if pv.cover else ""]
+	s += "%s (%s vs %s)%s\n" % [rel, _type_tag(spec.type), _type_tag(target.dmg_type), "   [color=#9cf]Target in cover -25 Hit[/color]" if pv.cover else ""]
 	s += "%s HP %d -> %d\n" % [target.name, target.hp, maxi(target.hp - pv.damage, 0)]
 	if view.target_kind == "attack":
 		var c := b.counter_preview(u, u.pos, target)

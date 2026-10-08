@@ -84,6 +84,10 @@ func refresh() -> void:
 
 
 ## Plays a named animation once if the sprite has it, then returns to idle.
+func has_anim(anim: String) -> bool:
+	return sprite != null and sprite.sprite_frames.has_animation(anim)
+
+
 func play_once(anim: String) -> void:
 	if sprite == null or not sprite.sprite_frames.has_animation(anim):
 		return

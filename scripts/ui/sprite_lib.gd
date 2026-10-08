@@ -59,6 +59,14 @@ static func load_mundane(name: String) -> Variant:
 	return result
 
 
+## UI icon: assets/sprites/ui/<name>.png, or null so callers draw a fallback.
+static func load_ui(name: String) -> Texture2D:
+	var key := "ui:" + name
+	if not _cache.has(key):
+		_cache[key] = _texture("res://assets/sprites/ui/%s.png" % name)
+	return _cache[key]
+
+
 static func _texture(path: String) -> Texture2D:
 	if ResourceLoader.exists(path):
 		return load(path)
