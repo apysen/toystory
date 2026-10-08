@@ -25,6 +25,8 @@ func setup(u: Unit) -> void:
 	if _art != null:
 		sprite = AnimatedSprite2D.new()
 		sprite.sprite_frames = _art.frames
+		# Frames may differ in width (e.g. a wider hurt canvas), so re-mirror per animation.
+		sprite.animation_changed.connect(apply_facing)
 		sprite.centered = false
 		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		sprite.position = -_art.pivot
