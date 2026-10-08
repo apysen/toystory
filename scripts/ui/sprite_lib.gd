@@ -33,6 +33,18 @@ static func load_unit(name: String) -> Variant:
 	return result
 
 
+## One-shot effect sheet: assets/sprites/vfx/<name>/<name>_sheet.* (SpriteFrames or null).
+static func load_vfx(name: String) -> SpriteFrames:
+	var key := "vfx:" + name
+	if not _cache.has(key):
+		var sf := _load_sheet("res://assets/sprites/vfx/%s/" % name, name)
+		if sf != null:
+			for a in sf.get_animation_names():
+				sf.set_animation_loop(a, false)
+		_cache[key] = sf
+	return _cache[key]
+
+
 ## Mundane (Human Gaze) form: assets/sprites/mundane/<name>.png. {texture, pivot} or null.
 static func load_mundane(name: String) -> Variant:
 	var key := "mundane:" + name

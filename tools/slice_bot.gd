@@ -30,6 +30,20 @@ static func choose(b: Battle, u: Unit) -> Dictionary:
 			for o in b.art_targets(u, "warm_pour"):
 				if o.hp < o.max_hp * 0.6:
 					options.append({"kind": "art", "art": "warm_pour", "target": o, "score": base + 15.0})
+		# Damaging Arts: worth it when they beat a Basic Attack by enough to pay the Noise.
+		for art_id in u.arts:
+			var art := Arts.get_art(art_id)
+			if not art.has("might") or not b.art_check(u, art_id).ok:
+				continue
+			for t in b.art_targets(u, art_id):
+				var gain := 0.0
+				if t is Vector2i:
+					for o in b.units_in_tiles(b.cone_for(u, t)):
+						if b.can_target(u, o):
+							gain += Combat.preview(b.board, u, a, o, o.pos, {"might": art.might, "type": art.type}).expected * 1.5
+				elif t is Unit:
+					gain = Combat.preview(b.board, u, a, t, t.pos, {"might": art.might, "type": art.type}).expected * 1.5
+				options.append({"kind": "art", "art": art_id, "target": t, "score": base + gain - art.noise * 2.0})
 		u.pos = saved
 		for o in options:
 			if o.score > best_score:

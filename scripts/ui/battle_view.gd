@@ -512,7 +512,14 @@ func _play(events: Array) -> void:
 				tw.tween_property(av, "position", av.position + lunge, 0.08)
 				tw.tween_property(av, "position", av.position, 0.08)
 				await tw.finished
+				var dist: int = e.attacker.distance_to_unit(e.attacker.pos, e.target, e.target.pos)
+				var proj: String = {"stapler": "staple_shot", "toaster": "toast", "teacup": "steam_curl"}.get(e.attacker.id, "")
+				if dist >= 2 and proj != "":
+					await projectile(proj, av.position + Vector2(0, -60), tv.position + Vector2(0, -50))
 				sfx.play("miss" if not e.hit else ("crit" if e.crit else "hit"))
+				if e.hit:
+					vfx("crit_burst" if e.crit else "hit_spark", tv.position + Vector2(0, -56))
+					tv.play_once("hurt")
 				var txt := "Miss"
 				if e.hit:
 					txt = ("CRIT %d" if e.crit else "%d") % e.damage
@@ -534,6 +541,7 @@ func _play(events: Array) -> void:
 				v.shown_hp = e.hp
 				v.queue_redraw()
 				sfx.play("heal")
+				vfx("heal_sparkle", v.position + Vector2(0, -56))
 				_float_text(v.position + Vector2(0, -90), "+%d" % e.amount, Color("80ff90"))
 				_hud.log_line("%s recovers %d HP." % [e.unit.name, e.amount])
 				await get_tree().create_timer(0.25).timeout
@@ -551,6 +559,10 @@ func _play(events: Array) -> void:
 			"art":
 				_hud.log_line("%s uses %s." % [e.unit.name, e.name])
 				sfx.play(Sfx.ART_SOUNDS.get(e.art, ""))
+				var cv: UnitView = _views[e.unit.id]
+				cv.play_once("art")
+				if e.art == "suction":
+					vfx("suction_swirl", cv.position + Vector2(cv.unit.facing * 90, -80), cv.unit.facing < 0)
 				await _hud.toast(e.name)
 			"area":
 				var col := Color(1, 0.6, 0.2, 0.45)
@@ -558,6 +570,8 @@ func _play(events: Array) -> void:
 					col = Color(0.6, 0.9, 1, 0.4)
 				elif e.kind == "cutting_line":
 					col = Color(1, 0.15, 0.15, 0.55)
+					for t in e.tiles:
+						vfx("cutting_line", tile_center(t))
 				for t in e.tiles:
 					flash_tiles[t] = col
 				_overlay.queue_redraw()
@@ -609,8 +623,44 @@ func _play(events: Array) -> void:
 		_sync_all()
 
 
+## Plays a one-shot effect centred at `p`. Returns immediately; the node frees itself.
+func vfx(name: String, p: Vector2, flip := false) -> void:
+	var sf := SpriteLib.load_vfx(name)
+	if sf == null:
+		return
+	var s := AnimatedSprite2D.new()
+	s.sprite_frames = sf
+	s.position = p
+	s.flip_h = flip
+	s.z_index = 50
+	add_child(s)
+	s.play(sf.get_animation_names()[0])
+	s.animation_finished.connect(s.queue_free)
+
+
+## Moves a projectile sprite from a to b (no-op without art).
+func projectile(name: String, a: Vector2, b: Vector2) -> void:
+	var sf := SpriteLib.load_vfx(name)
+	if sf == null:
+		return
+	var s := AnimatedSprite2D.new()
+	s.sprite_frames = sf
+	s.position = a
+	s.flip_h = b.x < a.x
+	s.z_index = 50
+	add_child(s)
+	var anim: String = sf.get_animation_names()[0]
+	sf.set_animation_loop(anim, true)
+	s.play(anim)
+	var tw := create_tween()
+	tw.tween_property(s, "position", b, clampf(a.distance_to(b) / 1400.0, 0.08, 0.3))
+	await tw.finished
+	s.queue_free()
+
+
 ## Quick squash-and-flash used for the Gaze transformation in both directions.
 func _poof(v: UnitView) -> void:
+	vfx("gaze_poof", v.position + Vector2(0, -56))
 	var tw := create_tween()
 	tw.tween_property(v, "scale", Vector2(1.25, 0.7), 0.07)
 	tw.tween_property(v, "modulate", Color(2, 2, 2), 0.05)
