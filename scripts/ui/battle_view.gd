@@ -888,7 +888,11 @@ func _draw_top(n: Node2D) -> void:
 				_arrow_head(n, to, tip, Color(0.4, 0.85, 1.0))
 	# Cursor.
 	if hover != NONE and mode != Mode.BUSY:
-		n.draw_rect(tile_rect(hover), Color(1, 1, 0.6, 0.9), false, 2.0)
+		var cur := SpriteLib.load_ui("cursor")
+		if cur != null:
+			n.draw_texture(cur, tile_rect(hover).position)
+		else:
+			n.draw_rect(tile_rect(hover), Color(1, 1, 0.6, 0.9), false, 2.0)
 
 
 func _dashed(n: Node2D, a: Vector2, b: Vector2, c: Color, w: float) -> void:
@@ -902,6 +906,13 @@ func _dashed(n: Node2D, a: Vector2, b: Vector2, c: Color, w: float) -> void:
 
 func _arrow_head(n: Node2D, from: Vector2, to: Vector2, c: Color) -> void:
 	var dir := (to - from).normalized()
+	# Red threat arrows use the drawn arrowhead (points right in the art).
+	var head := SpriteLib.load_ui("threat_arrowhead")
+	if head != null and c.r > c.b:
+		n.draw_set_transform(to - dir * 10, dir.angle())
+		n.draw_texture(head, -head.get_size() / 2)
+		n.draw_set_transform(Vector2.ZERO)
+		return
 	var tip := to - dir * 14
 	var side := Vector2(-dir.y, dir.x) * 7
 	n.draw_colored_polygon(PackedVector2Array([to - dir * 4, tip + side, tip - side]), c)
