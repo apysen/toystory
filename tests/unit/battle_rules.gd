@@ -360,3 +360,37 @@ func test_gaze_cancels_watched_telegraph() -> void:
 	check(b.take_events().any(func(e): return e.type == "telegraph_cancel"), "and says so")
 	check(Forecast.for_destination(b, stapler, stapler.pos).telegraph_damage == 0, "the lane no longer threatens anyone")
 
+
+func test_gaze_walls_off_its_area() -> void:
+	var b := fresh()
+	var stapler := b.field.find_unit("stapler")
+	b.trigger_gaze(Vector2(5.0, 6.0))
+	check(not b.reach(stapler).can_reach(Vector2(5.0, 6.0)), "no walking into the watched circle")
+	check(not b.reach(stapler).can_reach(Vector2(5.0, 4.9)), "not even its edge")
+	check(b.reach(stapler).can_reach(Vector2(3.5, 4.0)), "the rest of the floor is fine")
+	var path := b.reach(stapler).path_to(Vector2(5.0, 8.5))
+	var crosses := false
+	for k in range(1, path.size()):
+		for i in 11:
+			if b.field.in_light(path[k - 1].lerp(path[k], i / 10.0), stapler.radius):
+				crosses = true
+	check(not crosses, "paths go around the light, not through it")
+	b.end_gaze()
+	b.trigger_gaze(Vector2(2.5, 6.8))
+	var pencil := b.field.find_unit("pencil_a")
+	pencil.pos = Vector2(2.5, 3.8)
+	var hp := pencil.hp
+	b.forced_move(pencil, Vector2(0, 1), 2.0) # up the map
+	check(not b.field.in_light(pencil.pos, pencil.radius) and pencil.pos.y > 4.5, "a push stops at the light, at %s" % pencil.pos)
+	check(pencil.hp == hp, "without collision damage")
+
+
+func test_units_inside_the_gaze_are_not_walled_in() -> void:
+	var b := fresh()
+	var roomba := b.field.find_unit("roomba")
+	b.trigger_gaze(roomba.pos)
+	check(not roomba.frozen, "Robot Vacuum keeps moving while watched")
+	check(b.field.can_pass(roomba, roomba.pos + Vector2(-0.4, 0)), "and isn't trapped by the light")
+	b.begin_player_phase()
+	check(b.field.light_walls.is_empty(), "the wall lifts with the Gaze")
+

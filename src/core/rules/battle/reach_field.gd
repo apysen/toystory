@@ -235,7 +235,7 @@ func _segment_clear(a: Vector2, b: Vector2) -> bool:
 
 func _can_pass(p: Vector2) -> bool:
 	if ignore_units:
-		return not field.blocked_by_terrain(p, unit.radius)
+		return not field.blocked_by_terrain(p, unit.radius) and not field.light_blocks(unit, p)
 	return field.can_pass(unit, p)
 
 

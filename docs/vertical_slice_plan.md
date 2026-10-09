@@ -456,7 +456,7 @@ A ring of every available action above the character (Paper Mario: The Thousand-
 
 ## During Gaze
 
-- watched area clearly highlighted;
+- watched area clearly highlighted, its edge standing as a wall of light that blocks movement;
 - transformed sprite swap;
 - Noise Arts grayed out everywhere;
 - tooltip: **Unavailable while Human Gaze is active**.

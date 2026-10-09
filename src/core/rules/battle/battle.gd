@@ -252,7 +252,7 @@ func lunge_stop(u: Unit, target: Unit, dash: float) -> Array[Vector2]:
 	var steps := maxi(int(ceil(dist / 0.1)), 1)
 	for k in range(1, steps + 1):
 		var p := u.pos.lerp(end, float(k) / steps)
-		if field.blocked_by_terrain(p, u.radius):
+		if field.blocked_by_terrain(p, u.radius) or field.light_blocks(u, p):
 			return []
 		for o in field.living_units():
 			if o != u and o != target and p.distance_to(o.pos) < u.radius + o.radius:
@@ -454,6 +454,7 @@ func add_noise(amount: int, source: Unit) -> void:
 func trigger_gaze(center: Vector2) -> void:
 	gaze_center = center
 	_gaze_on = true
+	field.light_walls = [{"center": center, "radius": Defs.GAZE_RADIUS}]
 	stats.gaze_triggers += 1
 	var frozen: Array = []
 	for u in field.living_units():
@@ -484,6 +485,7 @@ func end_gaze() -> void:
 			u.frozen = false
 			thawed.append(u)
 	_gaze_on = false
+	field.light_walls.clear()
 	_changed()
 	_emit({"type": "gaze_end", "thawed": thawed})
 
@@ -593,6 +595,8 @@ func forced_move(u: Unit, dir: Vector2, dist: float) -> void:
 	var step := 0.05
 	while travelled < dist - 0.0001:
 		var nxt := u.pos + dir * minf(step, dist - travelled)
+		if field.light_blocks(u, nxt):
+			break # the Gaze stops it; light isn't a wall to collide with
 		if field.blocked_by_terrain(nxt, u.radius):
 			hit_wall = true
 			break
@@ -625,7 +629,7 @@ func pull_toward(u: Unit, puller: Unit, dist: float) -> void:
 			break
 		var dir := (puller.pos - u.pos).normalized()
 		var nxt := u.pos + dir * minf(step, dist - travelled)
-		if field.blocked_by_terrain(nxt, u.radius) or _overlapping(u, nxt) != null:
+		if field.blocked_by_terrain(nxt, u.radius) or field.light_blocks(u, nxt) or _overlapping(u, nxt) != null:
 			break
 		u.pos = nxt
 		travelled += minf(step, dist - travelled)

@@ -584,6 +584,8 @@ Ordinary awakened objects caught in Gaze:
 - cannot be attacked;
 - still physically occupy their space.
 
+The watched circle itself is closed off: its edge stands as a wall of light that no unit outside it may walk, be pushed or pulled across until the Gaze ends.
+
 This means transformed units can temporarily become physical obstacles.
 
 ## Gaze Duration

@@ -9,6 +9,7 @@ extends Node3D
 ## It reads the Battle and changes nothing. All shapes are one shader on flat quads.
 
 const SHAPE_SHADER := preload("res://assets/shaders/ground_shape.gdshader")
+const LIGHT_WALL_SHADER := preload("res://assets/shaders/light_wall.gdshader")
 const HEIGHT := 0.05
 
 @export_group("Colours")
@@ -20,6 +21,10 @@ const HEIGHT := 0.05
 @export var heal_ring_color := Color(0.5, 1.0, 0.6, 0.95)
 @export var gaze_fill := Color(0.72, 0.56, 1.0, 0.22)
 @export var gaze_edge := Color(0.86, 0.76, 1.0, 0.95)
+## Height of the curtain of light around a Gaze, and the spotlight from above.
+@export var light_wall_height := 2.4
+@export var gaze_light_color := Color(0.86, 0.8, 1.0)
+@export var gaze_light_energy := 6.0
 @export var telegraph_fill := Color(1.0, 0.15, 0.12, 0.35)
 @export var telegraph_edge := Color(1.0, 0.3, 0.25, 0.95)
 @export var cone_fill := Color(1.0, 0.6, 0.2, 0.3)
@@ -35,6 +40,8 @@ var _cone: MeshInstance3D
 var _start_marker: MeshInstance3D
 var _gaze: MeshInstance3D
 var _eye: Sprite3D
+var _light_wall: MeshInstance3D
+var _gaze_light: SpotLight3D
 var _trail: MeshInstance3D
 var _targets: Array[MeshInstance3D] = []
 var _telegraphs: Array[MeshInstance3D] = []
@@ -67,6 +74,35 @@ func setup(b: Battle) -> void:
 	_eye.no_depth_test = true
 	_eye.visible = false
 	add_child(_eye)
+	# The Gaze's edge: a curtain of light the rules treat as a wall.
+	_light_wall = MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = Defs.GAZE_RADIUS
+	cyl.bottom_radius = Defs.GAZE_RADIUS
+	cyl.height = light_wall_height
+	cyl.cap_top = false
+	cyl.cap_bottom = false
+	cyl.radial_segments = 64
+	cyl.rings = 1
+	_light_wall.mesh = cyl
+	var lm := ShaderMaterial.new()
+	lm.shader = LIGHT_WALL_SHADER
+	lm.set_shader_parameter("light_color", gaze_light_color)
+	lm.set_shader_parameter("wall_height", light_wall_height)
+	_light_wall.material_override = lm
+	_light_wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_light_wall.visible = false
+	add_child(_light_wall)
+	_gaze_light = SpotLight3D.new()
+	_gaze_light.light_color = gaze_light_color
+	_gaze_light.light_energy = gaze_light_energy
+	_gaze_light.spot_range = 16.0
+	_gaze_light.spot_angle = 12.0
+	_gaze_light.spot_attenuation = 0.4
+	_gaze_light.shadow_enabled = true
+	_gaze_light.rotation = Vector3(-PI * 0.5, 0, 0)
+	_gaze_light.visible = false
+	add_child(_gaze_light)
 	_params(_move, {"fill_color": move_fill, "edge_color": move_edge, "edge_width": 0.08, "pulse": 0.0})
 	_params(_enemy_reach, {"fill_color": enemy_reach_fill, "edge_color": enemy_reach_edge, "edge_width": 0.06})
 	_params(_gaze, {"fill_color": gaze_fill, "edge_color": gaze_edge, "pulse": 2.2, "edge_width": 0.1})
@@ -87,9 +123,13 @@ func hide_all() -> void:
 func sync() -> void:
 	_gaze.visible = gaze_visible
 	_eye.visible = gaze_visible
+	_light_wall.visible = gaze_visible
+	_gaze_light.visible = gaze_visible
 	if gaze_visible:
 		_params(_gaze, {"center": _battle.gaze_center, "radius": Defs.GAZE_RADIUS})
-		_eye.position = BattleSpace.to_world(_battle.gaze_center, 3.2)
+		_eye.position = BattleSpace.to_world(_battle.gaze_center, light_wall_height + 1.0)
+		_light_wall.position = BattleSpace.to_world(_battle.gaze_center, light_wall_height * 0.5)
+		_gaze_light.position = BattleSpace.to_world(_battle.gaze_center, 7.5)
 	for t in _telegraphs:
 		t.queue_free()
 	_telegraphs.clear()

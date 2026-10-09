@@ -10,6 +10,9 @@ var objects := {}
 ## Slow patches: [{kind: "spill" | "tape", rect: Rect2} or {kind, center, radius}]
 var slow_zones: Array = []
 var units: Array[Unit] = []
+## Human Gaze: circles of the human's attention that nothing outside may enter,
+## as if walled off by light: [{center: Vector2, radius: float}].
+var light_walls: Array = []
 
 
 func _init(map_size: Vector2) -> void:
@@ -79,9 +82,24 @@ func blocked_by_terrain(p: Vector2, radius: float) -> bool:
 	return false
 
 
+## Whether `p` lies inside a Gaze for a body of `radius` (the same reach that
+## decides who is watched).
+func in_light(p: Vector2, radius: float) -> bool:
+	for w in light_walls:
+		if p.distance_to(w.center) <= w.radius + radius * 0.5:
+			return true
+	return false
+
+
+## Whether the Gaze keeps `unit` out of `p`. Units already inside (frozen ones,
+## and the Robot Vacuum, which keeps moving) aren't walled in by it.
+func light_blocks(unit: Unit, p: Vector2) -> bool:
+	return in_light(p, unit.radius) and not in_light(unit.pos, unit.radius)
+
+
 ## Whether `unit` could stand with its centre at `p`, ignoring itself.
 func can_stand(unit: Unit, p: Vector2) -> bool:
-	if blocked_by_terrain(p, unit.radius):
+	if blocked_by_terrain(p, unit.radius) or light_blocks(unit, p):
 		return false
 	for o in units:
 		if o != unit and not o.broken and p.distance_to(o.pos) < unit.radius + o.radius - 0.001:
@@ -92,7 +110,7 @@ func can_stand(unit: Unit, p: Vector2) -> bool:
 ## Whether `unit` may pass through `p` on its way somewhere. Allies can be walked
 ## past; enemies, neutrals and anything frozen by a Gaze cannot.
 func can_pass(unit: Unit, p: Vector2) -> bool:
-	if blocked_by_terrain(p, unit.radius):
+	if blocked_by_terrain(p, unit.radius) or light_blocks(unit, p):
 		return false
 	for o in units:
 		if o == unit or o.broken:

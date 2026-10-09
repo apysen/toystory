@@ -46,7 +46,7 @@ Rule constants live in `src/core/models/battle/defs.gd` and `src/core/models/art
 | Half cover | Blocks movement, not sight. +25 evasion against a ranged attack (gap > 0.6 m) when it stands within 1.2 m of the target, on the line of the shot. Large units can't use it. |
 | Line of sight | Blocked when the line between unit centres crosses full cover. |
 | Passing units | Units can walk past non-frozen allies but not enemies, neutrals or frozen objects, and can't end overlapping anyone. |
-| Gaze | A 1.6 m circle around the acting unit; a unit is watched when its centre is within the radius plus half its body. |
+| Gaze | A 1.6 m circle around the acting unit; a unit is watched when its centre is within the radius plus half its body. The circle is walled off by light: no unit outside may walk, be pushed, pulled or lunge into it (a push stops at the light without collision damage); units already inside (frozen ones, the Robot Vacuum) aren't trapped. |
 | Cones | Flashbulb, Flash Bake and Blowback reach 1.8 m past the user's edge with a 40° half-angle, aimed in any direction. |
 | Lunge | A clear straight dash of up to 3 m that stops in front of the target, then attacks (Might 6). |
 | Robot Vacuum | Never transforms. While any Gaze is active it moves but can't attack; inside the watched area it also can't be attacked. |
