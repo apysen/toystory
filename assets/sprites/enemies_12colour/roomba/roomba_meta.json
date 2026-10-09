@@ -1,0 +1,10 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  59,
+  105
+ ],
+ "colours": 12,
+ "source": "assets/concept/enemies/roomba.png"
+}

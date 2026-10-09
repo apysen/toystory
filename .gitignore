@@ -1,3 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Blender's automatic backup copies and throwaway debug renders from the 3D model scripts
+*.blend1
+assets/models/*/source/**/dbg*.png

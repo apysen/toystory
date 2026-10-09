@@ -1,0 +1,286 @@
+{
+ "desk_leg": {
+  "canvas": [
+   64,
+   224
+  ],
+  "footprint_tiles": [
+   1,
+   1
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   224
+  ],
+  "frames": 1,
+  "image": "desk_leg.png"
+ },
+ "chair_leg": {
+  "canvas": [
+   64,
+   176
+  ],
+  "footprint_tiles": [
+   1,
+   1
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   176
+  ],
+  "frames": 1,
+  "image": "chair_leg.png"
+ },
+ "cabinet": {
+  "canvas": [
+   128,
+   160
+  ],
+  "footprint_tiles": [
+   2,
+   2
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   160
+  ],
+  "frames": 1,
+  "image": "cabinet.png"
+ },
+ "books": {
+  "canvas": [
+   64,
+   96
+  ],
+  "footprint_tiles": [
+   1,
+   1
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   96
+  ],
+  "frames": 2,
+  "tags": {
+   "red": [
+    0,
+    0
+   ],
+   "blue": [
+    1,
+    1
+   ]
+  },
+  "image": "books.png"
+ },
+ "box": {
+  "canvas": [
+   64,
+   96
+  ],
+  "footprint_tiles": [
+   1,
+   1
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   96
+  ],
+  "frames": 3,
+  "tags": {
+   "intact": [
+    0,
+    0
+   ],
+   "damaged": [
+    1,
+    1
+   ],
+   "destroyed": [
+    2,
+    2
+   ]
+  },
+  "image": "box.png"
+ },
+ "small_box": {
+  "canvas": [
+   64,
+   72
+  ],
+  "footprint_tiles": [
+   1,
+   1
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   72
+  ],
+  "frames": 3,
+  "tags": {
+   "intact": [
+    0,
+    0
+   ],
+   "damaged": [
+    1,
+    1
+   ],
+   "destroyed": [
+    2,
+    2
+   ]
+  },
+  "image": "small_box.png"
+ },
+ "spill": {
+  "canvas": [
+   64,
+   64
+  ],
+  "footprint_tiles": [
+   1,
+   1
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   64
+  ],
+  "frames": 4,
+  "tiles": [
+   [
+    9,
+    6
+   ],
+   [
+    10,
+    6
+   ],
+   [
+    11,
+    6
+   ],
+   [
+    10,
+    7
+   ]
+  ],
+  "note": "frames are overlay tiles in this order; spill.aseprite holds the whole 192x128 puddle",
+  "image": "spill.png"
+ },
+ "sticky_tape": {
+  "canvas": [
+   64,
+   64
+  ],
+  "footprint_tiles": [
+   1,
+   1
+  ],
+  "footprint_bottom_left_px": [
+   0,
+   64
+  ],
+  "frames": 1,
+  "image": "sticky_tape.png"
+ },
+ "floor": {
+  "canvas": [
+   64,
+   64
+  ],
+  "frames": 7,
+  "tags": {
+   "plain": [
+    0,
+    3
+   ],
+   "detail": [
+    4,
+    6
+   ]
+  },
+  "note": "seamless in any order; boards 32px, seams at y=31 and y=63",
+  "image": "floor_tiles.png"
+ },
+ "_conventions": {
+  "footprint_bottom_left_px": "canvas pixel at the footprint's bottom-left corner; place it on the bottom-left corner of the prop's bottom-left tile",
+  "frames": "multi-frame PNGs are horizontal strips of canvas-sized frames",
+  "grid": "15x11 tiles of 64px, (1,1) bottom-left"
+ },
+ "_placements": {
+  "desk_leg": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    8
+   ]
+  ],
+  "chair_leg": [
+   [
+    10,
+    5
+   ]
+  ],
+  "cabinet": [
+   [
+    13,
+    8
+   ]
+  ],
+  "books": [
+   [
+    5,
+    5,
+    "red"
+   ],
+   [
+    8,
+    3,
+    "blue"
+   ],
+   [
+    11,
+    8,
+    "red"
+   ]
+  ],
+  "box": [
+   [
+    8,
+    7
+   ],
+   [
+    12,
+    10
+   ]
+  ],
+  "small_box": [
+   [
+    12,
+    4
+   ]
+  ],
+  "spill": [
+   [
+    9,
+    6
+   ],
+   [
+    10,
+    6
+   ],
+   [
+    11,
+    6
+   ],
+   [
+    10,
+    7
+   ]
+  ]
+ }
+}

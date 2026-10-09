@@ -6,6 +6,10 @@ extends Node3D
 ## floor. Plays the sprite's animations, swaps to its object form under a Human
 ## Gaze, and mirrors to face its last direction of travel relative to the camera.
 ##
+## A unit with a 3D model (UnitModel.MODELS) shows the model instead of the sprite
+## card: the same calls play the model's clips, and it turns to face its heading.
+## The Gaze object form is still a sprite card.
+##
 ## The node's position is the unit's feet. It never changes the Unit it shows.
 
 const CARD_SHADER := preload("res://assets/shaders/unit_card.gdshader")
@@ -43,6 +47,11 @@ var _silhouette: MeshInstance3D
 var _ring: MeshInstance3D
 var _materials: Array[ShaderMaterial] = []
 var _showing_object := false
+var _model: UnitModel
+## Set while the model stands guard away from its spot (Watchful).
+var _guarding := false
+## A hit the guard clip already showed landing; its damage skips the flinch.
+var absorbed_hit := false
 ## Whether the card shows the unit as watched by a human. Follows playback (the
 ## Gaze events), not the rules' end state, so a unit isn't turned into its object
 ## before the strikes that happened earlier have been shown.
@@ -62,6 +71,12 @@ func setup(u: Unit) -> void:
 	_frames = _art.frames if _art != null else null
 	shows_frozen = u.frozen
 	_build()
+	_model = UnitModel.for_unit(u)
+	if _model != null:
+		add_child(_model)
+		_model.heading = heading
+		_model.face_now()
+		_model.animation_done.connect(_emit_done)
 	position = BattleSpace.to_world(u.pos)
 	refresh()
 
@@ -139,11 +154,18 @@ func refresh() -> void:
 	_set_param("tint", Color(0.5, 0.5, 0.58) if grey else Color.WHITE)
 	_ring.visible = not shows_frozen
 	visible = not unit.broken
+	if _model != null:
+		# The model stands in for the sprite; the object form stays a card.
+		_model.visible = not _showing_object
+		for m in [_card, _shadow, _silhouette]:
+			m.visible = _showing_object
 	_frame = -1
 	_update_frame(true)
 
 
 func has_anim(anim: String) -> bool:
+	if _model != null:
+		return _model.has_anim(anim)
 	return _frames != null and _frames.has_animation(anim)
 
 
@@ -151,6 +173,9 @@ func has_anim(anim: String) -> bool:
 func play(anim: String) -> void:
 	if not has_anim(anim):
 		anim = "idle"
+	if _model != null:
+		_model.play(anim)
+		return
 	if anim == _anim and _loop:
 		return
 	_anim = anim
@@ -164,12 +189,38 @@ func play(anim: String) -> void:
 func play_once(anim: String, return_to_idle := true) -> void:
 	if not has_anim(anim) or _showing_object or not visible:
 		return
+	if _model != null:
+		_model.play(anim, return_to_idle)
+		while await animation_done != anim:
+			pass
+		return
 	_anim = anim
 	_loop = false
 	_return_to_idle = return_to_idle
 	_time = 0.0
 	_frame = -1
 	await animation_done
+
+
+## Seconds into `anim` at which its strike connects, or NAN when the unit has no
+## timed clip (sprite cards: the hit follows the whole animation and a lunge).
+func contact_time(anim: String) -> float:
+	return _model.event_time(anim, "hit") if _model != null else NAN
+
+
+## Plays the clip for one of the unit's Arts: its own clip when the art has one
+## (the model's "spotlight"), otherwise the shared "art".
+func play_art(art_id: String) -> void:
+	await play_once(art_id if has_anim(art_id) else "art")
+
+
+## Took damage; shows the flinch unless the guard clip already showed the hit.
+func play_hurt() -> void:
+	if absorbed_hit:
+		absorbed_hit = false
+		return
+	if has_anim("hurt"):
+		play_once("hurt")
 
 
 func set_moving(on: bool) -> void:
@@ -180,6 +231,58 @@ func set_moving(on: bool) -> void:
 func face_along(d: Vector2) -> void:
 	if d.length() > 0.001:
 		heading = BattleSpace.dir_to_world(d).normalized()
+		if _model != null:
+			_model.heading = heading
+
+
+## Watchful, shown on a model that has the clips: sprints in front of `ally_at`
+## toward `attacker_at` (world positions), turns to face the attacker and raises
+## the shield. Returns once it is in place; `stand_down` walks it back home.
+## Sprite-only units have no such clips and are left where they are.
+func intercept(ally_at: Vector3, attacker_at: Vector3) -> void:
+	if _model == null or not _model.has_anim("intercept_run") or _showing_object:
+		return
+	var to_attacker := attacker_at - ally_at
+	to_attacker.y = 0.0
+	var spot := ally_at + to_attacker.normalized() * (unit.radius * 2.0 + 0.05)
+	face_along(BattleSpace.to_floor(spot - global_position))
+	_guarding = true
+	_model.play("intercept_run", false)
+	var tw := create_tween()
+	tw.tween_property(self, "global_position", spot, _model.clip_length("intercept_run"))
+	await tw.finished
+	face_along(BattleSpace.to_floor(attacker_at - spot))
+	var brace := _model.event_time("intercept_guard", "brace")
+	if is_nan(brace):
+		_model.play("intercept_guard", false)
+	else:
+		_model.hold("intercept_guard", brace)  # braced, waiting for the blow
+
+
+## The blow lands on a Watchful guard: the guard clip carries on so its impact
+## jolt lands on this frame.
+func take_guarded_hit() -> void:
+	if not _guarding or _model == null:
+		return
+	var impact := _model.event_time("intercept_guard", "impact")
+	if not is_nan(impact):
+		_model.resume_from(maxf(impact - 0.02, 0.0))
+
+
+## After a Watchful intercept: walks back to the unit's own spot and faces
+## `look_at` again.
+func stand_down(look_at: Vector3) -> void:
+	if not _guarding:
+		return
+	_guarding = false
+	var home := BattleSpace.to_world(unit.pos)
+	face_along(BattleSpace.to_floor(home - global_position))
+	play("move")
+	var tw := create_tween()
+	tw.tween_property(self, "position", home, maxf(global_position.distance_to(home) / 3.5, 0.05))
+	await tw.finished
+	face_along(BattleSpace.to_floor(look_at - global_position))
+	play("idle")
 
 
 ## Broken transition: the "broken" animation when the art has one, then a fade out.
@@ -187,7 +290,10 @@ func play_broken() -> void:
 	if has_anim("broken"):
 		await play_once("broken", false)
 	var tw := create_tween()
-	tw.tween_method(func(v: float) -> void: _set_param("fade", v), 1.0, 0.0, 0.4)
+	if _model != null:
+		tw.tween_method(_model.set_opacity, 1.0, 0.0, 0.4)
+	else:
+		tw.tween_method(func(v: float) -> void: _set_param("fade", v), 1.0, 0.0, 0.4)
 	await tw.finished
 	refresh()
 
@@ -205,6 +311,8 @@ func play_transform(to_object: bool) -> void:
 	refresh()
 	if not to_object and has_anim("gaze_out"):
 		play_once("gaze_out")
+	elif to_object and _model != null:
+		_model.play("idle")  # ready for when it springs back out
 
 
 func _update_frame(force: bool) -> void:
@@ -213,7 +321,7 @@ func _update_frame(force: bool) -> void:
 			var tex: Texture2D = _mundane.texture
 			_show_texture(tex, Rect2(Vector2.ZERO, tex.get_size()), _mundane.pivot)
 		return
-	if _frames == null or not _frames.has_animation(_anim):
+	if _model != null or _frames == null or not _frames.has_animation(_anim):
 		return
 	var count := _frames.get_frame_count(_anim)
 	var fps := _frames.get_animation_speed(_anim)

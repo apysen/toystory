@@ -1,0 +1,10 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  68,
+  118
+ ],
+ "colours": 8,
+ "source": "assets/concept/player/stapler.png"
+}

@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  85,
+  115
+ ],
+ "colours": 14,
+ "source": "assets/concept/player/cable.png",
+ "note": "16-colour variant, no pre-smoothing"
+}

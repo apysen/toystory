@@ -1,0 +1,10 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  66,
+  119
+ ],
+ "colours": 8,
+ "source": "assets/concept/player/toaster.png"
+}

@@ -33,6 +33,7 @@ const Mode := BattleSelection.Mode
 @export var audio: BattleAudio
 @export var audio_settings: AudioSettings
 @export var display_settings: DisplaySettings
+@export var speed_settings: BattleSpeedSettings
 
 @export_group("World")
 @export var camera: BattleCamera
@@ -52,8 +53,9 @@ const Mode := BattleSelection.Mode
 @export var pause_menu: PauseMenu
 
 @export_group("Control")
-## Metres per second a controlled unit moves.
-@export var move_speed := 3.6
+## Metres per second a controlled unit moves: the pace the run clips are authored
+## for, so feet match the floor.
+@export var move_speed := 1.8
 ## Degrees a cone turns per left/right press while aiming with keys or the D-pad.
 @export var aim_step_degrees := 20.0
 ## Extra metres around a unit's body that still count as clicking it.
@@ -76,7 +78,7 @@ func _ready() -> void:
 	ring.cancelled.connect(_close_menu)
 	ring.hovered.connect(_show_action_reach)
 	preview.shown_changed.connect(func(on: bool) -> void: hud.set_bottom_visible(not on))
-	pause_menu.setup(audio_settings, display_settings)
+	pause_menu.setup(audio_settings, display_settings, speed_settings)
 	pause_menu.opened.connect(_set_paused.bind(true))
 	pause_menu.closed.connect(_set_paused.bind(false))
 	pause_menu.main_menu_requested.connect(_abandon)

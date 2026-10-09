@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  82,
+  124
+ ],
+ "colours": 8,
+ "source": "assets/concept/player/typewriter.png",
+ "note": "palette hand-picked to keep brown leather and brass; keyboard cleaned by hand"
+}

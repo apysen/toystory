@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  24,
+  128
+ ],
+ "colours": 12,
+ "fps": 8,
+ "source": "assets/animations/vacuum/ (your originals, unchanged)"
+}

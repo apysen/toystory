@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  61,
+  123
+ ],
+ "colours": 16,
+ "source": "assets/concept/player/teacup.png",
+ "note": "16-colour variant, no pre-smoothing"
+}
