@@ -15,6 +15,8 @@ signal end_turn_requested
 @export var stars_label: Label
 
 @export_group("Turn Panel")
+## The bottom-left panel; hidden while the battle preview has the bottom of the screen.
+@export var turn_panel: Control
 @export var turn_label: Label
 @export var phase_label: Label
 @export var noise_meter: NoiseMeter
@@ -67,6 +69,14 @@ func refresh() -> void:
 
 func set_hint(text: String) -> void:
 	hint_label.text = text
+
+
+## The battle preview takes the bottom of the screen while a target is picked;
+## the turn panel, hint line and minimap step aside for it.
+func set_bottom_visible(on: bool) -> void:
+	turn_panel.visible = on
+	hint_label.visible = on
+	minimap.visible = on
 
 
 func set_end_turn_enabled(on: bool) -> void:

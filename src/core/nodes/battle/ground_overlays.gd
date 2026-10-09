@@ -33,6 +33,10 @@ var _battle: Battle
 ## Whether the Gaze circle is shown. Follows playback (the Gaze events) rather than
 ## the rules, which already know the end state before the events are played.
 var gaze_visible := false
+## Telegraphed lanes on the floor ({owner, a, b, half_width}). Like the Gaze, these
+## follow playback: a lane appears when the Captain is seen marking it, not as soon
+## as the rules know about it.
+var shown_telegraphs: Array = []
 var _move: MeshInstance3D
 var _enemy_reach: MeshInstance3D
 var _reach_ring: MeshInstance3D
@@ -50,6 +54,7 @@ var _telegraphs: Array[MeshInstance3D] = []
 func setup(b: Battle) -> void:
 	_battle = b
 	gaze_visible = b.gaze_active()
+	shown_telegraphs = b.telegraphs.duplicate()
 	var size := b.field.size
 	_move = _quad(size, 3)
 	_enemy_reach = _quad(size, 3)
@@ -133,11 +138,21 @@ func sync() -> void:
 	for t in _telegraphs:
 		t.queue_free()
 	_telegraphs.clear()
-	for tg in _battle.telegraphs:
+	for tg in shown_telegraphs:
 		var q := _quad(_battle.field.size, 2)
 		_params(q, {"seg_a": tg.a, "seg_b": tg.b, "half_width": tg.half_width, "fill_color": telegraph_fill,
 			"edge_color": telegraph_edge, "hatch": 2.0, "pulse": 4.0})
 		_telegraphs.append(q)
+
+
+func add_telegraph(owner: Unit, a: Vector2, b: Vector2, half_width: float) -> void:
+	shown_telegraphs.append({"owner": owner, "a": a, "b": b, "half_width": half_width})
+	sync()
+
+
+func remove_telegraphs(owner: Unit) -> void:
+	shown_telegraphs = shown_telegraphs.filter(func(t): return t.owner != owner)
+	sync()
 
 
 ## The movement area of a unit and where its activation began.

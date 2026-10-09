@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://src/core/nodes/ui/noise_meter.gd" id="2_noise"]
 [ext_resource type="Script" path="res://src/core/nodes/ui/minimap.gd" id="3_minimap"]
 
-[node name="BattleHud" type="Control" node_paths=PackedStringArray("objective_label", "stars_label", "turn_label", "phase_label", "noise_meter", "end_turn_button", "hint_label", "banner_label", "toast_label", "notice_label", "minimap")]
+[node name="BattleHud" type="Control" node_paths=PackedStringArray("objective_label", "stars_label", "turn_panel", "turn_label", "phase_label", "noise_meter", "end_turn_button", "hint_label", "banner_label", "toast_label", "notice_label", "minimap")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -15,6 +15,7 @@ mouse_filter = 2
 script = ExtResource("1_hud")
 objective_label = NodePath("Objective/Column/Objective")
 stars_label = NodePath("Objective/Column/Stars")
+turn_panel = NodePath("TurnPanel")
 turn_label = NodePath("TurnPanel/Column/Top/Turn")
 phase_label = NodePath("TurnPanel/Column/Top/Phase")
 noise_meter = NodePath("TurnPanel/Column/Noise/Meter")

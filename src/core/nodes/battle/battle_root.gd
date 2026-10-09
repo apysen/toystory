@@ -75,6 +75,7 @@ func _ready() -> void:
 	ring.chosen.connect(choose_action)
 	ring.cancelled.connect(_close_menu)
 	ring.hovered.connect(_show_action_reach)
+	preview.shown_changed.connect(func(on: bool) -> void: hud.set_bottom_visible(not on))
 	pause_menu.setup(audio_settings, display_settings)
 	pause_menu.opened.connect(_set_paused.bind(true))
 	pause_menu.closed.connect(_set_paused.bind(false))

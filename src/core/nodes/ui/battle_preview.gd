@@ -9,6 +9,9 @@ extends Control
 ##
 ## It shows an `Exchange.preview` result and changes nothing.
 
+## Shown or hidden, so the HUD can make room at the bottom of the screen.
+signal shown_changed(is_shown: bool)
+
 @export_group("Left Card")
 @export var left_header: Panel
 @export var left_name: Label
@@ -31,6 +34,12 @@ extends Control
 @export var strike_list: VBoxContainer
 @export var effect_label: Label
 @export var confirm_hint: Label
+
+@export_group("Strike Columns")
+@export var number_width := 18.0
+@export var mark_width := 20.0
+@export var stats_width := 200.0
+@export var name_width := 120.0
 
 @export_group("Colours")
 @export var player_band := Color("4f8fd0")
@@ -75,6 +84,7 @@ func show_exchange(ex: Dictionary) -> void:
 	effect_label.visible = ex.effect != ""
 	if not visible:
 		visible = true
+		shown_changed.emit(true)
 		modulate.a = 0.0
 		position.y = 40.0
 		if _slide != null:
@@ -85,7 +95,9 @@ func show_exchange(ex: Dictionary) -> void:
 
 
 func hide_preview() -> void:
-	visible = false
+	if visible:
+		visible = false
+		shown_changed.emit(false)
 
 
 func _side(sides: Array, u: Unit) -> Dictionary:
@@ -148,38 +160,53 @@ func _process(_delta: float) -> void:
 		right_bar.queue_redraw()
 
 
+## One strike as fixed columns, so every row lines up:
+##   number | X | the user's numbers | who strikes (centred) | the other side's numbers | X | spacer
+## The user's strikes put their numbers on the left, under its card; the other
+## side's go on the right, under theirs. A killing strike's X sits beside its numbers.
 func _strike_row(n: int, st: Dictionary, user: Unit) -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
 	var by_user: bool = st.by == user
-	var num := Label.new()
-	num.text = "%d" % n
-	num.add_theme_color_override("font_color", Color("8a7656"))
-	row.add_child(num)
-	var who := Label.new()
-	who.text = ("%s ▶" % st.by.name) if by_user else ("◀ %s" % st.by.name)
-	who.custom_minimum_size = Vector2(170, 0)
-	who.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if by_user else HORIZONTAL_ALIGNMENT_LEFT
-	who.add_theme_color_override("font_color", player_band.darkened(0.25) if st.by.faction == Defs.Faction.PLAYER else enemy_band.darkened(0.2))
-	row.add_child(who)
-	var nums := Label.new()
-	nums.text = "%d dmg  ·  %d%%%s" % [st.damage, st.hit, "  · crit %d%%" % st.crit if st.crit > 0 else ""]
-	nums.add_theme_color_override("font_color", Color("2b2230"))
-	row.add_child(nums)
-	if st.get("counter", false):
-		var c := Label.new()
-		c.text = "counter"
-		c.add_theme_font_size_override("font_size", 12)
-		c.add_theme_color_override("font_color", Color("8a7656"))
-		row.add_child(c)
-	if st.lethal:
-		var x := Label.new()
+	var num := _cell(row, "%d" % n, number_width, HORIZONTAL_ALIGNMENT_RIGHT, Color("8a7656"))
+	num.add_theme_font_size_override("font_size", 15)
+	_kill_mark(row, st if by_user else {})
+	var stats := "%d dmg  ·  %d%%%s" % [st.damage, st.hit, "  ·  crit %d%%" % st.crit if st.crit > 0 else ""]
+	_cell(row, stats if by_user else "", stats_width, HORIZONTAL_ALIGNMENT_RIGHT, Color("2b2230"))
+	var who: String = st.by.name + ("  (counter)" if st.get("counter", false) else "")
+	var name_col: Color = player_band.darkened(0.25) if st.by.faction == Defs.Faction.PLAYER else enemy_band.darkened(0.2)
+	var name_cell := _cell(row, who, name_width, HORIZONTAL_ALIGNMENT_CENTER, name_col)
+	name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cell(row, "" if by_user else stats, stats_width, HORIZONTAL_ALIGNMENT_LEFT, Color("2b2230"))
+	_kill_mark(row, {} if by_user else st)
+	# Balances the number column, so the names sit exactly under the title.
+	_cell(row, "", number_width, HORIZONTAL_ALIGNMENT_LEFT, Color.TRANSPARENT)
+	return row
+
+
+func _cell(row: HBoxContainer, text: String, width: float, align: HorizontalAlignment, col: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.custom_minimum_size = Vector2(width, 0)
+	l.horizontal_alignment = align
+	l.clip_text = true
+	l.add_theme_color_override("font_color", col)
+	row.add_child(l)
+	return l
+
+
+## The red X beside a strike that would Break its target (an empty slot otherwise,
+## so the columns stay put).
+func _kill_mark(row: HBoxContainer, st: Dictionary) -> void:
+	var x := Label.new()
+	x.custom_minimum_size = Vector2(mark_width, 0)
+	x.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if not st.is_empty() and st.lethal:
 		x.text = "X"
-		x.add_theme_font_size_override("font_size", 24)
+		x.add_theme_font_size_override("font_size", 22)
 		x.add_theme_color_override("font_color", kill_color)
 		x.add_theme_color_override("font_outline_color", Color("3a0a08"))
 		x.add_theme_constant_override("outline_size", 6)
 		x.tooltip_text = "%s would be Broken" % st.on.name
-		row.add_child(x)
-	return row
+		x.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(x)

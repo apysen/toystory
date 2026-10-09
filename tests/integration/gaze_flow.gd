@@ -54,6 +54,7 @@ func _run() -> void:
 	check(view.selection.mode == Mode.IDLE, "and hands control back")
 	check(b.gaze_active() and cutter.frozen, "the Captain is watched")
 	check(b.telegraphs.is_empty(), "its Cutting Line is called off")
+	check(view.overlays.shown_telegraphs.is_empty(), "and its lane leaves the floor")
 	check(view.card_of(toaster).shows_frozen, "Toaster shows its object form")
 	view.end_turn()
 	await process_frame

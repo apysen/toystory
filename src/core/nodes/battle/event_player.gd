@@ -48,6 +48,8 @@ func play(events: Array) -> void:
 	for id in _cards:
 		var c: UnitCard = _cards[id]
 		c.shown_hp = c.unit.hp
+	overlays.shown_telegraphs = _battle.telegraphs.duplicate()
+	overlays.sync()
 
 
 ## Refreshes what can be read straight from the rules without getting ahead of
@@ -90,6 +92,7 @@ func _play_one(e: Dictionary) -> void:
 			effects.float_text(c.global_position + Vector3(0, 1.0, 0), "+%d" % e.amount, Color("80ff90"))
 			await get_tree().create_timer(0.3, false).timeout
 		"broken":
+			overlays.remove_telegraphs(e.unit)
 			hud.notify("%s is Broken." % e.unit.name)
 			audio.play("broken")
 			await card(e.unit).play_broken()
@@ -108,6 +111,9 @@ func _play_one(e: Dictionary) -> void:
 		"area":
 			overlays.flash_area(e)
 			if e.kind == "cutting_line":
+				for tg in overlays.shown_telegraphs.duplicate():
+					if tg.a == e.a and tg.b == e.b:
+						overlays.remove_telegraphs(tg.owner)
 				var steps := 6
 				for k in steps + 1:
 					effects.burst("cutting_line", BattleSpace.to_world((e.a as Vector2).lerp(e.b, float(k) / steps), 0.3))
@@ -142,9 +148,10 @@ func _play_one(e: Dictionary) -> void:
 			await camera.glide_to(card(e.unit).global_position)
 			hud.notify("Paper Cutter marks a Cutting Line!")
 			audio.play("telegraph")
-			overlays.sync()
+			overlays.add_telegraph(e.unit, e.a, e.b, e.half_width)
 			await get_tree().create_timer(0.45, false).timeout
 		"telegraph_cancel":
+			overlays.remove_telegraphs(e.unit)
 			hud.notify("Cutting Line cancelled.")
 		"tape":
 			hud.notify("%s is taped down." % e.unit.name)

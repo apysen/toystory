@@ -57,6 +57,15 @@ func _run() -> void:
 	view.ring.choose()
 	await _wait(20)
 	_save(out + "/05_preview.png")
+	var victim: Variant = view.selection.current_target()
+	if victim is Unit:
+		var real_hp: int = victim.hp
+		victim.hp = 4
+		view._refresh_target()
+		await _wait(10)
+		_save(out + "/05b_preview_lethal.png")
+		victim.hp = real_hp
+		view._refresh_target()
 	view.camera.yaw += 1.4
 	await _wait(25)
 	_save(out + "/06_orbit.png")
