@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  65,
+  108
+ ],
+ "colours": 16,
+ "source": "assets/concept/player/needle.png",
+ "note": "16-colour variant, no pre-smoothing"
+}

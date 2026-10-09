@@ -18,10 +18,13 @@ const PROJECTILES := {"stapler": "staple_shot", "toaster": "toast", "teacup": "s
 @export var dialogue: DialogueBox
 @export var overlays: GroundOverlays
 @export var diorama: Diorama
+## Playback runs at its speed; steering a unit never does.
+@export var speed_settings: BattleSpeedSettings
 
 @export_group("Timing")
-## Metres per second a unit walks during playback.
-@export var walk_speed := 4.5
+## Metres per second a unit travels during playback: the pace the run clips are
+## authored for, so feet match the floor (Battle Speed speeds playback up).
+@export var walk_speed := 1.8
 ## Metres per second a unit slides when pushed or pulled.
 @export var shove_speed := 9.0
 @export var lunge_metres := 0.25
@@ -29,11 +32,24 @@ const PROJECTILES := {"stapler": "staple_shot", "toaster": "toast", "teacup": "s
 
 var _battle: Battle
 var _cards: Dictionary = {}
+var _playing := false
 
 
 func setup(b: Battle, cards: Dictionary) -> void:
 	_battle = b
 	_cards = cards
+	if speed_settings != null:
+		speed_settings.changed.connect(_apply_speed)
+
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
+
+
+## Game time runs at the Battle Speed while events play back, and at real time
+## otherwise (when the player steers).
+func _apply_speed() -> void:
+	Engine.time_scale = speed_settings.speed() if _playing and speed_settings != null else 1.0
 
 
 func card(u: Unit) -> UnitCard:
@@ -41,9 +57,13 @@ func card(u: Unit) -> UnitCard:
 
 
 func play(events: Array) -> void:
+	_playing = true
+	_apply_speed()
 	for e in events:
 		await _play_one(e)
 		_sync()
+	_playing = false
+	_apply_speed()
 	# Whatever playback didn't show explicitly catches up at the end.
 	for id in _cards:
 		var c: UnitCard = _cards[id]
@@ -82,8 +102,7 @@ func _play_one(e: Dictionary) -> void:
 		"damage":
 			var c := card(e.unit)
 			c.shown_hp = e.hp
-			if c.has_anim("hurt"):
-				c.play_once("hurt")
+			c.play_hurt()
 		"heal":
 			var c := card(e.unit)
 			c.shown_hp = e.hp
@@ -104,7 +123,7 @@ func _play_one(e: Dictionary) -> void:
 			var c := card(e.unit)
 			if _enemy_turn(e.unit):
 				await camera.glide_to(c.global_position)
-			c.play_once("art")
+			c.play_art(e.art)
 			if e.art == "suction":
 				effects.burst("suction_swirl", c.global_position + c.heading * 0.8 + Vector3(0, 0.6, 0))
 			await hud.toast(e.name)
@@ -187,23 +206,36 @@ func _strike(e: Dictionary) -> void:
 	var ac := card(e.attacker)
 	if _enemy_turn(e.attacker):
 		await camera.glide_to((ac.global_position + tc.global_position) * 0.5)
+	var intercepted: bool = e.get("intercepted", false)
+	if intercepted:
+		# Watchful: Lamp gets between the ally and the attacker before the blow lands.
+		await tc.intercept(card(e.original).global_position, ac.global_position)
 	ac.face_along(BattleSpace.to_floor(tc.global_position - ac.global_position))
 	audio.play(BattleAudio.attack_sound(e.attacker), -10.0)
-	if ac.has_anim("attack"):
-		await ac.play_once("attack")
-	var dir := (tc.global_position - ac.global_position)
-	dir.y = 0
-	dir = dir.normalized()
-	var home := ac.position
-	var tw := create_tween()
-	tw.tween_property(ac, "position", home + dir * lunge_metres, 0.08)
-	tw.tween_property(ac, "position", home, 0.1)
-	await tw.finished
+	var contact := ac.contact_time("attack")
+	if not is_nan(contact):
+		# A model's swing carries its own lunge: the hit lands on its contact frame
+		# while the follow-through plays on.
+		ac.play_once("attack")
+		await get_tree().create_timer(contact, false).timeout
+	else:
+		if ac.has_anim("attack"):
+			await ac.play_once("attack")
+		var dir := (tc.global_position - ac.global_position)
+		dir.y = 0
+		dir = dir.normalized()
+		var home := ac.position
+		var tw := create_tween()
+		tw.tween_property(ac, "position", home + dir * lunge_metres, 0.08)
+		tw.tween_property(ac, "position", home, 0.1)
+		await tw.finished
 	var gap: float = e.attacker.gap_to(e.target)
 	var proj: String = PROJECTILES.get(e.attacker.id, "")
 	var hand_height := 0.5 if not e.attacker.is_large() else 1.0
 	if gap > Defs.MELEE_REACH and proj != "":
 		await effects.projectile(proj, ac.global_position + Vector3(0, hand_height, 0), tc.global_position + Vector3(0, 0.45, 0))
+	if intercepted:
+		tc.take_guarded_hit()
 	audio.play("miss" if not e.hit else ("crit" if e.crit else "hit"))
 	var hit_at := tc.global_position + Vector3(0, 0.9 if e.target.is_large() else 0.45, 0)
 	if e.hit:
@@ -211,7 +243,10 @@ func _strike(e: Dictionary) -> void:
 	var txt := "Miss"
 	if e.hit:
 		txt = ("CRIT %d" if e.crit else "%d") % e.damage
-	if e.get("intercepted", false):
+	if intercepted:
 		hud.notify("Lamp intercepts the hit (Watchful).")
 	effects.float_text(hit_at + Vector3(0, 0.5, 0), txt, Color("ffe070") if e.crit else (Color.WHITE if e.hit else Color("b8b0c8")))
 	await get_tree().create_timer(after_strike_seconds, false).timeout
+	if intercepted:
+		tc.absorbed_hit = e.hit and tc.has_anim("intercept_guard")
+		await tc.stand_down(ac.global_position)

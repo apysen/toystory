@@ -1,0 +1,10 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  61,
+  122
+ ],
+ "colours": 8,
+ "source": "assets/concept/player/fridge.png"
+}

@@ -1,0 +1,10 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  85,
+  115
+ ],
+ "colours": 11,
+ "source": "assets/concept/cable.png"
+}

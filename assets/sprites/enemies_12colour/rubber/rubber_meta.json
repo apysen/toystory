@@ -1,0 +1,10 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  58,
+  105
+ ],
+ "colours": 12,
+ "source": "assets/concept/enemies/rubber.png"
+}

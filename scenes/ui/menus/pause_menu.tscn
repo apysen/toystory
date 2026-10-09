@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://src/core/nodes/ui/pause_menu.gd" id="1_pause"]
 
-[node name="PauseMenu" type="Control" node_paths=PackedStringArray("resume_button", "main_menu_button", "fullscreen_button", "volume_slider", "volume_value")]
+[node name="PauseMenu" type="Control" node_paths=PackedStringArray("resume_button", "main_menu_button", "fullscreen_button", "battle_speed_button", "volume_slider", "volume_value")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -13,6 +13,7 @@ script = ExtResource("1_pause")
 resume_button = NodePath("Center/Panel/Column/Resume")
 main_menu_button = NodePath("Center/Panel/Column/MainMenu")
 fullscreen_button = NodePath("Center/Panel/Column/Fullscreen")
+battle_speed_button = NodePath("Center/Panel/Column/BattleSpeed")
 volume_slider = NodePath("Center/Panel/Column/Volume/Slider")
 volume_value = NodePath("Center/Panel/Column/Volume/Value")
 
@@ -72,6 +73,11 @@ horizontal_alignment = 2
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "Resume"
+
+[node name="BattleSpeed" type="Button" parent="Center/Panel/Column"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Battle Speed: 1x"
 
 [node name="Fullscreen" type="Button" parent="Center/Panel/Column"]
 custom_minimum_size = Vector2(0, 44)

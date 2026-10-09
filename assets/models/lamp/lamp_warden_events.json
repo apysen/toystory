@@ -1,0 +1,12 @@
+{
+  "attack": {
+    "hit": 0.45
+  },
+  "intercept_guard": {
+    "brace": 0.2,
+    "impact": 0.3
+  },
+  "move": {
+    "speed": 1.8
+  }
+}

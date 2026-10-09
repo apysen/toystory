@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  58,
+  114
+ ],
+ "colours": 8,
+ "source": "assets/concept/player/umbrella.png",
+ "note": "second eye added by hand; palette hand-picked so the armour stays silver"
+}

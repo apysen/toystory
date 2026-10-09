@@ -1,0 +1,11 @@
+{
+ "frame_width": 128,
+ "frame_height": 128,
+ "foot_pivot": [
+  67,
+  119
+ ],
+ "colours": 8,
+ "source": "assets/concept/player/toolbox.png",
+ "faces": "left"
+}
