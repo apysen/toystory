@@ -39,7 +39,7 @@ signal shown_changed(is_shown: bool)
 @export var number_width := 18.0
 @export var mark_width := 20.0
 @export var stats_width := 200.0
-@export var name_width := 120.0
+@export var arrow_width := 48.0
 
 @export_group("Colours")
 @export var player_band := Color("4f8fd0")
@@ -161,9 +161,9 @@ func _process(_delta: float) -> void:
 
 
 ## One strike as fixed columns, so every row lines up:
-##   number | X | the user's numbers | who strikes (centred) | the other side's numbers | X | spacer
-## The user's strikes put their numbers on the left, under its card; the other
-## side's go on the right, under theirs. A killing strike's X sits beside its numbers.
+##   number | X | the user's numbers | arrow (centred) | the other side's numbers | X | spacer
+## The user's strikes put their numbers on the left, under its card, with a blue
+## arrow pointing right; the other side's go on the right with a red arrow pointing left. A killing strike's X sits beside its numbers.
 func _strike_row(n: int, st: Dictionary, user: Unit) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
@@ -173,10 +173,16 @@ func _strike_row(n: int, st: Dictionary, user: Unit) -> Control:
 	_kill_mark(row, st if by_user else {})
 	var stats := "%d dmg  ·  %d%%%s" % [st.damage, st.hit, "  ·  crit %d%%" % st.crit if st.crit > 0 else ""]
 	_cell(row, stats if by_user else "", stats_width, HORIZONTAL_ALIGNMENT_RIGHT, Color("2b2230"))
-	var who: String = st.by.name + ("  (counter)" if st.get("counter", false) else "")
-	var name_col: Color = player_band.darkened(0.25) if st.by.faction == Defs.Faction.PLAYER else enemy_band.darkened(0.2)
-	var name_cell := _cell(row, who, name_width, HORIZONTAL_ALIGNMENT_CENTER, name_col)
-	name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Who strikes, as an arrow pointing from the striker's card toward the target's:
+	# blue for the player's side, red for the enemy's.
+	var arrow_col: Color = player_band if st.by.faction == Defs.Faction.PLAYER else enemy_band
+	var arrow := _cell(row, "▶" if by_user else "◀", arrow_width, HORIZONTAL_ALIGNMENT_CENTER, arrow_col)
+	arrow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arrow.add_theme_font_size_override("font_size", 22)
+	arrow.add_theme_color_override("font_outline_color", arrow_col.darkened(0.5))
+	arrow.add_theme_constant_override("outline_size", 3)
+	arrow.tooltip_text = st.by.name + (" (counter)" if st.get("counter", false) else "")
+	arrow.mouse_filter = Control.MOUSE_FILTER_PASS
 	_cell(row, "" if by_user else stats, stats_width, HORIZONTAL_ALIGNMENT_LEFT, Color("2b2230"))
 	_kill_mark(row, {} if by_user else st)
 	# Balances the number column, so the names sit exactly under the title.
