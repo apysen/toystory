@@ -169,7 +169,8 @@ func art_check(u: Unit, art_id: String) -> Dictionary:
 	return {"ok": true, "reason": ""}
 
 
-## Units, or aim directions (unit Vector2) for cones.
+## Units, aim directions (unit Vector2) for cones, or suggested centres (Vector2
+## points: the user and each ally within reach, nearest first) for areas.
 func art_targets(u: Unit, art_id: String) -> Array:
 	var art := Arts.get_art(art_id)
 	var out: Array = []
@@ -179,6 +180,13 @@ func art_targets(u: Unit, art_id: String) -> Array:
 		"direction":
 			for k in 16:
 				out.append(Vector2.RIGHT.rotated(TAU * k / 16.0))
+		"area":
+			var allies: Array = field.living_units().filter(func(o: Unit) -> bool:
+				return o != u and o.faction == u.faction and not o.frozen and not o.pending_join 					and u.pos.distance_to(o.pos) <= area_reach(u, art_id) + 0.001)
+			allies.sort_custom(func(a: Unit, b: Unit) -> bool: return u.pos.distance_to(a.pos) < u.pos.distance_to(b.pos))
+			out.append(u.pos)
+			for o in allies:
+				out.append(o.pos)
 		"ally":
 			for o in field.living_units():
 				if o.faction != u.faction or o.frozen or o.pending_join:
@@ -202,6 +210,50 @@ func art_targets(u: Unit, art_id: String) -> Array:
 			for o in field.living_units():
 				if can_target(u, o) and not lunge_stop(u, o, art.dash).is_empty():
 					out.append(o)
+	return out
+
+
+## How far from the user's centre an area Art's circle may be centred.
+func area_reach(u: Unit, art_id: String) -> float:
+	return u.radius + float(Arts.get_art(art_id).max)
+
+
+## The circle an area Art covers when placed at `point` (pulled in to its reach):
+## {center, radius}.
+func area_for(u: Unit, art_id: String, point: Vector2) -> Dictionary:
+	var d := point - u.pos
+	var reach := area_reach(u, art_id)
+	if d.length() > reach:
+		point = u.pos + d.normalized() * reach
+	return {"center": point, "radius": float(Arts.get_art(art_id).radius)}
+
+
+## HP Overheat burns off its user: a share of max HP, but never the last point.
+func overheat_burn(u: Unit) -> int:
+	return mini(ceili(u.max_hp * Defs.OVERHEAT_SELF_PCT), u.hp - 1)
+
+
+## The circle a self-centred area Art covers round its user: {center, radius}.
+func around(u: Unit, art_id: String) -> Dictionary:
+	return {"center": u.pos, "radius": float(Arts.get_art(art_id).radius)}
+
+
+## The enemies a radial attack (Staple Storm) strikes: in the circle, targetable and
+## in sight of the user.
+func storm_targets(u: Unit, area: Dictionary) -> Array[Unit]:
+	var out: Array[Unit] = []
+	for o in units_in_area(area):
+		if o != u and can_target(u, o) and field.has_los(u.pos, o.pos):
+			out.append(o)
+	return out
+
+
+## Units standing in an area: their centre is inside the circle.
+func units_in_area(area: Dictionary) -> Array[Unit]:
+	var out: Array[Unit] = []
+	for o in field.living_units():
+		if o.pos.distance_to(area.center) <= area.radius + 0.001:
+			out.append(o)
 	return out
 
 
@@ -347,6 +399,9 @@ func use_art(u: Unit, art_id: String, target) -> bool:
 	if art.target == "direction":
 		if not (target is Vector2) or target == Vector2.ZERO:
 			return false
+	elif art.target == "area":
+		if not (target is Vector2) or u.pos.distance_to(target) > area_reach(u, art_id) + 0.001:
+			return false
 	elif not art_targets(u, art_id).has(target):
 		return false
 	stats.arts_used += 1
@@ -356,6 +411,31 @@ func use_art(u: Unit, art_id: String, target) -> bool:
 	match art_id:
 		"guard_beam":
 			target.status["guard_beam"] = true
+		"staple_storm":
+			var area := around(u, art_id)
+			_emit({"type": "area", "shape": "circle", "center": area.center, "radius": area.radius, "kind": art_id})
+			for o in storm_targets(u, area):
+				var r := _strike(u, o, _player_spec(u, o, {"might": art.might, "type": art.type}), false)
+				if r.get("hit", false) and not o.broken:
+					o.status["pinned"] = true
+		"overheat":
+			var area := around(u, art_id)
+			_emit({"type": "area", "shape": "circle", "center": area.center, "radius": area.radius, "kind": art_id})
+			var spec_base := {"might": art.might, "type": art.type}
+			if u.status.has("heated"): # Hot Coils powers the whole eruption
+				spec_base["power_bonus"] = 2
+				u.status.erase("heated")
+			for o in storm_targets(u, area):
+				_strike(u, o, spec_base.duplicate(), false)
+			var burn := overheat_burn(u)
+			if burn > 0:
+				_damage(u, burn)
+		"spotlight":
+			var area := area_for(u, art_id, target)
+			_emit({"type": "area", "shape": "circle", "center": area.center, "radius": area.radius, "kind": art_id})
+			for o in units_in_area(area):
+				if o.faction == u.faction and not o.frozen:
+					o.status["spotlight"] = true
 		"flashbulb", "flash_bake":
 			var cone := cone_for(u, art_id, target)
 			_emit({"type": "area", "shape": "cone", "cone": cone, "kind": art_id})
@@ -587,6 +667,8 @@ func forced_move(u: Unit, dir: Vector2, dist: float) -> void:
 	if u.status.has("guard_beam"):
 		u.status.erase("guard_beam")
 		dist = 0.0
+	if u.status.has("spotlight"):
+		dist = 0.0 # Spotlight: can't be moved by force
 	dist = maxf(dist - u.forced_move_reduction, 0.0)
 	var start := u.pos
 	var collided: Unit = null
@@ -621,6 +703,8 @@ func forced_move(u: Unit, dir: Vector2, dist: float) -> void:
 ## when something is in the way.
 func pull_toward(u: Unit, puller: Unit, dist: float) -> void:
 	dist = maxf(dist - u.forced_move_reduction, 0.0)
+	if u.status.has("spotlight"):
+		dist = 0.0
 	var start := u.pos
 	var travelled := 0.0
 	var step := 0.05
@@ -655,7 +739,7 @@ func begin_player_phase() -> void:
 	for u in field.living_units():
 		u.displaced_this_phase = false
 		u.moved_distance = 0.0
-		for s in ["guard_beam", "steady_sip", "canopy", "pinned", "watchful_used"]:
+		for s in ["guard_beam", "spotlight", "steady_sip", "canopy", "pinned", "watchful_used"]:
 			u.status.erase(s)
 		if u.status.has("heated") and int(u.status.heated) < turn - 1:
 			u.status.erase("heated")

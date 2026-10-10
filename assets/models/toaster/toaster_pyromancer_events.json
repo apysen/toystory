@@ -1,0 +1,28 @@
+{
+  "attack": {
+    "slam": 0.8667,
+    "hit": 2.2667,
+    "reload": 2.8667
+  },
+  "eject": {
+    "slam": 0.6667,
+    "hit": 2.8333,
+    "reload": 4.2
+  },
+  "flash_bake": {
+    "stomp": 0.3,
+    "charge": 0.7333,
+    "fire": 1.7333,
+    "fire_end": 2.4333
+  },
+  "overheat": {
+    "slam": 0.5333,
+    "rise": 1.8333,
+    "erupt": 2.5,
+    "land": 4.4,
+    "reload": 4.9333
+  },
+  "move": {
+    "speed": 1.8
+  }
+}

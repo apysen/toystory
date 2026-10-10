@@ -39,7 +39,7 @@ class Character:
 
     def __init__(self, name, folder, object_name, pivot, palette, part_bone=None, body_weights=None,
                  clip_checks=(), ik_limbs=(("forearm_R", "hand_R"), ("forearm_L", "hand_L"),
-                                           ("shin_R", "foot_R"), ("shin_L", "foot_L"))):
+                                           ("shin_R", "foot_R"), ("shin_L", "foot_L")), detail=None):
         self.name = name
         self.object_name = object_name
         self.px, self.ground = pivot          # sprite foot pivot (x, y) in px
@@ -51,6 +51,11 @@ class Character:
         self.ik_limbs = ik_limbs
         self.out_dir = os.path.join(ROOT, "assets", "models", folder)
         self.src_dir = os.path.join(self.out_dir, "source")
+        # line art (a DETAIL_SIZE square PNG, drawn by a tools/draw_<name>_details.py
+        # script) that the texture becomes an atlas of: the palette swatches in its
+        # top-left PALETTE_PX corner, the art everywhere else; None keeps the plain
+        # 16x16 palette
+        self.detail = detail
 
 
 # The character being built (P, H, Builder and build use it). Every character
@@ -85,9 +90,19 @@ def H(py):
     return (CFG.ground - py) * S
 
 
+DETAIL_SIZE = 1024   # px square of a detail atlas
+PALETTE_PX = 256     # its top-left corner holds the 4x4 palette swatches
+
+
 def swatch_uv(name):
     i = CFG.swatch[name]
-    return Vector(((i % 4 + 0.5) / 4.0, 1.0 - (i // 4 + 0.5) / 4.0))
+    k = PALETTE_PX / DETAIL_SIZE if CFG.detail else 1.0
+    return Vector(((i % 4 + 0.5) / 4.0 * k, 1.0 - (i // 4 + 0.5) / 4.0 * k))
+
+
+def detail_uv(x, y):
+    """UV of pixel (x, y) of a character's detail atlas (origin top-left)."""
+    return Vector((x / DETAIL_SIZE, 1.0 - y / DETAIL_SIZE))
 
 
 class Builder:
@@ -137,6 +152,20 @@ class Builder:
         for f in faces:
             for loop in f.loops:
                 loop[self.uv].uv = uv
+
+    def map_detail(self, faces, region, uv_at, wrap=False):
+        """Lay a region (x0, y0, x1, y1 px) of the detail atlas over faces:
+        uv_at(co) gives each corner's place (u, v) in 0..1 across and down the
+        region. With wrap, u runs round a tube: a face across the seam takes u
+        past 1, so the region's art must carry on to u = 1.25."""
+        x0, y0, x1, y1 = region
+        span = (x1 - x0) / (1.25 if wrap else 1.0)
+        for f in faces:
+            uvs = [uv_at(loop.vert.co) for loop in f.loops]
+            if wrap and max(u for u, _ in uvs) - min(u for u, _ in uvs) > 0.5:
+                uvs = [(u + 1.0 if u < 0.5 else u, v) for u, v in uvs]
+            for loop, (u, v) in zip(f.loops, uvs):
+                loop[self.uv].uv = detail_uv(x0 + span * u, y0 + (y1 - y0) * max(0.0, min(1.0, v)))
 
     # -- primitives ----------------------------------------------------------
 
@@ -623,18 +652,51 @@ def finish_mesh(b):
     return mesh, tris
 
 
+def detail_atlas(emissive_only):
+    """Pixels (Blender order: rows bottom-up, RGBA floats) of a character's atlas:
+    its detail art with the palette swatches in the top-left corner; for the glow
+    texture, black but for the glowing swatches."""
+    import numpy as np
+    art = bpy.data.images.load(CFG.detail, check_existing=False)
+    try:
+        px = np.array(art.pixels[:], dtype=np.float32).reshape(DETAIL_SIZE, DETAIL_SIZE, 4)
+    finally:
+        bpy.data.images.remove(art)
+    px[..., 3] = 1.0
+    if emissive_only:
+        px[...] = (0.0, 0.0, 0.0, 1.0)
+    cell = PALETTE_PX // 4
+    for k, (_, hexv, emissive) in enumerate(CFG.palette):
+        rgb = [int(hexv[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+        if emissive_only and not emissive:
+            rgb = [0.0, 0.0, 0.0]
+        top = DETAIL_SIZE - (k // 4) * cell          # rows count up from the bottom
+        px[top - cell:top, (k % 4) * cell:(k % 4 + 1) * cell, :3] = rgb
+    return px.ravel()
+
+
 def make_material():
     def image(name, emissive_only):
-        img = bpy.data.images.get(name) or bpy.data.images.new(name, 16, 16, alpha=False)
-        px = []
-        for row in range(16):
-            for col in range(16):
-                _, hexv, emissive = CFG.palette[(3 - row // 4) * 4 + col // 4]
-                rgb = [int(hexv[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
-                if emissive_only and not emissive:
-                    rgb = [0.0, 0.0, 0.0]
-                px += rgb + [1.0]
-        img.pixels = px
+        # always a new image: the GLB embeds the packed PNG, and repacking an image
+        # left over from an earlier build in the same session can keep its old bytes
+        # (a stale palette under new UVs paints parts the wrong colours)
+        old = bpy.data.images.get(name)
+        if old:
+            bpy.data.images.remove(old)
+        if CFG.detail:
+            img = bpy.data.images.new(name, DETAIL_SIZE, DETAIL_SIZE, alpha=False)
+            img.pixels = detail_atlas(emissive_only)
+        else:
+            img = bpy.data.images.new(name, 16, 16, alpha=False)
+            px = []
+            for row in range(16):
+                for col in range(16):
+                    _, hexv, emissive = CFG.palette[(3 - row // 4) * 4 + col // 4]
+                    rgb = [int(hexv[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+                    if emissive_only and not emissive:
+                        rgb = [0.0, 0.0, 0.0]
+                    px += rgb + [1.0]
+            img.pixels = px
         img.filepath_raw = os.path.join(CFG.src_dir, name + ".png")
         img.file_format = "PNG"
         img.save()
@@ -799,6 +861,89 @@ def clip_report(obj, evaluated=False):
     trees = {g: BVHTree.FromPolygons(vs, fs) for g, (vs, fs) in per.items()}
     return {f"{a}/{c}": len(trees[a].overlap(trees[c])) for a, c in char_of(obj).clip_checks
             if a in trees and c in trees}
+
+
+def _dist(tree, co):
+    hit = tree.find_nearest(co)
+    return hit[3] if hit[3] is not None else math.inf
+
+
+def island_gaps(obj, tol=0.0015):
+    """Groups of pieces that float off the model. Each loose piece of the rest mesh
+    (a box, a ring, a strap, a cloth panel) joins every piece it touches or sinks
+    into; the largest group is the body. Returns [(parts, centre, gap in m)] for
+    every other group (a head on no neck, a satchel off its belt), largest gap
+    first. Empty means everything on the model is attached to the body."""
+    import bmesh as _bm
+    from mathutils.bvhtree import BVHTree
+    bm = _bm.new()
+    bm.from_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    parts = list(obj["parts"])
+    tag = bm.verts.layers.int.get("part")
+    cos = [v.co.copy() for v in bm.verts]
+    seen, islands = set(), []
+    for v in bm.verts:
+        if v.index in seen:
+            continue
+        stack, isl = [v], []
+        seen.add(v.index)
+        while stack:
+            u = stack.pop()
+            isl.append(u)
+            for e in u.link_edges:
+                w = e.other_vert(u)
+                if w.index not in seen:
+                    seen.add(w.index)
+                    stack.append(w)
+        faces = {f for u in isl for f in u.link_faces}
+        tree = BVHTree.FromPolygons(cos, [[u.index for u in f.verts] for f in faces])
+        lo = Vector([min(u.co[a] for u in isl) for a in range(3)])
+        hi = Vector([max(u.co[a] for u in isl) for a in range(3)])
+        islands.append((isl, tree, lo, hi))
+
+    def gap(a, b):
+        (ia, ta, la, ha), (ib, tb, lb, hb) = islands[a], islands[b]
+        if any(la[k] > hb[k] + tol or lb[k] > ha[k] + tol for k in range(3)):
+            return math.inf
+        if ta.overlap(tb):
+            return 0.0
+        return min(min(_dist(tb, u.co) for u in ia), min(_dist(ta, u.co) for u in ib))
+
+    n = len(islands)
+    group = list(range(n))
+
+    def root(i):
+        while group[i] != i:
+            group[i] = group[group[i]]
+            i = group[i]
+        return i
+    for a in range(n):
+        for b in range(a + 1, n):
+            if root(a) != root(b) and gap(a, b) <= tol:
+                group[root(a)] = root(b)
+    groups = {}
+    for i in range(n):
+        groups.setdefault(root(i), []).append(i)
+    body = max(groups.values(), key=lambda g: sum(len(islands[i][0]) for i in g))
+    out = []
+    for g in groups.values():
+        if g is body:
+            continue
+        verts = [u for i in g for u in islands[i][0]]
+        names = sorted({parts[u[tag]] for u in verts}) if tag else ["?"]
+        centre = sum((u.co for u in verts), Vector()) / len(verts)
+        lo = Vector([min(u.co[a] for u in verts) for a in range(3)])
+        hi = Vector([max(u.co[a] for u in verts) for a in range(3)])
+        near = math.inf
+        for j in body:
+            _, tj, lj, hj = islands[j]
+            if any(lo[k] > hj[k] + 0.05 or lj[k] > hi[k] + 0.05 for k in range(3)):
+                continue
+            near = min(near, min(_dist(tj, u.co) for u in verts))
+        out.append((names, centre, near))
+    bm.free()
+    return sorted(out, key=lambda r: -r[2])
 
 
 def show_colours():

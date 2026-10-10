@@ -8,7 +8,7 @@ extends RefCounted
 
 
 ## `action` is "attack", "art:<id>" or "talk". `target` is a Unit, an aim
-## direction (cones) or a cover object id (attack).
+## direction (cones), a centre point (areas) or a cover object id (attack).
 ## Returns {title, user, strikes: [{by, on, hit, damage, crit, lethal, counter}],
 ##          sides: [{unit, hp_before, hp_after}], effect: String}.
 static func preview(battle: Battle, u: Unit, action: String, target: Variant) -> Dictionary:
@@ -79,7 +79,18 @@ static func preview(battle: Battle, u: Unit, action: String, target: Variant) ->
 			if art_id == "warm_pour":
 				hp[t] = mini(t.hp + ceili(t.max_hp * 0.3), t.max_hp)
 			out.effect = art.desc
+		"area":
+			for o in battle.units_in_area(battle.area_for(u, art_id, target)):
+				if o.faction == u.faction and not o.frozen:
+					_side(out, hp, o)
+			out.effect = art.desc
 		"self":
+			if art.has("radius") and art.has("might"):
+				for o in battle.storm_targets(u, battle.around(u, art_id)):
+					_side(out, hp, o)
+					_add_strike(battle, out, hp, u, u.pos, o, player_spec(battle, u, o, {"might": art.might, "type": art.type}), false)
+			if art_id == "overheat":
+				hp[u] -= battle.overheat_burn(u)
 			out.effect = art.desc
 	return _finish(out, hp)
 

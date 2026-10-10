@@ -1,7 +1,9 @@
 class_name Arts
 extends RefCounted
 ## Art and item definitions for the slice squad (character_abilities_stats.md).
-## Signature Arts are paralogue unlocks and are not in the slice.
+## Signature Arts are paralogue unlocks ("signature": true); Lamp's Spotlight,
+## Stapler's Staple Storm and Toaster's Overheat are in the slice so they can be
+## played and tested.
 ##
 ## Reach is the edge-to-edge gap in metres between the user and the target
 ## ("min" and "max"). The interface draws it as a ring around the user.
@@ -9,8 +11,10 @@ extends RefCounted
 ## target kinds:
 ##   "enemy"     pick a hostile unit (or destructible cover for attacks) within reach
 ##   "ally"      pick a friendly unit within reach ("self": true allows the user)
-##   "self"      no pick
+##   "self"      no pick; with a "radius" it covers the circle round the user, shown
+##               before it is confirmed
 ##   "direction" aim a cone in any direction ("length" past the user's edge)
+##   "area"      place a circle ("radius") whose centre is within "max" of the user's edge
 ##   "lunge"     pick a hostile unit along a clear straight dash of up to "dash" metres
 
 ## Cone half-angle shared by Flashbulb, Flash Bake and Blowback.
@@ -19,8 +23,13 @@ const CONE_HALF_ANGLE := deg_to_rad(40.0)
 const DATA := {
 	"guard_beam": {"name": "Guard Beam", "noise": 1, "target": "ally", "min": 0.0, "max": 2.6, "self": false,
 		"desc": "Next hit on the ally before your next phase deals 50% less damage and can't displace them."},
+	"spotlight": {"name": "Spotlight", "noise": 2, "target": "area", "min": 0.0, "max": 2.6, "radius": 1.6, "signature": true,
+		"desc": "Allies in the light gain +20 Evasion and can't be moved by force until your next phase."},
 	"flashbulb": {"name": "Flashbulb", "noise": 1, "target": "direction", "length": 1.8, "might": 2, "type": Defs.DmgType.SMASH,
 		"desc": "Short cone. Light Smash damage and Dazzle (-20 Hit on next attack)."},
+	"staple_storm": {"name": "Staple Storm", "noise": 3, "target": "self", "radius": 2.0, "might": 4,
+		"type": Defs.DmgType.PIERCE, "signature": true,
+		"desc": "Leap, spin and fire all round: Pierce damage to every enemy within 2 m, and Pins each one hit."},
 	"pin": {"name": "Pin", "noise": 1, "target": "enemy", "min": 0.0, "max": 1.6, "might": 4, "type": Defs.DmgType.PIERCE,
 		"desc": "Pierce attack. On hit, the target can't move next Enemy Phase."},
 	"staple_burst": {"name": "Staple Burst", "noise": 2, "target": "enemy", "min": 0.0, "max": 1.6, "might": 2, "type": Defs.DmgType.PIERCE,
@@ -29,6 +38,9 @@ const DATA := {
 		"desc": "Smash attack. On hit, push the target 2 m."},
 	"flash_bake": {"name": "Flash Bake", "noise": 2, "target": "direction", "length": 1.8, "might": 6, "type": Defs.DmgType.SMASH,
 		"desc": "Short cone. High Smash damage to everything in it."},
+	"overheat": {"name": "Overheat", "noise": 3, "target": "self", "radius": 1.6, "might": 7, "type": Defs.DmgType.SMASH,
+		"signature": true,
+		"desc": "Erupt: very high Smash damage to every enemy within 1.6 m. Burns off 20% of Toaster's max HP."},
 	"warm_pour": {"name": "Warm Pour", "noise": 1, "target": "ally", "min": 0.0, "max": 2.6, "self": true,
 		"desc": "Restore 30% of the ally's max HP."},
 	"steady_sip": {"name": "Steady Sip", "noise": 0, "target": "ally", "min": 0.0, "max": 1.6, "self": true,

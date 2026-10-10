@@ -13,8 +13,8 @@ concept sheet assets/concept/animations/stapler.png where it has them:
             Dash/Evade as his travel: a Naruto run)
   play once attack (Staple Shot: one quick shot), staple_burst (Staple Burst:
             the concept's twin shots, alternating), pin (Pin: the concept's
-            pinning shot, a steadied, charged heavy shot), heavy_duty (Heavy
-            Duty: the concept's staple storm, a leaping spin into a volley),
+            pinning shot, a steadied, charged heavy shot), staple_storm (his
+            signature, Staple Storm: a leaping spin into volleys fired all round),
             hurt, broken
 Poses and keying work as in tools/toyanim.py.
 """
@@ -213,8 +213,9 @@ def twin_fire(side):
     return mix(TWIN, recoil(side, 0.028, 16), {"chest": {"rot": (-3, 0, sway)}}, cloth((4, 5, 6)))
 
 
-BURST = [(0, {}), (10, TWIN), (15, twin_fire("R")), (20, TWIN), (24, twin_fire("L")), (29, TWIN),
-         (33, twin_fire("R")), (38, TWIN), (42, twin_fire("L")), (50, TWIN), (72, {})]
+BURST_SHOTS = (15, 24, 33, 42)  # right, left, right, left
+BURST = [(0, {}), (10, TWIN), (BURST_SHOTS[0], twin_fire("R")), (20, TWIN), (BURST_SHOTS[1], twin_fire("L")), (29, TWIN),
+         (BURST_SHOTS[2], twin_fire("R")), (38, TWIN), (BURST_SHOTS[3], twin_fire("L")), (50, TWIN), (72, {})]
 
 # -- Pin: steadied, charged, one heavy shot ---------------------------------------------------
 
@@ -235,7 +236,7 @@ PIN = [(0, {}), (12, PIN_AIM), (24, pin_charge(0.5)), (36, pin_charge(1.0)), (42
        (45, PIN_FIRE), (56, mix(PIN_AIM, recoil("R", 0.02, 10))), (66, PIN_AIM), (90, {})]
 PIN_FRAME = 45
 
-# -- Heavy Duty: the staple storm ---------------------------------------------------------------
+# -- Staple Storm (signature): a leaping spin, then volleys all round ------------------------------
 
 CROUCH = mix(lowered(-0.045, 0.01), hand("R", (-0.2, -0.17, 0.4), pitch=25), hand("L", (0.14, -0.17, 0.4), pitch=25),
              {"hips": {"rot": (3, 0, 0)}, "spine": {"rot": (8, 0, 0)}, "chest": {"rot": (12, 0, 0)},
@@ -251,10 +252,13 @@ LAND = mix(lowered(-0.04), WIDE, AIM_R, AIM_L, {"hips": {"rot": (3, 0, 0)}, "spi
 VOLLEY = mix(LAND, lowered(0.03), {"hips": {"rot": (-4, 0, 0)}, "chest": {"rot": (-6, 0, 0)}})
 
 
-def heavy_duty(f):
+STORM_VOLLEYS = (70, 79)  # both pistols at once
+
+
+def staple_storm(f):
     keys = [(0, {}), (12, CROUCH), (20, CROUCH), (28, AIRBORNE), (52, AIRBORNE), (60, LAND), (66, VOLLEY),
-            (70, mix(VOLLEY, recoil("R", 0.03, 20), recoil("L", 0.03, 20))), (75, VOLLEY),
-            (79, mix(VOLLEY, recoil("R", 0.03, 20), recoil("L", 0.03, 20))), (86, VOLLEY), (110, {})]
+            (STORM_VOLLEYS[0], mix(VOLLEY, recoil("R", 0.03, 20), recoil("L", 0.03, 20))), (75, VOLLEY),
+            (STORM_VOLLEYS[1], mix(VOLLEY, recoil("R", 0.03, 20), recoil("L", 0.03, 20))), (86, VOLLEY), (110, {})]
     turn = 360 * smooth((f - 22) / 32)        # one full turn in the air
     rate = 360 * (smooth((f - 21) / 32) - smooth((f - 23) / 32)) / 2   # degrees a frame
     trail = cloth((0, 0, 0), ((0, 0, 0), (0, 0, 0)))
@@ -300,16 +304,20 @@ CLIPS = {
     "attack": (54, False, lambda f: keyed(ATTACK, f)),
     "staple_burst": (72, False, lambda f: keyed(BURST, f)),
     "pin": (90, False, lambda f: keyed(PIN, f)),
-    "heavy_duty": (110, False, heavy_duty),
+    "staple_storm": (110, False, staple_storm),
     "hurt": (30, False, lambda f: keyed(HURT, f)),
     "broken": (90, False, lambda f: keyed(BROKEN, f)),
 }
 
-# Moments the game times itself by (seconds): when the Staple Shot fires, and
-# the ground speed the dash was authored for.
+# Moments the game times itself by (seconds): when the Staple Shot fires, when
+# Pin's heavy staple fires, when each of Staple Burst's four shots fires (right,
+# left, right, left), Staple Storm's two volleys, and the ground speed the dash
+# was authored for.
 CLIP_EVENTS = {
     "attack": {"hit": SHOT_FRAME / FPS},
     "pin": {"hit": PIN_FRAME / FPS},
+    "staple_burst": {f"shot_{k + 1}": f / FPS for k, f in enumerate(BURST_SHOTS)},
+    "staple_storm": {f"volley_{k + 1}": f / FPS for k, f in enumerate(STORM_VOLLEYS)},
     "move": {"speed": RUN_SPEED},
 }
 

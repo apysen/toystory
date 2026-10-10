@@ -266,12 +266,15 @@ They may target:
 - the same enemy; or
 - two different enemies.
 
-### Signature Art: Heavy Duty
+### Signature Art: Staple Storm
 
+- Unlock: Stapler paralogue (Heavy Duty)
 - Noise: +3
-- Shape: 4-tile line
+- Area: everything within 2 tiles of Stapler (a 2 m circle around him)
 
-Deals Pierce damage to every enemy in the line and Pins each target hit.
+Stapler leaps, spins in the air and lands firing both pistols in every direction.
+
+Deals Pierce damage to every enemy in the area and Pins each target hit.
 
 ### Tactical Identity
 
@@ -320,11 +323,12 @@ Deals high area damage.
 ### Signature Art: Overheat
 
 - Noise: +3
-- Area: 3x3 centered on Toaster
+- Area: every enemy within 1.6 m of Toaster
+- Might: 7, Smash
 
 Deals very high damage to enemies in the area.
 
-Toaster also loses a portion of its own HP.
+Toaster also loses 20% of his max HP (never his last point).
 
 ### Tactical Identity
 

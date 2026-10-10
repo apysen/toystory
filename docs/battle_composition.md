@@ -52,10 +52,11 @@ BattleRoot (Node3D)        (src/core/nodes/battle/battle_root.gd)
 │   ├── Sun                warm afternoon light with soft shadows
 │   ├── UnderDeskGlow
 │   ├── Diorama            the room, built from the mission and the Field
-│   ├── GroundOverlays     movement area, reach rings, cones, Gaze, telegraphs
+│   ├── GroundOverlays     movement area, reach rings, cones, areas, Gaze, telegraphs
 │   ├── Units              one UnitCard per unit, added at start
 │   ├── ThreatArcs
-│   └── Effects
+│   ├── Effects
+│   └── ArtLights          3D light from the Arts (flashes, beams, bubbles, stage lights)
 ├── BattleCamera
 │   └── Camera3D           depth of field follows the zoom
 ├── EventPlayer
@@ -91,7 +92,8 @@ of their rules:
 | `ThreatArcs` | The thin pulsing enemy arcs and push/pull arrows |
 | `BattleCamera` | Orbit, tilt, zoom, pan, following the controlled unit, gliding to enemies |
 | `EventPlayer` | Turning battle events into movement, animation, effects, sound and notices |
-| `EffectsLayer` | One-shot bursts, projectiles, floating numbers, the Gaze puff |
+| `EffectsLayer` | One-shot bursts, projectiles, Stapler's 3D staples, the Toaster's flying toast and fire (Flash Bake's cone, Overheat's swirl and pillars, smoke), floating numbers, the Gaze puff |
+| `ArtLights` | 3D light the Arts throw: Flashbulb's pop, Guard Beam's beam and bubble, Spotlight's ring, sky beam and stage light |
 | `BattleAudio`, `AudioSettings` | Effect voices, the battle theme; the volume slider's bus and saved setting |
 | `DisplaySettings` | Windowed or fullscreen (pause menu, F11), saved between sessions; also on `AppRoot` so the menus start in the saved mode |
 | `PlaytestMetrics` | The section 26 playtest numbers and the per-battle JSON file |
@@ -120,8 +122,9 @@ has played, or `battle_abandoned` when the player leaves from the pause menu.
 | `ThreatArcs` | Arc colours by attack type, the crit threshold, line and arrowhead width, arc height |
 | `BattleCamera` | Orbit speed, pitch limits, zoom range, follow sharpness, pan speed, depth-of-field offsets |
 | `World/Sun`, `World/WorldEnvironment` | Light colour and angle; ambient, SSAO, SSIL, glow, fog, grade |
-| `EventPlayer` | Walk and shove speed, attack lunge, pause after strikes |
-| `EffectsLayer` | Floating text size, projectile speed |
+| `EventPlayer` | Walk and shove speed, attack lunge, pause after strikes; Flashbulb's glow flare, the signature push-in zoom (Spotlight, Staple Storm, Overheat), how long Spotlight's light holds; the Toaster's vent flare, Overheat's white-hot flare, Flash Bake's flame growth |
+| `EffectsLayer` | Floating text size, projectile speed; staple speed, display scale, stick and fade time, miss distance, trail; toast speed, scale, arc and tumble; Flash Bake's fire speed, size and amount |
+| `World/ArtLights` | Light colours; flash energy, range and glare size; beam width; bubble size; ring, sky beam and stage light size, energy and motes |
 | `BattleAudio`, `AudioSettings` | Effect folder, voices and volume; the battle theme; volume bus and first-run volume |
 | `PlaytestMetrics` | Output folder, the Vacuum "path-blocked" threshold |
 | `Interface/BattleHud` | Banner, toast and notice timing |
@@ -143,3 +146,5 @@ next battle and never a battle already running. Rule constants shared by every u
 | UI skin | `python tools/bake_ui_skin.py` |
 | Battle theme | `python tools/gen_music.py` |
 | Sound effects | `python tools/gen_sfx.py` |
+| 3D toys (Lamp, Stapler, Toaster) | `D:/Blender/blender.exe --background --python tools/animate_<name>_3d.py` (Toaster: `python tools/draw_toaster_details.py` first) |
+| Effect models (staples, toast) | `D:/Blender/blender.exe --background --python tools/build_staples_3d.py` / `tools/build_toast_3d.py` |

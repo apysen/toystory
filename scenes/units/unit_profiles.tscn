@@ -17,7 +17,7 @@ defense = 8
 skill = 7
 speed = 6
 might = 4
-arts = PackedStringArray("guard_beam", "flashbulb")
+arts = PackedStringArray("guard_beam", "flashbulb", "spotlight")
 item = "repair_tape"
 
 [node name="Stapler" type="Node" parent="." unique_id=1918111496]
@@ -34,7 +34,7 @@ speed = 10
 move = 6.0
 might = 4
 attack_range = 1.6
-arts = PackedStringArray("pin", "staple_burst")
+arts = PackedStringArray("pin", "staple_burst", "staple_storm")
 item = "repair_tape"
 
 [node name="Toaster" type="Node" parent="." unique_id=1101399751]
@@ -48,7 +48,7 @@ skill = 7
 speed = 6
 might = 5
 attack_range = 1.6
-arts = PackedStringArray("eject", "flash_bake")
+arts = PackedStringArray("eject", "flash_bake", "overheat")
 item = "repair_tape"
 
 [node name="Teacup" type="Node" parent="." unique_id=957843609]

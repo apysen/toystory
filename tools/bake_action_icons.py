@@ -62,12 +62,39 @@ def glyph(name, d):
             d.line([(12 + ox, 10), (12 + ox, 22)], fill=WHITE, width=2)
             d.line([(12 + ox, 10), (20 + ox, 10)], fill=WHITE, width=2)
             d.line([(20 + ox, 10), (20 + ox, 22)], fill=WHITE, width=2)
+    elif name == "spotlight":
+        light = (255, 228, 140, 255)
+        d.polygon([(13, 11), (19, 11), (25, 24), (7, 24)], fill=light)          # the beam
+        d.ellipse([6, 21, 26, 27], fill=WHITE, outline=INK)                      # the pool on the floor
+        d.polygon([(11, 5), (21, 5), (20, 11), (12, 11)], fill=(200, 200, 205, 255), outline=INK)  # the shade
+        d.line([(12, 11), (20, 11)], fill=WHITE)
+    elif name == "staple_storm":
+        import math
+        d.ellipse([13, 13, 19, 19], fill=WHITE, outline=INK)
+        for k in range(8):
+            a = math.pi * k / 4
+            ux, uy = math.cos(a), math.sin(a)
+            px, py = -uy, ux                                                     # across the flight
+            x0, y0 = 16 + ux * 7, 16 + uy * 7
+            x1, y1 = 16 + ux * 12, 16 + uy * 12
+            d.line([(x0 + px * 2, y0 + py * 2), (x1 + px * 2, y1 + py * 2)], fill=WHITE)  # the legs
+            d.line([(x0 - px * 2, y0 - py * 2), (x1 - px * 2, y1 - py * 2)], fill=WHITE)
+            d.line([(x0 + px * 2, y0 + py * 2), (x0 - px * 2, y0 - py * 2)], fill=WHITE)  # the crown
     elif name == "eject":
         d.rounded_rectangle([10, 13, 22, 24], 3, fill=(236, 196, 128, 255), outline=INK)
         d.polygon([(16, 5), (21, 11), (11, 11)], fill=WHITE, outline=INK)
     elif name == "flash_bake":
         d.polygon([(16, 5), (22, 15), (20, 23), (12, 23), (10, 15), (14, 12)], fill=(255, 214, 102, 255), outline=INK)
         d.polygon([(16, 13), (19, 18), (17, 22), (14, 22), (13, 18)], fill=WHITE)
+    elif name == "overheat":
+        fire, hot = (214, 48, 38, 255), (255, 214, 102, 255)
+        d.polygon([(6, 25), (7, 15), (10, 19), (11, 11), (14, 17), (16, 13), (18, 17), (21, 11), (22, 19),
+                   (25, 15), (26, 25)], fill=fire, outline=INK)                  # fire bursting out round it
+        d.rounded_rectangle([9, 16, 23, 26], 3, fill=(200, 200, 205, 255), outline=INK)  # the toaster
+        d.line([(12, 20), (12, 23)], fill=hot, width=2)                         # its white-hot vents
+        d.line([(20, 20), (20, 23)], fill=hot, width=2)
+        d.rounded_rectangle([13, 3, 19, 10], 2, fill=(236, 196, 128, 255), outline=INK)  # a slice blasting out
+        d.line([(16, 11), (16, 15)], fill=WHITE)
     elif name == "warm_pour":
         d.polygon([(16, 6), (21, 15), (21, 18), (16, 23), (11, 18), (11, 15)], fill=WHITE, outline=INK)
         d.line([(16, 12), (16, 19)], fill=(92, 186, 92, 255), width=2)
@@ -109,21 +136,23 @@ def glyph(name, d):
 
 
 ICONS = {
-    "attack": "attack", "guard_beam": "noisy", "flashbulb": "noisy", "pin": "noisy", "staple_burst": "noisy",
-    "eject": "noisy", "flash_bake": "noisy", "warm_pour": "noisy", "steady_sip": "quiet", "suction": "noisy",
+    "attack": "attack", "guard_beam": "noisy", "flashbulb": "noisy", "spotlight": "noisy", "pin": "noisy",
+    "staple_burst": "noisy", "staple_storm": "noisy",
+    "eject": "noisy", "flash_bake": "noisy", "overheat": "noisy", "warm_pour": "noisy", "steady_sip": "quiet", "suction": "noisy",
     "blowback": "noisy", "lunge": "noisy", "canopy": "quiet", "item": "item", "talk": "talk", "wait": "wait",
 }
 
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    sheet = Image.new("RGBA", (S * 8, S * 2), (40, 36, 44, 255))
+    rows = (len(ICONS) + 7) // 8
+    sheet = Image.new("RGBA", (S * 8, S * rows), (40, 36, 44, 255))
     for i, (name, kind) in enumerate(ICONS.items()):
         img, d = medallion(kind)
         glyph(name, d)
         img.save(os.path.join(OUT, name + ".png"))
         sheet.alpha_composite(img, ((i % 8) * S, (i // 8) * S))
-    sheet.resize((S * 8 * 3, S * 2 * 3), Image.NEAREST).save(os.path.join(OUT, "actions_preview.png"))
+    sheet.resize((S * 8 * 3, S * rows * 3), Image.NEAREST).save(os.path.join(OUT, "actions_preview.png"))
     print("wrote", len(ICONS), "icons")
 
 

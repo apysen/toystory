@@ -58,6 +58,8 @@ var _room := AABB()
 @export var wall_clearance := 0.8
 var _dragging_orbit := false
 var _dragging_pan := false
+## The zoom to come back to after a signature Art's push-in (negative: none under way).
+var _cinematic_distance := -1.0
 
 
 func _ready() -> void:
@@ -104,6 +106,30 @@ func glide_to(p: Vector3, seconds := 0.35) -> void:
 		return
 	var tw := create_tween()
 	tw.tween_property(self, "focus", target_focus, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+
+
+## Signature Arts: glides to `p` and eases in to `scale` of the current zoom, and
+## waits until it is there. `ease_back` returns to the zoom it started from.
+func push_in(p: Vector3, scale: float, seconds := 0.35) -> void:
+	if _cinematic_distance < 0.0:
+		_cinematic_distance = distance
+	follow = null
+	target_focus = _clamp(p)
+	var tw := create_tween()
+	tw.tween_property(self, "distance", maxf(_cinematic_distance * scale, min_distance), seconds) 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+
+
+## Eases back out to the zoom from before `push_in`, framing `p`.
+func ease_back(p: Vector3, seconds := 0.4) -> void:
+	follow = null
+	target_focus = _clamp(p)
+	if _cinematic_distance < 0.0:
+		return
+	var tw := create_tween()
+	tw.tween_property(self, "distance", _cinematic_distance, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_distance = -1.0
 	await tw.finished
 
 

@@ -5,6 +5,16 @@
   "pin": {
     "hit": 0.75
   },
+  "staple_burst": {
+    "shot_1": 0.25,
+    "shot_2": 0.4,
+    "shot_3": 0.55,
+    "shot_4": 0.7
+  },
+  "staple_storm": {
+    "volley_1": 1.1667,
+    "volley_2": 1.3167
+  },
   "move": {
     "speed": 1.8
   }

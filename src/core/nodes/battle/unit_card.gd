@@ -159,6 +159,8 @@ func refresh() -> void:
 		_model.visible = not _showing_object
 		for m in [_card, _shadow, _silhouette]:
 			m.visible = _showing_object
+		if _model.fire() != null:
+			_model.fire().hot = unit.status.has("heated")  # Hot Coils: the vents smoulder
 	_frame = -1
 	_update_frame(true)
 
@@ -206,6 +208,54 @@ func play_once(anim: String, return_to_idle := true) -> void:
 ## timed clip (sprite cards: the hit follows the whole animation and a lunge).
 func contact_time(anim: String) -> float:
 	return _model.event_time(anim, "hit") if _model != null else NAN
+
+
+## Seconds into an Art's own clip at which `event` happens (Flashbulb's "flash"),
+## or NAN when the unit has no such clip.
+func art_time(art_id: String, event: String) -> float:
+	return _model.event_time(art_id, event) if _model != null else NAN
+
+
+## A point on one of the model's bones, `offset` in the bone's frame (Y runs down
+## it): the lamp's "head" and "lantern", Stapler's "gun_R" and "gun_L". A point
+## `fallback_height` above the card when there is no model or no such bone.
+func bone_point(bone: String, fallback_height: float, offset := Vector3.ZERO) -> Vector3:
+	var p := _model.bone_position(bone, offset) if _model != null else Vector3.INF
+	return p if p != Vector3.INF else global_position + Vector3(0, fallback_height, 0)
+
+
+## The fire burning on the model (the Toaster's palms and vents), or null.
+func fire() -> UnitFire:
+	return _model.fire() if _model != null else null
+
+
+## Hides or browns one of the Toaster's toast slices ("front", "back"); see
+## UnitModel.set_slice. Does nothing without a model.
+func set_slice(slot: String, hidden: bool, brown := -1.0) -> void:
+	if _model != null:
+		_model.set_slice(slot, hidden, brown)
+
+
+## Whether one of the Toaster's slices is hidden (launched and not back yet).
+func slice_hidden(slot: String) -> bool:
+	return _model != null and _model.slice_hidden(slot)
+
+
+## Brings the model's glow from `from` to `to` over `seconds` (Overheat's vents
+## building to white-hot).
+func ramp_glow(from: float, to: float, seconds: float) -> void:
+	if _model == null:
+		return
+	var tw := create_tween()
+	tw.tween_method(_model.set_glow, from, to, seconds)
+
+
+## Flares the model's glow to `peak` and lets it die back over `seconds`.
+func flare_glow(peak: float, seconds: float) -> void:
+	if _model == null:
+		return
+	var tw := create_tween()
+	tw.tween_method(_model.set_glow, peak, 1.0, seconds).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 
 ## Plays the clip for one of the unit's Arts: its own clip when the art has one
@@ -287,6 +337,8 @@ func stand_down(look_at: Vector3) -> void:
 
 ## Broken transition: the "broken" animation when the art has one, then a fade out.
 func play_broken() -> void:
+	if _model != null:
+		_model.go_cold()
 	if has_anim("broken"):
 		await play_once("broken", false)
 	var tw := create_tween()

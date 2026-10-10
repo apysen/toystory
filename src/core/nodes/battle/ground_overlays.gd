@@ -2,7 +2,8 @@ class_name GroundOverlays
 extends Node3D
 
 ## Every marking painted on the floor: the controlled unit's movement area and
-## where its move began, the reach ring of the chosen action, the aimed cone,
+## where its move began, the reach ring of the chosen action, the aimed cone or
+## placed circle,
 ## target rings, an inspected enemy's reach, the Gaze circle with its watching eye,
 ## Paper Cutter's telegraphed lanes and short-lived area flashes.
 ##
@@ -28,6 +29,9 @@ const HEIGHT := 0.05
 @export var telegraph_fill := Color(1.0, 0.15, 0.12, 0.35)
 @export var telegraph_edge := Color(1.0, 0.3, 0.25, 0.95)
 @export var cone_fill := Color(1.0, 0.6, 0.2, 0.3)
+## A placed area Art's circle (Spotlight), in warm lamplight.
+@export var area_fill := Color(1.0, 0.86, 0.5, 0.22)
+@export var area_edge := Color(1.0, 0.92, 0.65, 0.95)
 
 var _battle: Battle
 ## Whether the Gaze circle is shown. Follows playback (the Gaze events) rather than
@@ -41,6 +45,7 @@ var _move: MeshInstance3D
 var _enemy_reach: MeshInstance3D
 var _reach_ring: MeshInstance3D
 var _cone: MeshInstance3D
+var _area: MeshInstance3D
 var _start_marker: MeshInstance3D
 var _gaze: MeshInstance3D
 var _eye: Sprite3D
@@ -60,6 +65,7 @@ func setup(b: Battle) -> void:
 	_enemy_reach = _quad(size, 3)
 	_reach_ring = _quad(size, 0)
 	_cone = _quad(size, 1)
+	_area = _quad(size, 0)
 	_start_marker = _quad(size, 0)
 	_gaze = _quad(size, 0)
 	_trail = MeshInstance3D.new()
@@ -113,12 +119,13 @@ func setup(b: Battle) -> void:
 	_params(_gaze, {"fill_color": gaze_fill, "edge_color": gaze_edge, "pulse": 2.2, "edge_width": 0.1})
 	_params(_start_marker, {"fill_color": Color(1, 1, 1, 0.12), "edge_color": Color(1, 1, 1, 0.6), "edge_width": 0.04})
 	_params(_cone, {"fill_color": cone_fill, "edge_color": Color(1.0, 0.8, 0.4, 0.95), "edge_width": 0.05, "pulse": 3.0})
+	_params(_area, {"fill_color": area_fill, "edge_color": area_edge, "edge_width": 0.06, "pulse": 2.0})
 	hide_all()
 	sync()
 
 
 func hide_all() -> void:
-	for m in [_move, _enemy_reach, _reach_ring, _cone, _start_marker]:
+	for m in [_move, _enemy_reach, _reach_ring, _cone, _area, _start_marker]:
 		m.visible = false
 	_trail.visible = false
 	clear_targets()
@@ -231,6 +238,16 @@ func hide_cone() -> void:
 	_cone.visible = false
 
 
+## The circle an area Art would cover ({center, radius}).
+func show_area(area: Dictionary) -> void:
+	_area.visible = true
+	_params(_area, {"center": area.center, "radius": area.radius})
+
+
+func hide_area() -> void:
+	_area.visible = false
+
+
 ## Rings under the units (or cover) an action could pick; the current one pulses brighter.
 func show_targets(units: Array, current: Variant, healing := false) -> void:
 	clear_targets()
@@ -269,6 +286,12 @@ func flash_area(e: Dictionary, seconds := 0.35) -> void:
 		var col := Color(0.6, 0.9, 1.0, 0.4) if e.kind == "blowback" else Color(1.0, 0.6, 0.2, 0.45)
 		_params(q, {"center": c.apex, "dir": c.dir, "cone_length": c.length, "half_angle": c.half_angle,
 			"fill_color": col, "edge_color": Color(col, 0.95)})
+	elif e.shape == "circle":
+		q = _quad(_battle.field.size, 0)
+		var fill := area_fill if e.kind != "staple_storm" else Color(0.85, 0.82, 0.8, 0.3)
+		var edge := area_edge if e.kind != "staple_storm" else Color(0.95, 0.93, 0.9, 0.95)
+		_params(q, {"center": e.center, "radius": e.radius, "fill_color": Color(fill, 0.4), "edge_color": edge,
+			"edge_width": 0.06})
 	else:
 		q = _quad(_battle.field.size, 2)
 		_params(q, {"seg_a": e.a, "seg_b": e.b, "half_width": e.half_width, "fill_color": Color(1, 0.15, 0.15, 0.6),

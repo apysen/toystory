@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/battle/battle_root.gd" id="1_root"]
 [ext_resource type="Resource" path="res://data/missions/under_the_desk.tres" id="2_mission"]
@@ -21,6 +21,7 @@
 [ext_resource type="Script" path="res://src/core/nodes/ui/unit_plates.gd" id="17_plates"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/action_ring.tscn" id="18_ring"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/battle_preview.tscn" id="19_preview"]
+[ext_resource type="Script" path="res://src/core/nodes/battle/art_lights.gd" id="22_lights"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -131,6 +132,9 @@ script = ExtResource("16_arcs")
 [node name="Effects" type="Node3D" parent="World"]
 script = ExtResource("8_effects")
 
+[node name="ArtLights" type="Node3D" parent="World"]
+script = ExtResource("22_lights")
+
 [node name="BattleCamera" type="Node3D" parent="." node_paths=PackedStringArray("camera")]
 script = ExtResource("6_camera")
 camera = NodePath("Camera3D")
@@ -141,10 +145,11 @@ fov = 38.0
 near = 0.1
 far = 200.0
 
-[node name="EventPlayer" type="Node" parent="." node_paths=PackedStringArray("camera", "effects", "audio", "hud", "dialogue", "overlays", "diorama", "speed_settings")]
+[node name="EventPlayer" type="Node" parent="." node_paths=PackedStringArray("camera", "effects", "lights", "audio", "hud", "dialogue", "overlays", "diorama", "speed_settings")]
 script = ExtResource("9_events")
 camera = NodePath("../BattleCamera")
 effects = NodePath("../World/Effects")
+lights = NodePath("../World/ArtLights")
 audio = NodePath("../GameplayComponents/BattleAudio")
 hud = NodePath("../Interface/BattleHud")
 dialogue = NodePath("../Interface/DialogueBox")

@@ -27,6 +27,8 @@ static func preview(field: Field, attacker: Unit, att_pos: Vector2, defender: Un
 			evade += Defs.HALF_COVER_EVASION
 		elif defender.id == "umbrella":
 			evade += Defs.WEATHERPROOF_EVASION # Weatherproof
+	if defender.status.has("spotlight"):
+		evade += Defs.SPOTLIGHT_EVASION
 	var hit := int(spec.get("accuracy", Defs.BASE_ACCURACY)) + attacker.skill * 2 - defender.speed * 2
 	hit += rel * Defs.TYPE_HIT_BONUS - evade
 	if attacker.status.has("dazzled"):

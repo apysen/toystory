@@ -12,7 +12,8 @@ Clips use the game's names (docs/character_abilities_stats.md) and follow the
 concept sheet assets/concept/animations/lamp.png where it has them:
   loop      idle, move (run)
   play once attack (Pole Strike), intercept_run + intercept_guard (Watchful),
-            spotlight (Spotlight), hurt, broken
+            spotlight (Spotlight), flashbulb (Flashbulb), guard_beam (Guard Beam),
+            hurt, broken
 Each clip is either a function of the
 loop phase or a list of key poses joined by smooth curves, and is sampled on
 every frame, so motion is smooth at 60 fps and loops join seamlessly.
@@ -43,8 +44,8 @@ if _TOOLS not in sys.path:
 sys.dont_write_bytecode = True   # no __pycache__ in tools/ (check_structure)
 import toyanim  # noqa: E402
 importlib.reload(toyanim)
-from toyanim import (FPS, wave, smooth, keyed, add, mix, step, plant_path, knee_ahead, feet_in,  # noqa: E402
-                     lowered)
+from toyanim import (FPS, wave, smooth, keyed, add, mix, scaled, step, plant_path, knee_ahead,  # noqa: E402
+                     feet_in, lowered)
 
 BUILD = {"__name__": "lamp_build", "__file__": os.path.join(_TOOLS, "build_lamp_warden_3d.py")}
 exec(compile(open(BUILD["__file__"], encoding="utf-8").read(), BUILD["__file__"], "exec"), BUILD)
@@ -115,12 +116,20 @@ def sprint(p):
         "ik_foot_R": step(p % 1.0, SPRINT_STRIDE, SPRINT_LIFT, SPRINT_STANCE),
         "ik_foot_L": step((p + 0.5) % 1.0, SPRINT_STRIDE, SPRINT_LIFT, SPRINT_STANCE),
     }
-    return mix(pose, feet_in(WALK_NARROW, WALK_NARROW, WALK_TOE_IN))
+    return mix(pose, run_feet())
 
 
-WALK_NARROW = 0.085   # m each foot moves in, bringing it under its hip while running
-WALK_TOE_IN = 28      # degrees the splayed rest feet turn to point forward
-STAFF_AXIS = (BUILD["P"](31, 24, -0.085) - BUILD["STAFF_GRIP"]).normalized()
+# Running feet land under the hips about 4 cm apart, toes nearly straight ahead
+# (as Stapler's). The rest stance is wide, splayed and off-centre to his left,
+# so each side moves in and turns by its own amount.
+WALK_NARROW_R, WALK_NARROW_L = 0.095, 0.125   # m each foot moves in from rest
+WALK_TOE_R, WALK_TOE_L = 37, 43               # degrees each foot turns in
+
+
+def run_feet(toe_r=WALK_TOE_R, toe_l=WALK_TOE_L):
+    """Both feet narrowed under the hips and turned forward, knees over them."""
+    return mix(feet_in(WALK_NARROW_R, WALK_NARROW_L, toe_r), {"ik_foot_L": {"rot": (0, 0, toe_r - toe_l)}})
+STAFF_AXIS = (BUILD["SP"](31, 24, -0.085) - BUILD["STAFF_GRIP"]).normalized()
 
 
 def slide(d):
@@ -186,9 +195,12 @@ RUN_END = 28  # frame the last foot plants
 
 
 # three quick strides: right, left, right, then the left foot squares up wide
-RUN_NARROW, GUARD_NARROW = 0.08, 0.055  # m each foot sits in from the wide rest stance
-PLANTS_R = [(2, 10, (RUN_NARROW, -0.17)), (14, 22, (GUARD_NARROW, -0.49))]
-PLANTS_L = [(8, 16, (-RUN_NARROW, -0.33)), (20, RUN_END, (-GUARD_NARROW, -0.53))]
+# every step lands as the sprint's do, under the hips with the toes forward,
+# and the guard keeps that stance
+PLANTS_R = [(2, 10, (WALK_NARROW_R, -0.17)), (14, 22, (WALK_NARROW_R, -0.49))]
+PLANTS_L = [(8, 16, (-WALK_NARROW_L, -0.33)), (20, RUN_END, (-WALK_NARROW_L, -0.53))]
+TOES_R = [(2, 10, (WALK_TOE_R, 0))]   # the toe turn eases in over the first step
+TOES_L = [(8, 16, (-WALK_TOE_L, 0))]
 
 
 def run_in(f):
@@ -197,9 +209,10 @@ def run_in(f):
     u = smooth(f / RUN_END)
     root_y = -RUN_DIST * u
     pose = {"root": {"loc": (0, root_y, 0)}}
-    for name, plants in (("ik_foot_R", PLANTS_R), ("ik_foot_L", PLANTS_L)):
+    for name, plants, toes in (("ik_foot_R", PLANTS_R, TOES_R), ("ik_foot_L", PLANTS_L, TOES_L)):
         world, pitch = plant_path(plants, f)
-        pose[name] = {"loc": (world.x, world.y - root_y, world.z), "rot": (pitch, 0, 0)}
+        toe = plant_path(toes, f)[0].x  # the toe turn eased over the same steps
+        pose[name] = {"loc": (world.x, world.y - root_y, world.z), "rot": (pitch, 0, toe)}
     speed = math.sin(math.pi * min(1.0, f / RUN_END))  # 0 at start and plant, 1 mid-run
     pose = mix(pose, knee_ahead("R", pose["ik_foot_R"]["loc"][0]), knee_ahead("L", pose["ik_foot_L"]["loc"][0]))
     bob = 0.012 * abs(math.sin(math.pi * f / 8))
@@ -220,8 +233,12 @@ def run_in(f):
 SHIELD_FRONT = {"ik_hand_L": {"loc": (-0.28, -0.19, 0.11), "rot": (0, 0, -25)},
                 "ik_hand_R": {"loc": (-0.03, 0.0, 0.0), "rot": (6, 0, 0)}}
 PLANTED = {"root": {"loc": (0, -RUN_DIST, 0)},
-           "ik_foot_R": {"loc": (GUARD_NARROW, RUN_DIST - 0.49, 0)},
-           "ik_foot_L": {"loc": (-GUARD_NARROW, RUN_DIST - 0.53, 0)}}
+           "ik_foot_R": {"loc": (WALK_NARROW_R, RUN_DIST - 0.49, 0), "rot": (0, 0, WALK_TOE_R)},
+           "ik_foot_L": {"loc": (-WALK_NARROW_L, RUN_DIST - 0.53, 0), "rot": (0, 0, -WALK_TOE_L)}}
+# the guard's braced stance, stepped out to from the run's: wide, shield foot
+# forward, toes turned a little out (feet as offsets from rest, at the origin)
+GUARD_FEET = {"ik_foot_R": {"loc": (0.03, 0.045, 0), "rot": (0, 0, 20)},
+              "ik_foot_L": {"loc": (-0.055, -0.07, 0), "rot": (0, 0, -26)}}
 
 
 def at_origin(pose):
@@ -239,8 +256,9 @@ def _build_guard_keys():
     """The guard's key poses; built once the knee poles are known (they point
     the knees ahead over the narrowed stance)."""
     global BRACE, IMPACT, PUSH, GUARD_HOLD
-    stance = mix(PLANTED, knee_ahead("R", GUARD_NARROW), knee_ahead("L", -GUARD_NARROW))
-    BRACE = mix(stance, SHIELD_FRONT, lowered(-0.035), cloth((8, 10, 12), (-9, -6)), {
+    stance = mix(GUARD_FEET, knee_ahead("R", GUARD_FEET["ik_foot_R"]["loc"][0]),
+                 knee_ahead("L", GUARD_FEET["ik_foot_L"]["loc"][0]))
+    BRACE = mix(stance, SHIELD_FRONT, lowered(-0.045), cloth((8, 10, 12), (-14, -10)), {
         "hips": {"rot": (6, 0, 0)}, "spine": {"rot": (3, 0, 0)}, "chest": {"rot": (7, 0, 0)},
         "neck_lower": {"rot": (8, 0, 0)}, "head": {"rot": (-6, 0, 0)},
         "lantern": {"rot": (-8, 0, 0)},
@@ -259,34 +277,137 @@ def _build_guard_keys():
     })
     GUARD_HOLD = mix(BRACE, {"chest": {"rot": (-1, 0, 0)}, "lantern": {"rot": (6, 0, 0)}})
     plant = at_origin(run_in(RUN_END))
-    shuffle_r = mix(plant, {"ik_foot_R": {"loc": (0, 0, 0.025), "rot": (12, 0, 0)}})
-    shuffle_l = mix(at_origin(BRACE), {"ik_foot_L": {"loc": (0, 0, 0.022), "rot": (12, 0, 0)}})
-    GUARD_KEYS[:] = [(0, plant), (4, shuffle_r), (8, shuffle_l), (12, at_origin(BRACE)), (18, at_origin(IMPACT)),
-                     (28, at_origin(PUSH)), (40, at_origin(GUARD_HOLD)), (48, at_origin(BRACE))]
+    brace = at_origin(BRACE)
+
+    def stepping(t, r, l):
+        """The body t of the way from the run's plant to the brace, each foot
+        r / l of the way out to its guard spot (lifted while between)."""
+        body = {b: c for b, c in mix(scaled(plant, 1 - t), scaled(brace, t)).items()
+                if not b.startswith(("ik_foot_", "pole_knee_"))}
+        for side, u in (("R", r), ("L", l)):
+            foot = f"ik_foot_{side}"
+            pose = mix(scaled({foot: plant[foot]}, 1 - u), scaled({foot: brace[foot]}, u))
+            if 0 < u < 1:
+                pose = mix(pose, {foot: {"loc": (0, 0, 0.03), "rot": (12, 0, 0)}})
+                if side == "L":  # the knee stepping forward kicks the tabard ahead of it
+                    pose = mix(pose, cloth(tabard=(-14, -10)))
+            body = mix(body, pose, knee_ahead(side, pose[foot]["loc"][0]))
+        return body
+
+    # two quick steps out into the wide stance: staff foot back, then shield foot forward
+    GUARD_KEYS[:] = [(0, plant), (3, stepping(0.2, 0.5, 0)), (6, stepping(0.45, 1, 0)),
+                     (9, stepping(0.75, 1, 0.5)), (12, brace), (18, at_origin(IMPACT)),
+                     (28, at_origin(PUSH)), (40, at_origin(GUARD_HOLD)), (48, brace)]
 
 
 _build_guard_keys()
 
 
-# Spotlight (concept: protective spotlight): raises the staff high and forward,
-# aims the lantern ahead and holds it while the beam sweeps across the area
-AIM_BASE = mix(WIDE, SHIELD_UP, lowered(-0.03, 0.008), slide(0.22), cloth((6, 7, 8)), {
-    "hips": {"rot": (0, 0, 4)}, "spine": {"rot": (-2, 0, 2)}, "chest": {"rot": (-6, 0, 4)},
-    "neck_lower": {"rot": (12, 0, 0)}, "head": {"rot": (-6, 0, 0)},
+# Spotlight, his signature (a curtain call with both his lights): sinks and
+# drives the staff butt into the floor (the game ripples a ring of light out),
+# hoists the staff high overhead, cape billowing, the lantern firing a beam into
+# the sky that his lamp head tips back to follow; a beat later a stage light
+# drops onto the area and he snaps his lamp head round to aim at it too, staff
+# raised forward and shield squared (the concept's pose), holds, and recovers
+SPOT_SINK = mix(WIDE, lowered(-0.04, 0.01), slide(0.08), cloth((4, 5, 6)), {
+    "hips": {"rot": (4, 0, 0)}, "spine": {"rot": (3, 0, 0)}, "chest": {"rot": (5, 0, 0)},
+    "neck_lower": {"rot": (0, -4, 0)}, "head": {"rot": (-2, 0, 0)},
+    "ik_hand_R": {"loc": (0.0, -0.01, 0.1), "rot": (4, 0, 0)},
+    "ik_hand_L": {"loc": (0.03, 0.0, 0.0)},
+    "lantern": {"rot": (-10, 0, 0)},
 })
+SPOT_STAMP = mix(WIDE, lowered(-0.055, 0.0), cloth((8, 10, 12), (-6, -4)), {
+    "hips": {"rot": (6, 0, 0)}, "spine": {"rot": (4, 0, 0)}, "chest": {"rot": (8, 0, 0)},
+    "neck_lower": {"rot": (0, -6, 0)}, "head": {"rot": (-6, 0, 0)},
+    "ik_hand_R": {"loc": (0.0, -0.01, 0.052), "rot": (0, 0, 0)},   # the butt lands on the floor
+    "ik_hand_L": {"loc": (0.04, 0.0, -0.01)},
+    "lantern": {"rot": (18, 0, 0)},
+})
+SPOT_HOIST = mix(WIDE, lowered(-0.01, 0.01), slide(0.26), cloth((12, 17, 22), (-4, -2)), {
+    "hips": {"rot": (-3, 0, 0)}, "spine": {"rot": (-4, 0, 0)}, "chest": {"rot": (-8, 0, 0)},
+    "neck_lower": {"rot": (0, 12, 0)}, "neck_upper": {"rot": (0, -10, 0)}, "head": {"rot": (-70, 0, 0)},
+    "ik_hand_R": {"loc": (-0.02, 0.0, 0.28), "rot": (-4, 0, -4)},   # out to his right, the forearm clear of the mantle
+    "ik_hand_L": {"loc": (0.05, 0.0, 0.02), "rot": (0, 0, 8)},
+    "lantern": {"rot": (-8, 0, 0)},
+})
+SPOT_RISE = mix(SPOT_HOIST, lowered(0.006), cloth((-3, -4, -5)), {"head": {"rot": (-6, 0, 0)}, "lantern": {"rot": (6, 0, 0)}})
 
 
-def aim(sweep):
-    return mix(AIM_BASE, {"ik_hand_R": {"loc": (0.0, -0.06, 0.17), "rot": (40, 0, -9 + sweep)},
-                          "head": {"rot": (0, 0, 0.6 * sweep)}})
+def spot_aim(push=0.0):
+    """The concept's pose: staff raised forward, shield squared, the lamp arm
+    thrown out to aim at the area; `push` leans him into it while it holds."""
+    return mix(WIDE, SHIELD_UP, lowered(-0.035, -0.01 * push), slide(0.22), cloth((10, 12, 14), (-6, -4)), {
+        "hips": {"rot": (2, 0, 3)}, "spine": {"rot": (1, 0, 2)}, "chest": {"rot": (3 + 2 * push, 0, 3)},
+        "neck_lower": {"rot": (0, -65, 0)}, "neck_upper": {"rot": (0, 38, 0)}, "head": {"rot": (-45, 0, -12)},
+        "ik_hand_R": {"loc": (0.0, -0.07, 0.18), "rot": (40, 0, -9)},
+        "lantern": {"rot": (5 * push, 0, 0)},
+    })
 
 
-RAISE = mix(WIDE, lowered(-0.02), slide(0.12), {
-    "chest": {"rot": (-3, 0, 2)},
-    "ik_hand_R": {"loc": (-0.01, -0.02, 0.12), "rot": (10, 0, -8)},
+SPOTLIGHT = [(0, {}), (12, SPOT_SINK), (22, SPOT_STAMP), (28, SPOT_STAMP), (44, SPOT_HOIST), (54, SPOT_RISE),
+             (66, spot_aim()), (70, spot_aim(0.4)), (96, spot_aim(1.0)), (108, spot_aim(0.7)), (132, {})]
+
+# Flashbulb (a short cone of blinding light from his lamp head): folds the lamp
+# arm back like cocking a flash, throws the arm out straight
+# with the shade levelled down the cone and pops (the game flares the glow),
+# shield arm drawn back at his side, then the head kicks back.
+# The lamp arm swings forward about y (it is turned to point back by HEAD_AHEAD
+# after its own tilt), so the throw tilts neck_lower about -90 and opens
+# neck_upper; the head's x then aims the shade
+FLASH_SHIELD = {"ik_hand_L": {"loc": (0.055, 0.03, 0.01), "rot": (0, 0, 6)}}  # held back and out, clear of the belt
+FLASH_COCK = mix(WIDE, lowered(-0.03, 0.015), cloth((4, 5, 6)), {
+    "hips": {"rot": (-3, 0, 0)}, "spine": {"rot": (-3, 0, 0)}, "chest": {"rot": (-6, 0, 0)},
+    "neck_lower": {"rot": (0, 15, 0)},   # tucking the shade down too sinks it into the mantle
+    "ik_hand_L": {"loc": (0.02, 0.0, 0.0)},
+    "ik_hand_R": {"loc": (0, 0.0, 0.01)},   # drawn back, the upper arm meets the belt
+    "lantern": {"rot": (-8, 0, 0)},
+})
+FLASH_THROW = mix(WIDE, FLASH_SHIELD, lowered(-0.035, -0.02), cloth((10, 12, 14), (-8, -6)), {
+    "hips": {"rot": (5, 0, 0)}, "spine": {"rot": (4, 0, 0)}, "chest": {"rot": (8, 0, 0)},
+    "neck_lower": {"rot": (0, -90, 0)}, "neck_upper": {"rot": (0, 50, 0)}, "head": {"rot": (-75, 0, -15)},
+    "ik_hand_R": {"loc": (0, -0.01, 0)},
     "lantern": {"rot": (12, 0, 0)},
 })
-SPOTLIGHT = [(0, {}), (12, RAISE), (24, aim(0)), (44, aim(7)), (64, aim(-7)), (76, aim(0)), (96, {})]
+FLASH_KICK = mix(WIDE, FLASH_SHIELD, lowered(-0.03, 0.0), cloth((14, 16, 18), (-4, -3)), {
+    "hips": {"rot": (1, 0, 0)}, "spine": {"rot": (0, 0, 0)}, "chest": {"rot": (1, 0, 0)},
+    "neck_lower": {"rot": (0, -60, 0)}, "neck_upper": {"rot": (0, 30, 0)}, "head": {"rot": (-100, 0, -10)},
+    "ik_hand_R": {"loc": (0, 0.0, 0.01)},
+    "lantern": {"rot": (-14, 0, 0)},
+})
+FLASH_SETTLE = mix(lowered(-0.01), cloth((4, 5, 6)), {
+    "neck_lower": {"rot": (0, -12, 0)}, "head": {"rot": (-20, 0, 0)},   # tipped up, the rim clears the collar clasp
+    "ik_hand_L": {"loc": (0.01, 0.01, 0.0)},
+    "lantern": {"rot": (8, 0, 0)},
+})
+FLASHBULB = [(0, {}), (14, FLASH_COCK), (24, FLASH_THROW), (27, FLASH_THROW), (34, FLASH_KICK),
+             (48, FLASH_SETTLE), (62, {})]
+
+# Guard Beam (a beam of light that shields one ally): brings the staff up and
+# levels it one-handed at the ally (the game turns him to face them first), the
+# lantern hanging out ahead at the tip; the game runs the beam from the lantern
+# and wraps the ally in a light bubble while he holds it, then lowers the staff
+BEAM_LIFT = mix(WIDE, lowered(-0.02, 0.01), slide(0.1), cloth((4, 5, 6)), {
+    "chest": {"rot": (-4, 0, -3)},
+    "ik_hand_R": {"loc": (0.0, -0.02, 0.09), "rot": (18, 0, -4)},
+    "ik_hand_L": {"loc": (0.04, 0.02, 0.01)},   # out to the side, clear of the belt
+    "lantern": {"rot": (-10, 0, 0)},
+})
+
+
+def beam_point(push=0.0):
+    """Staff levelled about 35 degrees above the floor, pointing ahead; `push`
+    leans him a little further into it while the beam holds."""
+    return mix(WIDE, lowered(-0.03, -0.015 - 0.01 * push), slide(0.2), cloth((8, 10, 12), (-6, -4)), {
+        "hips": {"rot": (3, 0, -3)}, "spine": {"rot": (2, 0, -2)}, "chest": {"rot": (5 + 2 * push, 0, -4)},
+        "neck_lower": {"rot": (6, 0, 0)}, "head": {"rot": (-6, 0, 0)},
+        "ik_hand_R": {"loc": (0.04, -0.15 - 0.01 * push, 0.12), "rot": (55, 0, 6)},
+        "ik_hand_L": {"loc": (0.05, 0.03, 0.01), "rot": (0, 0, 6)},
+        "lantern": {"rot": (6 * push, 0, 0)},
+    })
+
+
+GUARD_BEAM = [(0, {}), (10, BEAM_LIFT), (20, beam_point()), (24, beam_point(0.3)), (44, beam_point(1.0)),
+              (56, beam_point(0.6)), (66, BEAM_LIFT), (78, {})]
 
 RECOIL = {
     "hips": {"loc": (0, 0.015, -0.008), "rot": (-5, 0, 0)},
@@ -357,19 +478,25 @@ CLIPS = {
     "attack": (68, False, ahead(lambda f: keyed(ATTACK, f))),
     "intercept_run": (RUN_END, False, ahead(run_in)),
     "intercept_guard": (48, False, ahead(lambda f: keyed(GUARD_KEYS, f))),
-    "spotlight": (96, False, ahead(lambda f: keyed(SPOTLIGHT, f))),
+    "spotlight": (132, False, ahead(lambda f: keyed(SPOTLIGHT, f))),
+    "flashbulb": (62, False, ahead(lambda f: keyed(FLASHBULB, f))),
+    "guard_beam": (78, False, ahead(lambda f: keyed(GUARD_BEAM, f))),
     "hurt": (30, False, lambda f: keyed(HURT, f)),
     "broken": (90, False, lambda f: keyed(BROKEN, f)),
 }
 
 
 # Moments the game times itself by, in seconds from the clip's start: when a
-# strike connects, when the guard is braced and when its impact jolt lands, and
+# strike connects, when the guard is braced and when its impact jolt lands,
+# when Flashbulb pops and Guard Beam's beam starts and ends, and
 # the ground speed the travel loop was authored for. animate_all writes these to
 # <glb>_events.json beside the model; UnitModel reads them.
 CLIP_EVENTS = {
     "attack": {"hit": 27 / FPS},             # STRIKE_SWING: the lantern sweeps through
     "intercept_guard": {"brace": 12 / FPS, "impact": 18 / FPS},
+    "spotlight": {"stamp": 22 / FPS, "beam_up": 48 / FPS, "land": 66 / FPS},  # staff hits; sky beam; light drops
+    "flashbulb": {"flash": 27 / FPS},             # the lamp arm at full stretch
+    "guard_beam": {"beam": 22 / FPS, "release": 56 / FPS},  # staff levelled; starts to lower
     "move": {"speed": RUN_SPEED},
 }
 
@@ -379,6 +506,8 @@ CLIP_EVENTS = {
 CLOTH_LAG = 0.8      # share of the body's turn the cape lags behind
 LANTERN_HANG = 0.7   # share of the staff's tilt the lantern cancels; the rest swings it out
 ARM_SPREAD = 0.003   # m the hands drift outward per degree of forward lean
+STAFF_LEAN_CARRY = 0.0015  # m the staff hand also moves out and forward per degree of lean, so the
+                           # upper arm, hanging forward to it, stays off the belt
 
 
 def settle(pose):
@@ -415,6 +544,9 @@ def settle(pose):
     for bone, side in (("ik_hand_R", -1), ("ik_hand_L", 1)):
         x, y, z = pose.get(bone, {}).get("loc", (0.0, 0.0, 0.0))
         pose.setdefault(bone, {})["loc"] = (x + side * ARM_SPREAD * lean, y, z)
+    full_lean = max(0.0, lean + rot("hips")[0])
+    x, y, z = pose["ik_hand_R"]["loc"]
+    pose["ik_hand_R"]["loc"] = (x - STAFF_LEAN_CARRY * full_lean, y - STAFF_LEAN_CARRY * full_lean, z)
     return pose
 
 

@@ -18,6 +18,9 @@ extends Node3D
 ## by: when "attack" connects or fires ("hit"), when "intercept_guard" is braced and when its
 ## impact lands, and the ground speed "move" was authored for. The travel loop's
 ## playback follows the unit's real speed so its feet match the floor.
+##
+## A model with flame bones (the Toaster) keeps a UnitFire burning on them. His
+## toast slices can be hidden (launched, not yet back) and browned (`set_slice`).
 
 signal animation_done(anim: String)
 
@@ -25,6 +28,7 @@ signal animation_done(anim: String)
 const MODELS := {
 	"lamp": "res://assets/models/lamp/lamp_warden.glb",
 	"stapler": "res://assets/models/stapler/stapler_rogue.glb",
+	"toaster": "res://assets/models/toaster/toaster_pyromancer.glb",
 }
 ## Clips that loop; everything else plays once.
 const LOOPS: Array[String] = ["idle", "move"]
@@ -49,6 +53,7 @@ const SHADER := preload("res://assets/shaders/unit_model.gdshader")
 var heading := Vector3.RIGHT
 
 var _player: AnimationPlayer
+var _skeleton: Skeleton3D
 var _meshes: Array[MeshInstance3D] = []
 var _anim := ""
 var _return_to_idle := true
@@ -57,6 +62,9 @@ var _events: Dictionary = {}
 var _hold_at := NAN
 var _last_pos := Vector3.INF
 var _speed := 0.0
+var _fire: UnitFire
+## Toast slices: hidden front, hidden back, browned front, browned back.
+var _toast := Vector4.ZERO
 
 
 ## The model for a unit, or null when it only has sprite art.
@@ -100,8 +108,12 @@ func _load(scene: PackedScene) -> void:
 	var skeletons := inst.find_children("*", "Skeleton3D", true, false)
 	if not skeletons.is_empty():
 		var skeleton: Skeleton3D = skeletons[0]
+		_skeleton = skeleton
 		var root_node := _player.get_node(_player.root_node)
 		_player.root_motion_track = NodePath("%s:%s" % [root_node.get_path_to(skeleton), skeleton.get_bone_name(0)])
+		if skeleton.find_bone(UnitFire.FLAME_BONES[0]) >= 0:
+			_fire = UnitFire.new(self)
+			add_child(_fire)
 	_player.animation_finished.connect(_on_finished)
 	play("idle")
 
@@ -173,6 +185,59 @@ func _on_finished(anim: StringName) -> void:
 	if _return_to_idle:
 		play("idle")
 	animation_done.emit(String(anim))
+
+
+## Multiplies the model's glow (1 = as built); Arts flare it.
+func set_glow(v: float) -> void:
+	for m in _meshes:
+		m.set_instance_shader_parameter("glow_boost", maxf(v, 0.0))
+
+
+## The fire burning on the model's bones, or null when it has none.
+func fire() -> UnitFire:
+	return _fire
+
+
+## One of the Toaster's slices ("front" or "back"): hidden while it is flying, and
+## browned (0..1) once it has toasted; a negative `brown` leaves it as it is.
+func set_slice(slot: String, hidden: bool, brown := -1.0) -> void:
+	if slot == "front":
+		_toast.x = 1.0 if hidden else 0.0
+		_toast.z = brown if brown >= 0.0 else _toast.z
+	else:
+		_toast.y = 1.0 if hidden else 0.0
+		_toast.w = brown if brown >= 0.0 else _toast.w
+	for m in _meshes:
+		m.set_instance_shader_parameter("toast_state", _toast)
+
+
+func slice_brown(slot: String) -> float:
+	return _toast.z if slot == "front" else _toast.w
+
+
+func slice_hidden(slot: String) -> bool:
+	return (_toast.x if slot == "front" else _toast.y) > 0.5
+
+
+## Goes cold (Broken): the glow dies and any fire goes out.
+func go_cold(seconds := 1.2) -> void:
+	if _fire != null:
+		_fire.go_out()
+	var tw := create_tween()
+	tw.tween_method(set_glow, 1.0, 0.0, seconds)
+
+
+## Where a point on a bone is in the world right now: `offset` in the bone's own
+## frame, whose Y runs from its head toward its tail. (0, 0.13, 0) is the middle of
+## the glass hanging below Lamp's "lantern" hinge; Stapler's muzzles sit up and
+## along their "gun" bones. Vector3.INF when there is no such bone.
+func bone_position(bone: String, offset := Vector3.ZERO) -> Vector3:
+	if _skeleton == null:
+		return Vector3.INF
+	var i := _skeleton.find_bone(bone)
+	if i < 0:
+		return Vector3.INF
+	return _skeleton.global_transform * (_skeleton.get_bone_global_pose(i) * offset)
 
 
 ## Fades the whole model in or out (1 = solid, 0 = gone), dithered like the cards.

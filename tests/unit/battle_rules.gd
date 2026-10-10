@@ -394,3 +394,97 @@ func test_units_inside_the_gaze_are_not_walled_in() -> void:
 	b.begin_player_phase()
 	check(b.field.light_walls.is_empty(), "the wall lifts with the Gaze")
 
+
+
+func test_spotlight() -> void:
+	var b := fresh()
+	var lamp := b.field.find_unit("lamp")
+	var stapler := b.field.find_unit("stapler")
+	var pencil := b.field.find_unit("pencil_a")
+	lamp.pos = Vector2(4.5, 4.5)
+	stapler.pos = Vector2(5.6, 4.5)
+	pencil.pos = Vector2(5.6, 5.6)
+	check(b.art_targets(lamp, "spotlight").has(stapler.pos), "an ally in reach is a suggested centre")
+	check(b.area_for(lamp, "spotlight", lamp.pos + Vector2(9, 0)).center.distance_to(lamp.pos) <= b.area_reach(lamp, "spotlight") + 0.001,
+		"a centre placed too far is pulled in to the reach")
+	check(not b.use_art(lamp, "spotlight", lamp.pos + Vector2(9, 0)), "the rules refuse a centre out of reach")
+	var ex := Exchange.preview(b, lamp, "art:spotlight", stapler.pos)
+	check(ex.sides.any(func(s): return s.unit == stapler), "the preview lists the ally in the light")
+	var hit_before: int = Combat.preview(b.field, pencil, pencil.pos, stapler, stapler.pos, {}).hit
+	check(b.use_art(lamp, "spotlight", stapler.pos), "Spotlight placed on Stapler")
+	check(stapler.status.has("spotlight") and lamp.status.has("spotlight"), "allies in the circle are lit, Lamp too")
+	check(not pencil.status.has("spotlight"), "enemies in it are not")
+	var hit_after: int = Combat.preview(b.field, pencil, pencil.pos, stapler, stapler.pos, {}).hit
+	check(hit_after == clampi(hit_before - Defs.SPOTLIGHT_EVASION, 0, 100) or hit_before > 100,
+		"+20 Evasion (hit %d -> %d)" % [hit_before, hit_after])
+	var at := stapler.pos
+	b.forced_move(stapler, Vector2(1, 0), 2.0)
+	check(stapler.pos == at and stapler.status.has("spotlight"), "a lit ally can't be pushed, and stays lit")
+	b.pull_toward(stapler, pencil, 2.0)
+	check(stapler.pos == at, "or pulled")
+	b.begin_player_phase()
+	check(not stapler.status.has("spotlight"), "the light lasts until the next Player Phase")
+
+
+func test_staple_storm() -> void:
+	var b := fresh()
+	var stapler := b.field.find_unit("stapler")
+	var near_foe := b.field.find_unit("pencil_a")
+	stapler.pos = Vector2(4.5, 4.5)
+	near_foe.pos = Vector2(5.9, 4.5)
+	var far_foe: Unit = null
+	for u in b.enemy_units():
+		if u != near_foe:
+			far_foe = u
+			break
+	far_foe.pos = Vector2(8.5, 6.5)
+	var ex := Exchange.preview(b, stapler, "art:staple_storm", stapler)
+	check(ex.strikes.any(func(s): return s.on == near_foe), "the preview strikes the enemy within 2 m")
+	check(not ex.strikes.any(func(s): return s.on == far_foe), "and not one further off")
+	var hp := near_foe.hp
+	check(b.use_art(stapler, "staple_storm", stapler), "Staple Storm resolves")
+	var events := b.take_events()
+	check(events.any(func(e): return e.type == "area" and e.kind == "staple_storm" and is_equal_approx(e.radius, 2.0)),
+		"it marks the 2 m circle round Stapler")
+	var struck: Array = events.filter(func(e): return e.type == "strike" and e.attacker == stapler).map(func(e): return e.target)
+	check(struck.has(near_foe) and not struck.has(far_foe), "it strikes the enemy in the circle only")
+	var hit: bool = events.any(func(e): return e.type == "strike" and e.target == near_foe and e.hit)
+	check(not hit or (near_foe.hp < hp and (near_foe.broken or near_foe.status.has("pinned"))), "a hit deals damage and Pins")
+	check(b.noise >= 3, "it is the loudest Art (+3 Noise)")
+
+
+func test_overheat() -> void:
+	var b := fresh()
+	var toaster := b.field.find_unit("toaster")
+	var near_foe := b.field.find_unit("pencil_a")
+	toaster.pos = Vector2(4.5, 4.5)
+	near_foe.pos = Vector2(5.7, 4.5)
+	var far_foe: Unit = null
+	for u in b.enemy_units():
+		if u != near_foe:
+			far_foe = u
+			break
+	far_foe.pos = Vector2(8.5, 6.5)
+	toaster.status["heated"] = 0
+	var burn := ceili(toaster.max_hp * Defs.OVERHEAT_SELF_PCT)
+	var ex := Exchange.preview(b, toaster, "art:overheat", toaster)
+	check(ex.strikes.any(func(s): return s.on == near_foe), "the preview strikes the enemy within 1.6 m")
+	check(not ex.strikes.any(func(s): return s.on == far_foe), "and not one further off")
+	check(ex.sides.any(func(s): return s.unit == toaster and s.hp_after == toaster.hp - burn),
+		"and shows the HP it burns off Toaster")
+	var hp := toaster.hp
+	check(b.use_art(toaster, "overheat", toaster), "Overheat resolves")
+	var events := b.take_events()
+	check(events.any(func(e): return e.type == "area" and e.kind == "overheat" and is_equal_approx(e.radius, 1.6)),
+		"it marks the 1.6 m circle round Toaster")
+	var struck: Array = events.filter(func(e): return e.type == "strike" and e.attacker == toaster).map(func(e): return e.target)
+	check(struck.has(near_foe) and not struck.has(far_foe), "it strikes the enemy in the circle only")
+	check(toaster.hp == hp - burn and events.any(func(e): return e.type == "damage" and e.unit == toaster),
+		"it burns %d HP off Toaster" % burn)
+	check(b.noise >= 3, "it is +3 Noise")
+	check(toaster.status.has("heated"), "and Hot Coils heats him up again")
+	# the burn never Breaks him
+	var b2 := fresh()
+	var t2 := b2.field.find_unit("toaster")
+	t2.hp = 1
+	check(b2.overheat_burn(t2) == 0, "a toaster on 1 HP burns nothing")

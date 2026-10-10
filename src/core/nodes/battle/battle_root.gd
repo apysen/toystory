@@ -309,6 +309,10 @@ func _on_click(p: Vector2) -> void:
 			if selection.is_aiming():
 				execute()
 				return
+			if selection.is_placing():
+				selection.spot = battle.area_for(selection.controlled, selection.action.substr(4), p).center
+				execute()
+				return
 			for k in selection.targets.size():
 				var t: Variant = selection.targets[k]
 				var hit: bool = (t is Unit and t == u) or (t is String and battle.field.objects.has(t) and battle.field.objects[t].rect.grow(0.2).has_point(p))
@@ -327,6 +331,10 @@ func _on_target_hover(p: Vector2) -> void:
 		if d.length() > 0.2:
 			selection.aim = d.normalized()
 			_refresh_target()
+		return
+	if selection.is_placing():
+		selection.spot = p
+		_refresh_target()
 		return
 	var u := _unit_near(p)
 	if u != null and selection.targets.has(u):
@@ -444,7 +452,8 @@ func _has_reach(id: String) -> bool:
 		return true
 	if not id.begins_with("art:"):
 		return false
-	return Arts.get_art(id.substr(4)).target != "self"
+	var art := Arts.get_art(id.substr(4))
+	return art.target != "self" or art.has("radius")
 
 
 func _close_menu() -> void:
@@ -491,7 +500,7 @@ func choose_action(id: String) -> void:
 			battle.use_item(u)
 			await _after_action()
 			return
-	if id.begins_with("art:") and Arts.get_art(id.substr(4)).target == "self":
+	if id.begins_with("art:") and Arts.get_art(id.substr(4)).target == "self" and not Arts.get_art(id.substr(4)).has("radius"):
 		battle.use_art(u, id.substr(4), u)
 		await _after_action()
 		return
@@ -508,6 +517,13 @@ func choose_action(id: String) -> void:
 			if art.target == "direction":
 				selection.targets = []
 				selection.aim = _default_aim(u)
+			elif art.target == "self":
+				selection.targets = [u]  # a circle round the user: shown, then confirmed
+			elif art.target == "area":
+				selection.targets = battle.art_targets(u, id.substr(4))
+				# start on the nearest ally rather than on the user
+				selection.target_index = 1 if selection.targets.size() > 1 else 0
+				selection.spot = selection.targets[selection.target_index]
 			else:
 				selection.targets = battle.art_targets(u, id.substr(4))
 	selection.mode = Mode.TARGET
@@ -530,6 +546,7 @@ func _back_to_menu() -> void:
 	selection.clear_action()
 	overlays.hide_reach_ring()
 	overlays.hide_cone()
+	overlays.hide_area()
 	overlays.clear_targets()
 	preview.hide_preview()
 	open_menu()
@@ -540,6 +557,8 @@ func _step_target(step: int) -> void:
 		selection.aim = selection.aim.rotated(deg_to_rad(aim_step_degrees) * -step)
 	elif not selection.targets.is_empty():
 		selection.target_index = posmod(selection.target_index + step, selection.targets.size())
+		if selection.is_placing():
+			selection.spot = selection.targets[selection.target_index]
 	audio.play("ui_move", -12.0)
 	_refresh_target()
 
@@ -555,8 +574,22 @@ func _refresh_target() -> void:
 		overlays.show_cone(cone)
 		overlays.show_targets(battle.units_in_cone(u, cone).filter(func(o): return battle.can_target(u, o)), null)
 		target = selection.aim
+	elif selection.is_self_area():
+		var around := battle.around(u, id.substr(4))
+		overlays.show_area(around)
+		overlays.show_targets(battle.storm_targets(u, around), null)
+		target = u
+	elif selection.is_placing():
+		var area := battle.area_for(u, id.substr(4), selection.spot)
+		selection.spot = area.center
+		overlays.show_area(area)
+		overlays.show_targets(battle.units_in_area(area).filter(func(o): return o.faction == u.faction and not o.frozen), null, true)
+		target = selection.spot
+		if selection.spot.distance_to(u.pos) > 0.05:
+			card_of(u).face_along(selection.spot - u.pos)
 	else:
 		overlays.hide_cone()
+		overlays.hide_area()
 		target = selection.current_target()
 		overlays.show_targets(selection.targets, target, friendly)
 	if target == null:
@@ -573,6 +606,8 @@ func _reach_radius(u: Unit, id: String) -> float:
 	if id == "talk":
 		return u.radius + Defs.ADJACENT_GAP
 	var art := Arts.get_art(id.substr(4))
+	if art.target == "self" and art.has("radius"):
+		return float(art.radius)
 	match art.target:
 		"direction":
 			return u.radius + float(art.length)
@@ -583,7 +618,11 @@ func _reach_radius(u: Unit, id: String) -> float:
 
 func execute() -> void:
 	var u := selection.controlled
-	var target: Variant = selection.aim if selection.is_aiming() else selection.current_target()
+	var target: Variant = selection.current_target()
+	if selection.is_aiming():
+		target = selection.aim
+	elif selection.is_placing():
+		target = selection.spot
 	if target == null:
 		return
 	selection.mode = Mode.BUSY

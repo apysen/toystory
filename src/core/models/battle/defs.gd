@@ -16,6 +16,10 @@ const TYPE_HIT_BONUS := 15
 const TYPE_DMG_BONUS := 0.20
 const HALF_COVER_EVASION := 25
 const WEATHERPROOF_EVASION := 15
+## Lamp's Spotlight: Evasion for allies standing in its light.
+const SPOTLIGHT_EVASION := 20
+## Toaster's Overheat: the share of his max HP it burns off him (never Breaks him).
+const OVERHEAT_SELF_PCT := 0.2
 const CRIT_MULT := 2
 const COLLISION_PCT := 0.10
 const BASE_ACCURACY := 85

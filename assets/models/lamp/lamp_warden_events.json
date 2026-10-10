@@ -6,6 +6,18 @@
     "brace": 0.2,
     "impact": 0.3
   },
+  "spotlight": {
+    "stamp": 0.3667,
+    "beam_up": 0.8,
+    "land": 1.1
+  },
+  "flashbulb": {
+    "flash": 0.45
+  },
+  "guard_beam": {
+    "beam": 0.3667,
+    "release": 0.9333
+  },
   "move": {
     "speed": 1.8
   }

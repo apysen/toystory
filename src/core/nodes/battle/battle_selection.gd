@@ -14,11 +14,14 @@ var mode := Mode.IDLE
 var controlled: Unit = null
 ## "attack", "art:<id>" or "talk" while picking a target.
 var action := ""
-## Units, cover ids, or (for cones) nothing: cones aim with `aim`.
+## Units, cover ids, suggested centres (areas), or (for cones) nothing: cones aim with `aim`.
 var targets: Array = []
 var target_index := 0
 ## Aim direction for cones, on the floor.
 var aim := Vector2.RIGHT
+## Centre of an area Art's circle, on the floor (follows the mouse; ◀ ▶ step it
+## through `targets`).
+var spot := Vector2.ZERO
 ## Movement forecast for the controlled unit where it stands.
 var forecast := {}
 ## Enemy whose reach is shown after clicking it.
@@ -37,10 +40,22 @@ func is_aiming() -> bool:
 	return action.begins_with("art:") and Arts.get_art(action.substr(4)).target == "direction"
 
 
+func is_placing() -> bool:
+	return action.begins_with("art:") and Arts.get_art(action.substr(4)).target == "area"
+
+
+## A self-centred area Art (Staple Storm): its circle round the user is shown, then confirmed.
+func is_self_area() -> bool:
+	if not action.begins_with("art:"):
+		return false
+	var art := Arts.get_art(action.substr(4))
+	return art.target == "self" and art.has("radius")
+
+
 func is_friendly_action() -> bool:
 	if action == "talk":
 		return true
-	return action.begins_with("art:") and Arts.get_art(action.substr(4)).target == "ally"
+	return action.begins_with("art:") and Arts.get_art(action.substr(4)).target in ["ally", "area"]
 
 
 func clear_action() -> void:

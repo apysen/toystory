@@ -36,6 +36,7 @@ import sys
 
 import bpy
 from mathutils import Matrix, Vector
+from mathutils.kdtree import KDTree
 
 try:
     _TOOLS = os.path.dirname(os.path.abspath(__file__))
@@ -106,11 +107,9 @@ def build_shade(b):  # the head
     b.paint(bands[8] + bands[9], "glow")
     b.paint(bands[10] + bands[11], "glow_hot")
     b.finish(b.sphere(apex + axis * 0.14, 0.034, 8, 5), "glow_hot", "head")  # bulb
-    # hub and finial knob on the crown
+    # hub on the crown, where the lamp arm holds the shade (the arm's three brass
+    # joints carry the gold; the crown has no knob of its own)
     b.finish(b.tube([apex - axis * 0.012, apex + axis * 0.03], 0.03, 8), "steel_dark", "head")
-    top = P(74, 0.5, 0.04)
-    b.finish(b.tube([apex - axis * 0.005, top], 0.008, 6), "steel", "head")
-    b.finish(b.sphere(top, 0.024, 8, 5), "gold", "head")
     b.joints["head"] = (apex, rim, "neck_upper")
     return apex
 
@@ -179,16 +178,16 @@ def build_torso(b):
     def arm_angle(elbow):  # lathe angle of an arm as seen from the mantle's axis
         rel = elbow - P(69, 128)
         return math.atan2(rel.y / 0.74, rel.x)
-    arm_angles = [arm_angle(ARM_R[1]), arm_angle(ARM_L[1])]
+    arm_angles = [(arm_angle(ARM_R[1]), MANTLE_ARCH[0]), (arm_angle(ARM_L[1]), MANTLE_ARCH[1])]
 
     def mantle_warp(p, a):
         t = max(0.0, ((128 - 50) * S - p.z) / (13 * S))
         k = 1 + 0.07 * t * math.sin(7 * a)
-        for aa in arm_angles:  # the hem arches up and out over each arm
+        for aa, lift in arm_angles:  # the hem arches up and out over each arm
             d = (a - aa + math.pi) % (2 * math.pi) - math.pi
             bump = math.exp(-(d / 0.45) ** 2)
             k += 0.08 * t * bump
-            p.z += 3.5 * S * t * t * bump
+            p.z += lift * S * t * t * bump
         p.x *= k
         p.y *= k
         p.z += 0.008 * t * math.cos(7 * a)
@@ -232,10 +231,12 @@ def build_torso(b):
             dv[arm_r] = kr
         if kl > 0.001:
             dv[arm_l] = kl
+    b.mantle_verts = verts  # the cape tucked under it copies these weights
     # brown collar band and the brass clasp holding the mantle shut at the throat
     b.finish(b.lathe(vprof([(10.5, 44), (10.5, 41), (7.5, 41), (7.5, 44)]), 12,
                      Matrix.Translation(P(68, 128)), sy=0.74, loop=True)[0], "brown", "torso")
-    b.finish(b.sphere(P(69, 45, -0.088), 3.4 * S, 8, 5, (1, 0.55, 1)), "gold", "torso")
+    # on the front of the collar band (radius 10.5 px, rows 41-44), half sunk into it
+    b.finish(b.sphere(P(68, 42.5, -10.5 * 0.74 * S - 0.004), 3.4 * S, 8, 5, (1, 0.55, 1)), "gold", "torso")
 
     # bandolier from the right shoulder across the chest to the left hip
     path = [on_robe(px, py, 0.6) for px, py in ((82, 47), (77, 53), (70, 59), (62, 64), (57.5, 67))]
@@ -377,7 +378,7 @@ def build_leg(b, hip, knee, ankle, toe, side, s):
         b.finish(b.sphere(c + side_dir * 0.031, 0.9 * S, 4, 3), "gold", foot)
 
 
-def build_arm(b, shoulder, elbow, grip, axis, radius, side):
+def build_arm(b, shoulder, elbow, grip, axis, radius, side, upper_r=3.8 * S):
     """Upper arm, forearm and gauntlet gripping a bar (axis, radius) at grip.
     side "R" or "L" is the character's own right or left."""
     u = Vector(axis).normalized()
@@ -390,7 +391,7 @@ def build_arm(b, shoulder, elbow, grip, axis, radius, side):
     wrist = grip - f * (R + 4.0 * S) + w * (R + 1.3 * S) * 0.5
     upper, fore, hand = f"upperarm_{side}", f"forearm_{side}", f"hand_{side}"
     b.finish(b.sphere(shoulder, 5.5 * S, 8, 5, (1, 0.9, 0.8)), "steel", upper)
-    b.finish(b.tube([shoulder, elbow], 3.8 * S, 8), "steel_dark", upper)
+    b.finish(b.tube([shoulder, elbow], upper_r, 8), "steel_dark", upper)
     b.finish(b.sphere(elbow, 4.6 * S, 8, 5), "steel_light", fore)
     b.finish(b.tube([elbow, wrist], 4.4 * S, 8, rs=[4.4 * S, 3.8 * S]), "steel", fore)
     # brown band and flared cuff: kept apart and at different radii so the two
@@ -409,9 +410,14 @@ def build_arm(b, shoulder, elbow, grip, axis, radius, side):
     b.joints[hand] = (wrist, grip, fore)
 
 
+def SP(px, py, d=0.0):
+    """A point on the staff or its lantern: sprite space, moved by STAFF_SHIFT."""
+    return P(px, py, d) + STAFF_SHIFT
+
+
 def build_staff(b):
     d = -0.085
-    pole = [P(36.5, 125, d), STAFF_GRIP, P(31, 24, d)]  # straight, so it slides through the hand
+    pole = [SP(36.5, 125, d), STAFF_GRIP, SP(31, 24, d)]  # straight, so it slides through the hand
 
     def at(py):  # point on the pole at sprite height py
         for a, c in zip(pole, pole[1:]):
@@ -421,11 +427,11 @@ def build_staff(b):
         return pole[-1]
 
     b.finish(b.tube(pole, 2.2 * S, 6), "steel", "staff")
-    for y0, y1, colour in ((40, 46, "brown"), (60, 68, "brown"), (96, 102, "brown"),
+    for y0, y1, colour in ((40, 46, "brown"), (GRIP_ROW - 4, GRIP_ROW + 4, "brown"), (96, 102, "brown"),
                            (108, 111, "gold"), (120, 125, "gold")):
         b.finish(b.tube([at(y1), at(y0)], 3.0 * S, 6), colour, "staff", smooth=False)
     # crook: a little desk-lamp arm holding the lantern
-    top, tip, brace = P(29, 22, d), P(11, 32, d), at(44)
+    top, tip, brace = SP(29, 22, d), SP(11, 32, d), at(44)
     b.finish(b.sphere(top, 3.5 * S, 8, 5), "gold", "staff")
     b.finish(b.tube([top, tip], 1.9 * S, 6), "steel", "staff")
     b.finish(b.tube([brace, top.lerp(tip, 0.45)], 1.4 * S, 6), "steel_dark", "staff")
@@ -434,12 +440,12 @@ def build_staff(b):
     # the lantern hangs from the knob on a short rod and swings on its own bone,
     # hinged at the knob's centre; the rod starts just outside the knob so it
     # never sinks into it however far the lantern swings
-    b.finish(b.tube([tip + Vector((0, 0, -3.4 * S)), P(11, 36.2, d)], 0.8 * S, 4), "steel_dark", "lantern")
-    b.joints["lantern"] = (tip, P(11, 66, d), "staff")
+    b.finish(b.tube([tip + Vector((0, 0, -3.4 * S)), SP(11, 36.2, d)], 0.8 * S, 4), "steel_dark", "lantern")
+    b.joints["lantern"] = (tip, SP(11, 66, d), "staff")
 
     prof = vprof([(0, 66), (1.5, 64), (3, 61), (4.5, 60), (7.5, 54), (8.3, 49), (7.5, 44),
                   (5, 40.5), (5.5, 40), (4.5, 37.5), (2, 36), (0, 35.5)])
-    verts, bands, _ = b.lathe(prof, 8, Matrix.Translation(P(11, 128, d)))
+    verts, bands, _ = b.lathe(prof, 8, Matrix.Translation(SP(11, 128, d)))
     b.finish(verts, "glow", "lantern", smooth=False)
     b.paint(bands[0] + bands[1] + bands[2], "gold")
     b.paint(bands[4] + bands[5], "glow_hot")
@@ -448,7 +454,7 @@ def build_staff(b):
     for k in range(4):
         a = math.pi / 4 + k * math.pi / 2
         dirv = Vector((math.cos(a), math.sin(a), 0))
-        rib = [P(11, py, d) + dirv * (r + 0.6) * S for r, py in ((4.5, 60), (7.5, 54), (8.3, 49), (7.5, 44), (5, 40.5))]
+        rib = [SP(11, py, d) + dirv * (r + 0.6) * S for r, py in ((4.5, 60), (7.5, 54), (8.3, 49), (7.5, 44), (5, 40.5))]
         b.finish(b.tube(rib, 0.7 * S, 4), "gold", "lantern")
 
 
@@ -457,6 +463,40 @@ SHIELD_GRIP_AXIS = Vector((0.0, 0.0, 1.0))  # upright handle
 SHIELD_NORMAL = Vector((math.sin(SHIELD_YAW), -math.cos(SHIELD_YAW), 0.0))
 SHIELD_GRIP_DEPTH = 0.058  # strap sits this far behind the shield face, room for the fingers
 SHIELD_GRIP = P(110, 84, -0.165) - SHIELD_NORMAL * SHIELD_GRIP_DEPTH + Vector((-0.02, 0.0, 0.03))
+
+
+def ringed_slab(b, pts, th, M, zoff, warp, centre=(0.0, 0.0), rings=4):
+    """Like Builder.slab, but the top and bottom are rings of quads closing on a
+    centre point, so a warp that curves the outline curves the whole surface
+    (a flat n-gon only bends at its rim, and whatever sits on it floats or sinks)."""
+    bm = b.bm
+    cx, cy = centre
+
+    def layer(z):
+        at = lambda x, y: M @ warp(Vector((x, y, z + zoff)))
+        grid = [[bm.verts.new(at(cx + (x - cx) * k / rings, cy + (y - cy) * k / rings)) for x, y in pts]
+                for k in range(1, rings + 1)]
+        return bm.verts.new(at(cx, cy)), grid
+
+    n = len(pts)
+    verts = []
+    for z, flip in ((th / 2, False), (-th / 2, True)):
+        mid, grid = layer(z)
+        verts += [mid] + [v for ring in grid for v in ring]
+        for i in range(n):
+            j = (i + 1) % n
+            quads = [(mid, grid[0][i], grid[0][j])] + [(grid[k][i], grid[k + 1][i], grid[k + 1][j], grid[k][j])
+                                                       for k in range(rings - 1)]
+            for q in quads:
+                bm.faces.new(tuple(reversed(q)) if flip else q)
+        if not flip:
+            top = grid[-1]
+        else:
+            bot = grid[-1]
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((bot[i], bot[j], top[j], top[i]))
+    return verts
 
 
 def build_shield(b):
@@ -472,19 +512,21 @@ def build_shield(b):
     shape = [(0, -32), (6, -25), (11, -16), (14, -6), (15.5, 5), (15, 18), (15, 27), (8, 28.5), (0, 29),
              (-8, 28.5), (-15, 27), (-15, 18), (-15.5, 5), (-14, -6), (-11, -16), (-6, -25)]
     px = lambda pts: [(x * S, y * S) for x, y in pts]
-    b.finish(b.slab(px(shape), 0.01, M, warp=warp), "steel_dark", "shield", smooth=False)
+    # the plate, its face and the sun are ringed so they all follow the curve and
+    # each layer lies flush on the one under it
+    b.finish(ringed_slab(b, px(shape), 0.01, M, 0.0, warp), "steel_dark", "shield", smooth=False)
     face = [(x * (1 - 3 / 15.5), y * (1 - 3 / 31) - 0.3) for x, y in shape]
-    b.finish(b.slab(px(face), 0.004, M, zoff=0.006, warp=warp), "steel", "shield", smooth=False)
-    # sun emblem
-    sx, sy = 2 * S, 2 * S
+    b.finish(ringed_slab(b, px(face), 0.004, M, 0.0065, warp), "steel", "shield", smooth=False)
+    # sun emblem, on the face's centre (its centroid)
+    sx, sy = 0.0, 2.5 * S
     star = []
     for k in range(24):
         a = math.pi / 2 + k * math.pi / 12
         r = (10 if k % 2 == 0 else 5.5) * S
         star.append((sx + r * math.cos(a), sy + r * math.sin(a)))
-    b.finish(b.slab(star, 0.003, M, zoff=0.0095, warp=warp), "pale", "shield", smooth=False)
+    b.finish(ringed_slab(b, star, 0.003, M, 0.0098, warp, (sx, sy), 3), "pale", "shield", smooth=False)
     disc = [(sx + 3.6 * S * math.cos(a), sy + 3.6 * S * math.sin(a)) for a in (2 * math.pi * k / 10 for k in range(10))]
-    b.finish(b.slab(disc, 0.003, M, zoff=0.012, warp=warp), "cream", "shield", smooth=False)
+    b.finish(ringed_slab(b, disc, 0.003, M, 0.0125, warp, (sx, sy), 2), "cream", "shield", smooth=False)
     for x, y in ((-11, 22), (11, 22), (-12.5, -4), (12.5, -4), (0, -25)):
         lx, ly = x * S, y * S
         pos = M @ Vector((lx, ly, 0.009 + bend(lx)))
@@ -499,10 +541,19 @@ def build_shield(b):
                  "brown_dark", "shield", smooth=False)
 
 
+# the cape's lathe profile (radius px, sprite row): a layer just under the mantle
+# that comes out below its hem (row 63) as wide as the mantle and carries its
+# line on down, so the two read as one cloak. Starting up at the neck at the
+# mantle's own radius, the scalloped hem showed through it
+CAPE_OUTER = [(17.5, 58), (18, 63.5), (21.5, 64.7), (24, 67), (27.5, 70), (30.5, 80), (34, 92), (37.5, 103), (40.5, 113)]
+CAPE_CHAIN_ROWS = (72, 85, 99, 111)  # where the cape_1..3 chain runs down the back, below the pinned top
+CAPE_PIN_ROWS = (69, 76)  # it moves with the mantle down to the first row, swings freely from the second
+
+
 def build_cape(b):
     """A billowing cape: folds that deepen toward the hem, swept screen-left and
     lifted on that side, with a ragged uneven hem."""
-    top_z, hem_z = (128 - 44) * S, (128 - 113) * S
+    top_z, hem_z = (128 - CAPE_OUTER[0][1]) * S, (128 - 113) * S
 
     def warp(p, a):
         t = max(0.0, min(1.0, (top_z - p.z) / (top_z - hem_z)))
@@ -518,19 +569,20 @@ def build_cape(b):
         return p
 
     rows = 13
-    outer = resample([(12, 44), (21, 52), (27, 68), (30.5, 80), (34, 92), (37.5, 103), (40.5, 113)], rows)
-    inner = resample([(10.5, 44), (19.5, 52), (25.5, 68), (29, 80), (32.5, 92), (36, 103), (39, 113)], rows)
+    outer = resample(CAPE_OUTER, rows)
+    inner = resample([(r - 1.5, py) for r, py in CAPE_OUTER], rows)
     inner[-1] = (inner[-1][0], 113.4)
     a0, a1, segs = math.radians(15), math.radians(168), 26
     verts, bands, _ = b.lathe(vprof(outer + inner[::-1]), segs, Matrix.Translation(P(68, 128, 0.012)), sy=0.7,
                               loop=True, arc=(a0, a1), warp=warp)
     faces = b.finish(verts, "cream", "cape")
     b.paint([f for band in bands[rows:2 * rows - 1] for f in band], "cream_shade")
-    # shade the fold valleys on the outside, like the grey streaks in the sprite
-    for k, band in enumerate(bands[2:rows - 1], start=2):
+    # shade the fold valleys on the outside, like the grey streaks in the sprite;
+    # they run all the way up under the mantle's hem
+    for k, band in enumerate(bands[:rows - 1]):
         for i, f in enumerate(band):
             a = a0 + (a1 - a0) * (i + 0.5) / segs
-            if math.sin(7 * a + 0.6) < -0.45 + 0.4 * (1 - k / (rows - 2)):
+            if math.sin(7 * a + 0.6) < -0.45 + 0.4 * (1 - max(k, 2) / (rows - 2)):
                 b.paint([f], "cream_shade")
     b.set_sway(faces, top_z, hem_z)  # pinned at the shoulders, free at the hem
 
@@ -538,11 +590,29 @@ def build_cape(b):
     def back_point(py):
         band = sorted((v.co for v in verts if abs((128 - v.co.z / S) - py) < 4), key=lambda c: -c.y)[:6]
         return sum(band, Vector()) / len(band)
-    js = [back_point(py) for py in (46, 69, 92, 111)]
+    js = [back_point(py) for py in CAPE_CHAIN_ROWS]
     for i in range(3):
         b.joints[f"cape_{i + 1}"] = (js[i], js[i + 1], "chest" if i == 0 else f"cape_{i}")
     chain_weights(b, verts, top_z, top_z - hem_z,
                   (("chest", -0.08), ("cape_1", 0.2), ("cape_2", 0.55), ("cape_3", 0.9)), 0.35)
+    # the cape under the mantle and its flare just below copy the weights of the
+    # mantle beside them, so the two move as one when he leans, lifts an arm or
+    # swings the cape; the swing starts below them
+    mantle = KDTree(len(b.mantle_verts))
+    for i, mv in enumerate(b.mantle_verts):
+        mantle.insert(mv.co, i)
+    mantle.balance()
+    pin_z, free_z = ((128 - r) * S for r in CAPE_PIN_ROWS)
+    for v in verts:
+        k = smoothstep((v.co.z - free_z) / (pin_z - free_z))
+        if k <= 0.0:
+            continue
+        dv = v[b.deform]
+        for i in list(dv.keys()):
+            dv[i] *= 1.0 - k
+        near = b.mantle_verts[mantle.find(v.co)[1]][b.deform]
+        for i, w in near.items():
+            dv[i] = dv.get(i, 0.0) + k * w
 
 
 def build_mesh():
@@ -556,20 +626,29 @@ def build_mesh():
     build_leg(b, P(76, 92), P(86, 101, -0.035), P(92, 115, -0.01), (0.85, -0.5, 0), 1, "L")
     staff_grip = STAFF_GRIP
     staff_axis = (P(31, 24) - P(36.5, 125)).normalized()
-    build_arm(b, ARM_R[0], ARM_R[1], staff_grip, staff_axis, 3.0 * S, "R")
+    # a slimmer upper arm passes between the mantle and the satchel; the gauntlet
+    # sits a little wider than the leather wrap it closes on
+    build_arm(b, ARM_R[0], ARM_R[1], staff_grip, staff_axis, 3.4 * S, "R", upper_r=3.3 * S)
     build_arm(b, ARM_L[0], ARM_L[1], SHIELD_GRIP, SHIELD_GRIP_AXIS, 0.006, "L")
     build_staff(b)
     build_shield(b)
-    b.joints["staff"] = (staff_grip, P(31, 24, -0.085), "hand_R")
+    b.joints["staff"] = (staff_grip, SP(31, 24, -0.085), "hand_R")
     b.joints["shield"] = (SHIELD_GRIP, P(110, 84, -0.165), "hand_L")
     return b
 
 
 # shoulder and elbow of each arm: the arms leave the mantle under its hem,
-# elbows behind the hands and pointing out so each arm bends naturally
-STAFF_GRIP = P(36.5 - 5.5 * 61 / 101, 64, -0.085)  # on the straight shaft from P(36.5, 125) to P(31, 24)
-ARM_R = (P(56, 60, -0.03), P(45, 65, -0.055))
+# elbows behind the hands and pointing out so each arm bends naturally. The
+# staff arm holds the staff out in front of him: the upper arm drops down and
+# halfway forward (clear of the belt's side), the forearm reaches straight ahead
+GRIP_ROW = 69  # sprite row of the staff hand, under the leather wrap
+# the staff stands out in front of his right side, moved in and forward from
+# where the sprite draws it at his side, so the forearm reaches forward to it
+STAFF_SHIFT = Vector((0.095, -0.20, 0.0))
+STAFF_GRIP = SP(36.5 - 5.5 * (125 - GRIP_ROW) / 101, GRIP_ROW, -0.085)  # on the straight shaft SP(36.5, 125)-SP(31, 24)
+ARM_R = (P(56, 58, -0.045), Vector((-0.172, -0.115, 0.435)))
 ARM_L = (P(80, 58, -0.03), P(98, 69, -0.01))
+MANTLE_ARCH = (5.5, 3.5)  # px the mantle's hem lifts over the right and left arm
 
 
 # parts that must never pass through each other (others touch by design)
@@ -579,7 +658,7 @@ CLIP_CHECKS = [
     ("upperarm_R", "cape"), ("upperarm_L", "cape"), ("forearm_R", "cape"), ("forearm_L", "cape"),
     ("hand_R", "staff"), ("hand_L", "shield"), ("forearm_L", "shield"),
     ("lantern", "staff"), ("lantern", "hand_R"), ("lantern", "forearm_R"), ("lantern", "head"),
-    ("lantern", "mantle"), ("lantern", "cape"),
+    ("lantern", "mantle"), ("lantern", "cape"), ("mantle", "cape"),
     ("neck_lower", "cape"), ("neck_upper", "upperarm_L"), ("neck_upper", "mantle"),
     ("head", "torso"), ("head", "mantle"), ("head", "cape"), ("head", "upperarm_R"), ("head", "upperarm_L"),
     ("cape", "shin_R"), ("cape", "shin_L"), ("cape", "foot_R"), ("cape", "foot_L"),

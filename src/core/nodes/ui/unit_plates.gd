@@ -5,6 +5,12 @@ extends Control
 ## controlled unit's bar shows its predicted HP if it stopped where it is: the HP
 ## it would lose pulses, and a red ✕ appears when it would be Broken.
 
+## Status -> the letter shown under the bar, in this order.
+const STATUS_PIPS := {
+	"pinned": "P", "taped": "T", "guard_beam": "G", "spotlight": "L", "canopy": "C", "steady_sip": "S",
+	"heated": "H", "dazzled": "D",
+}
+
 @export var bar_width := 56.0
 @export var bar_height := 7.0
 @export var focus_bar_width := 92.0
@@ -73,9 +79,9 @@ func _draw() -> void:
 			draw_rect(Rect2(rect.position, Vector2(w * frac, h)), col)
 		# Status pips under the bar.
 		var x := rect.position.x
-		for s in ["pinned", "taped", "guard_beam", "canopy", "steady_sip", "heated", "dazzled"]:
+		for s in STATUS_PIPS:
 			if u.status.has(s):
-				_text(font, Vector2(x, rect.end.y + 13), s.substr(0, 1).to_upper(), 12, Color("bfe3ff"))
+				_text(font, Vector2(x, rect.end.y + 13), STATUS_PIPS[s], 12, Color("bfe3ff"))
 				x += 10
 		if u.frozen:
 			_text(font, Vector2(rect.position.x, rect.end.y + 13), "watched", 12, Color("d8c8ff"))
