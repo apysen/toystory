@@ -155,17 +155,33 @@ class Builder:
 
     def map_detail(self, faces, region, uv_at, wrap=False):
         """Lay a region (x0, y0, x1, y1 px) of the detail atlas over faces:
-        uv_at(co) gives each corner's place (u, v) in 0..1 across and down the
-        region. With wrap, u runs round a tube: a face across the seam takes u
-        past 1, so the region's art must carry on to u = 1.25."""
+        uv_at gives each corner's place (u, v) in 0..1 across and down the
+        region, either a function of its position or a dict {vert: (u, v)} (a
+        grid's own coordinates, from grid_uv). With wrap, u runs round a tube: a
+        face across the seam takes u past 1, so the region's art must carry on to
+        u = 1.25."""
         x0, y0, x1, y1 = region
         span = (x1 - x0) / (1.25 if wrap else 1.0)
+        at = (lambda v: uv_at[v]) if isinstance(uv_at, dict) else (lambda v: uv_at(v.co))
         for f in faces:
-            uvs = [uv_at(loop.vert.co) for loop in f.loops]
+            uvs = [at(loop.vert) for loop in f.loops]
             if wrap and max(u for u, _ in uvs) - min(u for u, _ in uvs) > 0.5:
                 uvs = [(u + 1.0 if u < 0.5 else u, v) for u, v in uvs]
             for loop, (u, v) in zip(f.loops, uvs):
                 loop[self.uv].uv = detail_uv(x0 + span * u, y0 + (y1 - y0) * max(0.0, min(1.0, v)))
+
+    @staticmethod
+    def grid_uv(rings, k0, k1, closed=False):
+        """{vert: (u, v)} over the rings k0..k1 of a lathe (or rows of a grid): u
+        runs along each ring 0..1, v from ring k0 (0) to ring k1 (1). A closed
+        ring (a full turn) runs u 0..1 back to its first vertex: map it with wrap."""
+        out = {}
+        for k in range(k0, k1 + 1):
+            ring = rings[k]
+            n = len(ring) if closed else max(len(ring) - 1, 1)
+            for i, v in enumerate(ring):
+                out[v] = (i / n, (k - k0) / max(k1 - k0, 1))
+        return out
 
     # -- primitives ----------------------------------------------------------
 

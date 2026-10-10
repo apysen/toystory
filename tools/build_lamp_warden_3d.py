@@ -85,8 +85,16 @@ def body_weights(z):
 # the sprite's foot pivot is x 70 on the 128 px frame's bottom edge
 CHAR = toy3d.configure(toy3d.Character(
     name="lamp_warden", folder="lamp", object_name="LampWarden", pivot=(70, 128), palette=PALETTE,
-    part_bone=PART_BONE, body_weights=body_weights))
+    part_bone=PART_BONE, body_weights=body_weights,
+    detail=os.path.join(toy3d.ROOT, "assets", "models", "lamp", "source", "lamp_details.png")))
 OUT_DIR, SRC_DIR = CHAR.out_dir, CHAR.src_dir
+
+# regions of the detail atlas drawn by tools/draw_lamp_details.py (run it first)
+DETAIL_TABARD = (256, 0, 448, 512)
+DETAIL_SHIELD = (448, 0, 704, 256)
+DETAIL_MANTLE = (0, 512, 1024, 640)
+DETAIL_CAPE = (0, 640, 1024, 768)
+DETAIL_ROBE = (0, 768, 1024, 896)
 
 
 def build_shade(b):  # the head
@@ -164,8 +172,10 @@ def build_torso(b):
         if p.z < (128 - 96) * S:
             p.z += 0.01 * math.sin(5 * a)
         return p
-    verts, bands, _ = b.lathe(vprof(ROBE_PROF), 12, Matrix.Translation(P(68, 128)), sy=ROBE_SY, warp=robe_warp)
+    verts, bands, rings = b.lathe(vprof(ROBE_PROF), 12, Matrix.Translation(P(68, 128)), sy=ROBE_SY, warp=robe_warp)
     faces = b.finish(verts, "navy", "torso")
+    # the hem flare (rings 1..3, rows 101 up to 86) carries the hem band's line art
+    b.map_detail(bands[1] + bands[2], DETAIL_ROBE, b.grid_uv(rings, 1, 3, closed=True), wrap=True)
     b.paint([f for f in faces if f.calc_center_median().z > BELT_TOP * S], "cream")  # tunic above the belt
     b.joints["root"] = (Vector((0, 0, 0)), Vector((0, -0.12, 0)), None)
     b.joints["hips"] = (P(68, 92), P(68, 74), "root")
@@ -195,15 +205,12 @@ def build_torso(b):
     rows, segs, a0, a1 = 8, 18, math.radians(-62), math.radians(242)
     outer = resample([(8, 41), (14.5, 43.5), (20, 48.5), (22.5, 55), (23.5, 63)], rows)
     inner = resample([(6.5, 42.5), (12.8, 45), (18.3, 49), (20.8, 55), (21.8, 63)], rows)
-    verts, bands, _ = b.lathe(vprof(outer + inner[::-1]), segs, Matrix.Translation(P(69, 128)), sy=0.74,
-                              loop=True, arc=(a0, a1), warp=mantle_warp)
+    verts, bands, rings = b.lathe(vprof(outer + inner[::-1]), segs, Matrix.Translation(P(69, 128)), sy=0.74,
+                                  loop=True, arc=(a0, a1), warp=mantle_warp)
     b.finish(verts, "cream", "mantle")
-    b.paint([f for band in bands[rows:2 * rows - 1] for f in band], "cream_shade")
-    for band in bands[3:rows - 1]:
-        for i, f in enumerate(band):
-            a = a0 + (a1 - a0) * (i + 0.5) / segs
-            if math.sin(7 * a) < -0.4:
-                b.paint([f], "cream_shade")
+    b.paint([f for band in bands[rows:2 * rows - 1] for f in band], "cream_shade")   # its lining
+    # the outside carries the hem trim and stitches, collar (ring 0) to hem (ring rows - 1)
+    b.map_detail([f for band in bands[:rows - 1] for f in band], DETAIL_MANTLE, b.grid_uv(rings, 0, rows - 1))
     # the mantle drapes over the arms: cloth close to an upper arm follows it,
     # so raising an arm lifts the cloth resting on it; the collar stays pinned
     top_z = (128 - 41) * S
@@ -262,19 +269,11 @@ TABARD_X = [-7.5, -6.0, -3.5, -1.0, 1.0, 3.5, 6.0, 7.5]
 TABARD_Y = [0, 1.5, 4, 7, 10, 12, 15, 17, 19, 21, 24, 27, 30, 33, 35.5, 37.5, 40]  # px below its top
 
 
-def tabard_colour(x, yy):
-    """Cream border and cross on a navy field, as in the sprite."""
-    if abs(x) > 6 or yy < 1.5 or yy > 37.5:
-        return "cream"
-    if (abs(x) < 1 and 12 < yy < 24) or (abs(x) < 6 and 17 < yy < 19):
-        return "cream"
-    return "navy_mid"
-
-
 def build_tabard(b):
     """Cloth panel tucked under the belt, lying on the robe and hanging free
-    past its hem. A grid with rows down its length so it can sway; the border
-    and cross are painted onto the grid so they move with the cloth."""
+    past its hem. A grid with rows down its length so it can sway; its front
+    carries the banner's line art (a steel-blue border, a gold sun, gold
+    diamonds), laid on the grid so it moves with the cloth."""
     cx, top = 66.5, 69.0          # top edge sits under the belt
     back_lift, front_lift = 0.5, 1.05
 
@@ -288,8 +287,7 @@ def build_tabard(b):
     fronts, backs = [], []
     for j in range(len(ys) - 1):
         for i in range(len(xs) - 1):
-            f = bm.faces.new((F[j][i], F[j][i + 1], F[j + 1][i + 1], F[j + 1][i]))
-            fronts.append((f, tabard_colour((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2)))
+            fronts.append(bm.faces.new((F[j][i], F[j][i + 1], F[j + 1][i + 1], F[j + 1][i])))
             backs.append(bm.faces.new((B[j][i], B[j + 1][i], B[j + 1][i + 1], B[j][i + 1])))
     for j in range(len(ys) - 1):
         for i in (0, len(xs) - 1):
@@ -297,15 +295,10 @@ def build_tabard(b):
     for i in range(len(xs) - 1):
         for j in (0, len(ys) - 1):
             bm.faces.new((F[j][i], B[j][i], B[j][i + 1], F[j][i + 1]))
-    faces = b.finish([v for row in F + B for v in row], "cream", "tabard", smooth=False)
-    for f, colour in fronts:
-        b.paint([f], colour)
+    faces = b.finish([v for row in F + B for v in row], "navy", "tabard", smooth=False)
+    b.map_detail(fronts, DETAIL_TABARD, {F[j][i]: ((x + 7.5) / 15.0, yy / 40.0)
+                                         for j, yy in enumerate(ys) for i, x in enumerate(xs)})
     b.paint(backs, "navy_mid")
-    for dx, dyy in ((-3.5, -3.5), (3.5, -3.5), (3.5, 3.5), (-3.5, 3.5)):  # gold studs round the cross
-        c = at(dx, 18 + dyy, front_lift + 0.35)
-        n = Vector((c.x - P(68, 0).x, c.y, 0.0)).normalized()
-        faces += b.finish(b.box(c, (1.6 * S, 1.6 * S, 0.7 * S), xdir=n.cross(Vector((0, 0, 1))), zdir=n),
-                          "gold", "tabard", smooth=False)
     b.set_sway(faces, (128 - 71) * S, (128 - top - ys[-1]) * S)
     # two-bone chain down the middle; weights blend from the hips down it
     # hinged just below the belt so the part tucked under it never moves
@@ -516,7 +509,14 @@ def build_shield(b):
     # each layer lies flush on the one under it
     b.finish(ringed_slab(b, px(shape), 0.01, M, 0.0, warp), "steel_dark", "shield", smooth=False)
     face = [(x * (1 - 3 / 15.5), y * (1 - 3 / 31) - 0.3) for x, y in shape]
-    b.finish(ringed_slab(b, px(face), 0.004, M, 0.0065, warp), "steel", "shield", smooth=False)
+    plate = b.finish(ringed_slab(b, px(face), 0.004, M, 0.0065, warp), "steel", "shield", smooth=False)
+    # its front carries a thin gold line just inside the edge, laid flat across the face
+    Mi = M.inverted()
+
+    def shield_uv(co):
+        q = Mi @ co
+        return (q.x / S + 15.5) / 31.0, (29.0 - q.y / S) / 61.0
+    b.map_detail([f for f in plate if f.normal.dot(normal) > 0.5], DETAIL_SHIELD, shield_uv)
     # sun emblem, on the face's centre (its centroid)
     sx, sy = 0.0, 2.5 * S
     star = []
@@ -573,17 +573,12 @@ def build_cape(b):
     inner = resample([(r - 1.5, py) for r, py in CAPE_OUTER], rows)
     inner[-1] = (inner[-1][0], 113.4)
     a0, a1, segs = math.radians(15), math.radians(168), 26
-    verts, bands, _ = b.lathe(vprof(outer + inner[::-1]), segs, Matrix.Translation(P(68, 128, 0.012)), sy=0.7,
-                              loop=True, arc=(a0, a1), warp=warp)
+    verts, bands, rings = b.lathe(vprof(outer + inner[::-1]), segs, Matrix.Translation(P(68, 128, 0.012)), sy=0.7,
+                                  loop=True, arc=(a0, a1), warp=warp)
     faces = b.finish(verts, "cream", "cape")
-    b.paint([f for band in bands[rows:2 * rows - 1] for f in band], "cream_shade")
-    # shade the fold valleys on the outside, like the grey streaks in the sprite;
-    # they run all the way up under the mantle's hem
-    for k, band in enumerate(bands[:rows - 1]):
-        for i, f in enumerate(band):
-            a = a0 + (a1 - a0) * (i + 0.5) / segs
-            if math.sin(7 * a + 0.6) < -0.45 + 0.4 * (1 - max(k, 2) / (rows - 2)):
-                b.paint([f], "cream_shade")
+    b.paint([f for band in bands[rows:2 * rows - 1] for f in band], "cream_shade")   # its lining
+    # the outside carries a thin line along the hem and up both edges
+    b.map_detail([f for band in bands[:rows - 1] for f in band], DETAIL_CAPE, b.grid_uv(rings, 0, rows - 1))
     b.set_sway(faces, top_z, hem_z)  # pinned at the shoulders, free at the hem
 
     # three-bone chain down the middle of the back; weights blend down it
