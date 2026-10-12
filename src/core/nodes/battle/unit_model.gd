@@ -21,6 +21,10 @@ extends Node3D
 ##
 ## A model with flame bones (the Toaster) keeps a UnitFire burning on them. His
 ## toast slices can be hidden (launched, not yet back) and browned (`set_slice`).
+## A model with a "tea" bone (the Teacup) keeps a UnitTea: steam, and the tea level
+## the game holds down after a hit. A model with `<model>_springs.json` beside it has
+## its cloth on spring bones (UnitSprings), and its cloth ripples a little in the
+## shader too.
 
 signal animation_done(anim: String)
 
@@ -29,6 +33,7 @@ const MODELS := {
 	"lamp": "res://assets/models/lamp/lamp_warden.glb",
 	"stapler": "res://assets/models/stapler/stapler_rogue.glb",
 	"toaster": "res://assets/models/toaster/toaster_pyromancer.glb",
+	"teacup": "res://assets/models/teacup/teacup_cleric.glb",
 }
 ## Clips that loop; everything else plays once.
 const LOOPS: Array[String] = ["idle", "move"]
@@ -63,6 +68,8 @@ var _hold_at := NAN
 var _last_pos := Vector3.INF
 var _speed := 0.0
 var _fire: UnitFire
+var _tea: UnitTea
+var _springs: UnitSprings
 ## Toast slices: hidden front, hidden back, browned front, browned back.
 var _toast := Vector4.ZERO
 
@@ -76,6 +83,7 @@ static func for_unit(u: Unit) -> UnitModel:
 	m.name = "Model"
 	m._load(load(path))
 	m._events = _read_events(path.get_basename() + "_events.json")
+	m._add_springs(UnitSprings.read(path))
 	return m
 
 
@@ -114,8 +122,26 @@ func _load(scene: PackedScene) -> void:
 		if skeleton.find_bone(UnitFire.FLAME_BONES[0]) >= 0:
 			_fire = UnitFire.new(self)
 			add_child(_fire)
+		if skeleton.find_bone(UnitTea.BONE) >= 0:
+			_tea = UnitTea.new(self, skeleton)
+			add_child(_tea)
 	_player.animation_finished.connect(_on_finished)
 	play("idle")
+
+
+## Puts the model's cloth on spring bones, when it has a springs file.
+func _add_springs(data: Dictionary) -> void:
+	if data.is_empty() or _skeleton == null:
+		return
+	_springs = UnitSprings.new(_skeleton, data)
+	add_child(_springs)
+	for m in _meshes:
+		m.set_instance_shader_parameter("cloth_ripple", 1.0)
+
+
+## The model's spring bones, or null when its cloth has none.
+func springs() -> UnitSprings:
+	return _springs
 
 
 ## Swaps the imported material for the HD-2D model shader, keeping its palette and
@@ -153,6 +179,8 @@ func play(anim: String, return_to_idle := true) -> void:
 	_player.play(anim, blend_seconds)
 	if anim not in LOOPS:
 		_player.seek(0.0, true)
+	if _tea != null:
+		_tea.on_play(anim)
 
 
 func current() -> String:
@@ -198,6 +226,11 @@ func fire() -> UnitFire:
 	return _fire
 
 
+## The tea in the model's cup (the Teacup's), or null when it has none.
+func tea() -> UnitTea:
+	return _tea
+
+
 ## One of the Toaster's slices ("front" or "back"): hidden while it is flying, and
 ## browned (0..1) once it has toasted; a negative `brown` leaves it as it is.
 func set_slice(slot: String, hidden: bool, brown := -1.0) -> void:
@@ -219,10 +252,18 @@ func slice_hidden(slot: String) -> bool:
 	return (_toast.x if slot == "front" else _toast.y) > 0.5
 
 
+## How much the Teacup's tea sloshes (0 calm ripples .. 1 sloshing; unit shader).
+func set_tea_slosh(v: float) -> void:
+	for m in _meshes:
+		m.set_instance_shader_parameter("tea_slosh", clampf(v, 0.0, 1.0))
+
+
 ## Goes cold (Broken): the glow dies and any fire goes out.
 func go_cold(seconds := 1.2) -> void:
 	if _fire != null:
 		_fire.go_out()
+	if _tea != null:
+		_tea.go_cold()
 	var tw := create_tween()
 	tw.tween_method(set_glow, 1.0, 0.0, seconds)
 
@@ -244,6 +285,8 @@ func bone_position(bone: String, offset := Vector3.ZERO) -> Vector3:
 func set_opacity(v: float) -> void:
 	for m in _meshes:
 		m.set_instance_shader_parameter("fade", clampf(v, 0.0, 1.0))
+	if _tea != null:
+		_tea.set_opacity(v)
 
 
 func _process(delta: float) -> void:

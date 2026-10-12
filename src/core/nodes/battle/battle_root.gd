@@ -577,7 +577,10 @@ func _refresh_target() -> void:
 	elif selection.is_self_area():
 		var around := battle.around(u, id.substr(4))
 		overlays.show_area(around)
-		overlays.show_targets(battle.storm_targets(u, around), null)
+		if friendly:
+			overlays.show_targets(battle.allies_in(u, around), null, true)
+		else:
+			overlays.show_targets(battle.storm_targets(u, around), null)
 		target = u
 	elif selection.is_placing():
 		var area := battle.area_for(u, id.substr(4), selection.spot)

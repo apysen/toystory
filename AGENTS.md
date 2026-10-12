@@ -78,7 +78,7 @@ Toy Story mirrors **Sporekeeper**'s structure
 
 - HD-2D diorama: a modelled, lit 3D room, a free orbit camera and a minimal HUD.
   Units used to be pixel-art sprite cards; they are being replaced by 3D models one
-  character at a time (Lamp Warden, Stapler Rogue and Toaster Pyromancer so far).
+  character at a time (Lamp Warden, Stapler Rogue, Toaster Pyromancer and Teacup Cleric so far).
 - Every character faces its last horizontal move. Sprite art is drawn once at a base
   facing and mirrored. 3D models turn to their heading, and in standing clips (idle, hurt,
   broken) they turn three-quarters toward the camera.
@@ -171,6 +171,15 @@ on the origin) plus **Stop**.
   in UV2.y (1 front, 2 back); the unit shader hides a launched slice until the clip's
   `reload` and browns it after (`UnitModel.set_slice`). Godot flips glTF's V on import, so
   the shader reads `1.0 - UV2.y`.
+- Effect sprites are smooth vector art, never pixel art (the owner's rule, 2026-10-11).
+  - `tools/draw_vfx.py` draws every sheet: hit spark, crit burst, heal sparkle, Gaze poof,
+    Suction swirl, the Cutting Line slash, and the Tea Lash, staple and toast fallbacks.
+  - Each is drawn in Pillow with an ink outline and soft glow, at 4x and scaled down, in the
+    pixel originals' frames and timing.
+  - Sheets sit at 4x the battle's pixel density, which their JSON meta `"scale"` says;
+    `SpriteLib.load_vfx` / `EffectsLayer` show them filtered at the right size, with mipmaps on in
+    their import.
+  - A new effect gets a function there.
 - Fire is particles built in Godot (`FireFX`), not modelled: `UnitFire` keeps the Toaster's
   palm flames burning on his `flame_R` / `flame_L` bones (rocket jets back along his hands
   in `move`) and his vents' fire (`vent_R` / `vent_L`, for Heated and Overheat);
@@ -183,7 +192,7 @@ on the origin) plus **Stop**.
   from the model (`UnitCard.bone_point`). An Art whose clip is the strike (Flashbulb) lands
   its hits without the attack swing.
 - Every character gets an integration test like `tests/integration/lamp_model.gd`,
-  `stapler_model.gd` and `toaster_model.gd`: the model shows, the expected clips exist (and removed ones do not),
+  `stapler_model.gd`, `toaster_model.gd` and `teacup_model.gd`: the model shows, the expected clips exist (and removed ones do not),
   timings match, Arts play their own clips, a strike plays through.
 
 ---
@@ -293,9 +302,11 @@ on the origin) plus **Stop**.
   A clip is a function of the frame: a loop is a function of its phase, the rest are
   `keyed([(frame, pose), ...])` smooth curves.
 - **Pose format:** `{bone: {"rot": (x, y, z) degrees about world axes at the bone's head,
-  "loc": (x, y, z) metres world offset}}`. +x leans or tips forward (and swings hanging
-  bones back), +y tilts to his left, +z turns to his left. Hands and feet are placed through
-  their IK targets, so a moving body must carry its hands (`lowered`).
+  "loc": (x, y, z) metres world offset, "shrink": (k, k, k)}}`. +x leans or tips forward (and
+  swings hanging bones back), +y tilts to his left, +z turns to his left. Hands and feet are
+  placed through their IK targets, so a moving body must carry its hands (`lowered`). `shrink`
+  (0 full size to 1 gone, about the bone's head) is keyed only on the bones a rig lists in its
+  `scaled_bones` property (a prop put away, like the Teacup's book, or her tea drained).
 - **`settle(pose)`** runs on every pose and applies the physics fix-ups:
   - cloth cancels the body's lean so it hangs with gravity;
   - capes and cloaks only swing back, away from the legs;
@@ -462,7 +473,133 @@ the concept:
 - **Known:** the left forearm cuff touches the lever tab for about 4 frames at each slap (about
   20 triangle pairs); robe/belt contact in Eject's deep fold (about 170), hidden by the belt.
 
+**Teacup Cleric v2** (`teacup`, `tools/build_teacup_cleric_v2_3d.py` and
+`tools/animate_teacup_cleric_v2_3d.py`; v2 replaced v1 in the game, 2026-10-11). The animate script's
+`export_game()` writes `assets/models/teacup/teacup_cleric.glb` and `teacup_cleric_events.json`; its
+sources, previews, contact sheets and cloth colliders stay in `assets/models/teacup/source/v2/`:
+- **Clips:** idle, move (fast scurry), attack (Tea Lash, 3.8 s, hit 2.37 s: the dart flies from
+  `bend_L`), warm_pour (4.8 s, hit 2.9 s), steady_sip (3.5 s, hit 2 s), tea_break (signature, 6 s:
+  burst 3.6 s, hit 3.8 s, return 4.67 s), hurt, broken.
+- **Game:** Tea Break heals every ally within 1.6 m (Teacup too) for 20% of max HP and removes one
+  negative status each (`Battle.allies_in`, `_cleanse`). `EventPlayer` lands her heals on each clip's
+  `hit`; Tea Break pushes the camera in and runs an amber ground ring on `burst`.
+- **Tea effects (Godot):**
+  - **Bent tea:** `TeaRibbon` strips (`tea_ribbon.gdshader`). They follow her `bend_*` bones or
+    paths `EventPlayer` runs between the clip's events: Tea Lash's stream out of the cup to her
+    hovering hand (a `tea_strand` joining the two), then the rope and the dart, Warm Pour's
+    figure of eight, arc and spiral, Steady Sip's thread and blue ward, and Tea Break's column,
+    ring, burst, spirals, rain and return.
+    Tea leaving or entering her cup is a `_fountain`: it goes straight up 14 cm clear of the rim
+    before it bends toward her hands, so it never cuts through the porcelain (the owner's note).
+    Steady Sip's thread lobs to the ally in a medium arc that peaks about 0.6 m over the cup. It's
+    drawn as a strand along the curve (`_tea_thread`), so it stays smooth at any frame rate. They are her own tea brown with the crest's tan down
+    the middle and don't glow (the owner's pick, 2026-10-11; amber light is only Tea Break's floor
+    ring and the heal sparkles). `EffectsLayer.tea_width` / `tea_length` scale them.
+  - **The cup:** `UnitTea` on the model keeps the steam, the hurt splash, and broken's stream and
+    puddle. `TeaLevel` (a `SkeletonModifier3D`) holds the tea a third lower per hit until the next
+    attack or Art refills it. Godot gives the skin the modified pose but scripts read the clip's,
+    so check `UnitTea.lowered()`.
+  - **Slosh (the owner's pick, 2026-10-11):** the tea is plain brown (the crest ring was taken out).
+    It's tagged UV2.y = 3 with its radius in UV2.x.
+    - The unit shader heaves it in waves (`tea_slosh`), and `TeaLevel` tips it about in the cup,
+      as far as the room under the rim allows.
+    - It's hardest while she runs. There, drops spill over the rim at each high point and lower the
+      tea, at most a third of the way.
+  - **Particle gotchas:**
+    - Droplets use `tea_drop.gdshader`: blended particles not yet born draw as black discs, and the
+      shader discards them. Continuous emitters are pre-warmed.
+    - A one-shot burst at explosiveness 1.0 draws nothing, so bursts use 0.95.
+    - Drop colours are sRGB.
+- **Spring-bone cloth (Godot):**
+  - **Data:** `export_game()` also writes `teacup_cleric_springs.json`: all 20 chains, their bones'
+    heads and tails, and the collider capsules, in Godot's frame.
+  - **`UnitSprings`:** builds one `SpringBoneSimulator3D` from that file. Stiffness, drag, gravity,
+    per-link limit and joint radius are set per kind of cloth (`cloth`, an Inspector export).
+    - A chain that rests inside a capsule (the body's rough envelopes) gets a slimmer copy, so
+      it's never shoved out.
+    - `SpringLimit` modifiers record the clip's pose before the simulation and clamp each link
+      after it. Godot's springs have no angle limits of their own.
+    - Limits per link: sleeve drape 10° (20° over its two links, as agreed), cape 15°, skirt 10°,
+      mantle 8°, cords 25°, tassels 30°.
+  - **Shader ripple:** her cloth also ripples slightly by its UV2 sway weight (`cloth_ripple`).
+  - **Behaviour:** standing, the cloth settles back within about 3° of the clip. Running, turning
+    and spinning, it swings out to its limits.
+  - **Known:** at the fastest moments of Tea Break's spin, the cape's side corner can kick out
+    into a slight point (its three columns swing separately).
+- **Palette:** her ivory, cream, warm cream and gold sit 8% under the sprite's (in the build's
+  `PALETTE` and the line-art script), the owner's pick: at full brightness the battle room's bloom
+  haloed her porcelain gold.
+- **Built pose (the owner's pick, 2026-10-11):** the concept's stance instead of the neutral pose in
+  §4: upper arms down under the mantle, forearms out and up (book out on her right, left hand
+  raised). Her bell sleeves are modelled hanging under gravity, so their ivory outsides face the
+  front only with the arms out. (`TEACUP_ARM_POSE=neutral` still rebuilds the forward pose.)
+- **Hanging chains:** the sleeves' drapes (`sleeve_1..2`), the brooch cords (`cord_1..3`) and the
+  tabard tassels (`tassel_0..2`) hang on their own bones; `settle()` hangs them with gravity against
+  collider capsules, and the chains and capsules are written to `teacup_cleric_v2_colliders.json`
+  for Godot spring bones.
+- **Book:** pinched one-handed at the foot of the spine (`TEACUP_BOOK=d`, the owner's pick): the hand
+  under the book beside the spine with the cover's bottom edge in its web, the palm and four fingers
+  rising up that cover's back (fingers rooted on the palm, as the owner asked), and the thumb round
+  under its foot and up its pages beside the gutter, holding them open.
+  - **Book rig:** the book is on its own `book` bone (child of `hand_R`, up the spine from its foot
+    in her palm). Each cover is on a hinge bone along the spine (`cover_R`, `cover_L`), and the
+    thumb is on `thumb_R`. She shuts the book by lifting the thumb 45° straight off the pages,
+    then swinging `cover_R` (the cover under her thumb) 94° onto `cover_L`, which stays in her
+    fingers. Both covers hinge on one line, so a thin wedge of pages shows when it's shut. She
+    puts the book away (the in-game inventory move, the owner's pick) by dropping her hand out
+    at her right side, by and just behind her hip (further back, the bell sleeve drags through
+    the robes and cape), and shrinking `book` to nothing in her palm in about 6 frames, with no
+    effect; she takes it back out the same way.
+  - **Bending:** `bend_R` / `bend_L` are effect bones from each palm out along its normal, the
+    path Godot draws her bent tea along.
+- **Cloth chains (for Godot spring bones, the owner's pick 2026-10-11):**
+  - **Coats:** above the belt they follow the body (hips → spine → chest, like the tabard).
+    Below it, the three robe layers hang on a ring of six two-link chains
+    (`skirt_{FL,L,BL,BR,R,FR}_1..2`).
+  - **Cape:** in three columns (`cape_L_*`, `cape_*`, `cape_R_*`).
+  - **Mantle:** four edge bones on its lower half between the arms (`mantle_{FL,FR,BL,BR}`).
+  - **In the clips:** the skirt and mantle bones stay at rest. The side cape columns are placed
+    each frame where the middle column carries them (`follow_cape`), so the cape moves as one
+    piece; turned about their own tops, they swing into the coat.
+  - **The colliders JSON:** `springs` lists every chain for Godot; `chains` is only what
+    `settle()` hangs.
+  - Her model has 71 bones.
+- **Bell sleeves (the owner's request, 2026-10-11):**
+  - **Bell bone:** each bell is on `bell_{R,L}` (child of the forearm, from the elbow's ring to
+    the opening), and the drape hangs from it.
+  - **Slide:** `settle()` slides the bell up to 5.5 cm back toward the elbow as the forearm rises
+    past her built angle, so the cuff comes out.
+  - **Drape on a raised arm:** held 45% of the way to the bell (`DRAPE_HOLD`). It swings at most
+    20° off it (60° as the forearm hangs down; `DRAPE_SWING`), because it's sewn along the
+    forearm.
+  - **Rest gap:** the sleeve rests 6 mm above the arm.
+  - **Elbow blend:** the forearm takes the sleeve from just before the elbow.
+  - **Collision:** upper-arm capsules keep the drape out. The bell/under-sleeve pairs are
+    clip-checked; the slim upper arm hidden inside the upper sleeve is not.
+  - **Tried and dropped:** turning the bell about the forearm to hang its slack downward. It
+    barely helped, and it swung the bell into the robes on a forearm pointing down.
+- **Tea:** a disc of concentric rings with a stylised wave and a tan crest ring on its own `tea` bone
+  (child of `head`), 12 mm under the rim, tagged UV2.y = 3. `settle()` keeps it level with the world
+  but at most `TEA_MAX_TILT` (about 4°) off the cup's own tilt, so it never reaches the rim; the
+  colliders JSON carries it for Godot's TeaSlosh shader (to come).
+
 ### Planned, agreed in principle
 
-- Spring-bone physics (`SpringBoneSimulator3D`) on the cloth chains plus a shader wind ripple
-  from the UV2 sway weight. Full soft-body cloth is ruled out for cost and clipping.
+- Spring-bone physics on the cloth chains plus a shader wind ripple from the UV2 sway weight
+  (done).
+  Full soft-body cloth is ruled out for cost and clipping.
+  - Decided 2026-10-11: physics is Godot's alone, not baked in Blender. The game tweens units and
+    strips root motion, so only runtime springs react to travel and turns.
+  - The clips keep `settle()`'s gravity hang as the base the springs move from.
+  - Built for every toy (2026-10-11):
+    - The Teacup's 20 chains come from her own export (above).
+    - Lamp (cape, tabard, lantern), Stapler (cloak, scarf) and Toaster (cape) get theirs from
+      `toy3d.export_springs(obj, SPRINGS)`. Each animate script lists its chains in `SPRINGS` and
+      calls it after `export_glb`.
+    - `toy3d.export_springs` sizes a capsule round each limb and the trunk from the mesh skinned
+      to it. Lamp's staff is left out because its bone doesn't run along the pole.
+    - `UnitSprings.cloth` holds each kind's tuning.
+  - Standing, every toy's cloth settles back onto its clip (within about 2°); running, stopping
+    and turning, it swings out to its limits.
+  - Their rigs keep their single chains. Splitting cloth into more chains, as on the Teacup, would
+    mean rebuilding the model.

@@ -1,0 +1,299 @@
+{
+ "capsules": [
+  {
+   "name": "forearm_R",
+   "bone": "forearm_R",
+   "head": [
+    -0.21875,
+    -0.00800000037997961,
+    0.4296875
+   ],
+   "tail": [
+    -0.3203125,
+    -0.03500000014901161,
+    0.5234375
+   ],
+   "radius": 0.033
+  },
+  {
+   "name": "upperarm_R",
+   "bone": "upperarm_R",
+   "head": [
+    -0.1328125,
+    0.0,
+    0.5703125
+   ],
+   "tail": [
+    -0.21875,
+    -0.00800000037997961,
+    0.4296875
+   ],
+   "radius": 0.048
+  },
+  {
+   "name": "hand_R",
+   "bone": "hand_R",
+   "head": [
+    -0.3203125,
+    -0.03500000014901161,
+    0.5234375
+   ],
+   "tail": [
+    -0.3671887218952179,
+    -0.0474618598818779,
+    0.5667078495025635
+   ],
+   "radius": 0.032
+  },
+  {
+   "name": "thigh_R",
+   "bone": "thigh_R",
+   "head": [
+    -0.0625,
+    0.0,
+    0.2578125
+   ],
+   "tail": [
+    -0.0703125,
+    -0.0020000000949949026,
+    0.125
+   ],
+   "radius": 0.085
+  },
+  {
+   "name": "forearm_L",
+   "bone": "forearm_L",
+   "head": [
+    0.21875,
+    -0.00800000037997961,
+    0.41796875
+   ],
+   "tail": [
+    0.328125,
+    -0.029999999329447746,
+    0.546875
+   ],
+   "radius": 0.033
+  },
+  {
+   "name": "upperarm_L",
+   "bone": "upperarm_L",
+   "head": [
+    0.1328125,
+    0.0,
+    0.5703125
+   ],
+   "tail": [
+    0.21875,
+    -0.00800000037997961,
+    0.41796875
+   ],
+   "radius": 0.048
+  },
+  {
+   "name": "hand_L",
+   "bone": "hand_L",
+   "head": [
+    0.328125,
+    -0.029999999329447746,
+    0.546875
+   ],
+   "tail": [
+    0.36982691287994385,
+    -0.03838803991675377,
+    0.596023678779602
+   ],
+   "radius": 0.032
+  },
+  {
+   "name": "thigh_L",
+   "bone": "thigh_L",
+   "head": [
+    0.0625,
+    0.0,
+    0.2578125
+   ],
+   "tail": [
+    0.0703125,
+    -0.0020000000949949026,
+    0.125
+   ],
+   "radius": 0.085
+  },
+  {
+   "name": "book",
+   "bone": "book",
+   "head": [
+    -0.274458646774292,
+    -0.03064395859837532,
+    0.5702053904533386
+   ],
+   "tail": [
+    -0.3242787718772888,
+    -0.03348367288708687,
+    0.7010101675987244
+   ],
+   "radius": 0.055
+  },
+  {
+   "name": "torso",
+   "bone": "spine",
+   "head": [
+    0.0,
+    0.0,
+    0.2421875
+   ],
+   "tail": [
+    0.0,
+    0.0,
+    0.5703125
+   ],
+   "radius": 0.135
+  },
+  {
+   "name": "skirt",
+   "bone": "hips",
+   "head": [
+    0.0,
+    0.0,
+    0.1484375
+   ],
+   "tail": [
+    0.0,
+    0.0,
+    0.4453125
+   ],
+   "radius": 0.24
+  },
+  {
+   "name": "tabard",
+   "bone": "hips",
+   "head": [
+    0.0,
+    -0.07788020372390747,
+    0.5546875
+   ],
+   "tail": [
+    0.0,
+    -0.18422238528728485,
+    0.1953125
+   ],
+   "radius": 0.02
+  }
+ ],
+ "chains": {
+  "cord_R": [
+   "cord_1_R",
+   "cord_2_R",
+   "cord_3_R"
+  ],
+  "cord_L": [
+   "cord_1_L",
+   "cord_2_L",
+   "cord_3_L"
+  ],
+  "tassel_0": [
+   "tassel_0"
+  ],
+  "tassel_1": [
+   "tassel_1"
+  ],
+  "tassel_2": [
+   "tassel_2"
+  ],
+  "sleeve_R": [
+   "sleeve_1_R",
+   "sleeve_2_R"
+  ],
+  "sleeve_L": [
+   "sleeve_1_L",
+   "sleeve_2_L"
+  ]
+ },
+ "springs": {
+  "cord_R": [
+   "cord_1_R",
+   "cord_2_R",
+   "cord_3_R"
+  ],
+  "cord_L": [
+   "cord_1_L",
+   "cord_2_L",
+   "cord_3_L"
+  ],
+  "tassel_0": [
+   "tassel_0"
+  ],
+  "tassel_1": [
+   "tassel_1"
+  ],
+  "tassel_2": [
+   "tassel_2"
+  ],
+  "sleeve_R": [
+   "sleeve_1_R",
+   "sleeve_2_R"
+  ],
+  "sleeve_L": [
+   "sleeve_1_L",
+   "sleeve_2_L"
+  ],
+  "skirt_FL": [
+   "skirt_FL_1",
+   "skirt_FL_2"
+  ],
+  "skirt_L": [
+   "skirt_L_1",
+   "skirt_L_2"
+  ],
+  "skirt_BL": [
+   "skirt_BL_1",
+   "skirt_BL_2"
+  ],
+  "skirt_BR": [
+   "skirt_BR_1",
+   "skirt_BR_2"
+  ],
+  "skirt_R": [
+   "skirt_R_1",
+   "skirt_R_2"
+  ],
+  "skirt_FR": [
+   "skirt_FR_1",
+   "skirt_FR_2"
+  ],
+  "cape_L": [
+   "cape_L_1",
+   "cape_L_2",
+   "cape_L_3"
+  ],
+  "cape": [
+   "cape_1",
+   "cape_2",
+   "cape_3"
+  ],
+  "cape_R": [
+   "cape_R_1",
+   "cape_R_2",
+   "cape_R_3"
+  ],
+  "mantle_FL": [
+   "mantle_FL"
+  ],
+  "mantle_FR": [
+   "mantle_FR"
+  ],
+  "mantle_BL": [
+   "mantle_BL"
+  ],
+  "mantle_BR": [
+   "mantle_BR"
+  ]
+ },
+ "tea": {
+  "bone": "tea",
+  "max_tilt": 4.096043758152334,
+  "radius": 0.126,
+  "uv2_y": 3
+ }
+}

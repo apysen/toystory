@@ -594,8 +594,13 @@ def render_turnaround(obj, res=320):
     return paths
 
 
+# The cloth chains the game's spring bones swing (UnitSprings), written beside the GLB.
+SPRINGS = {"cape": ["cape_1", "cape_2", "cape_3"], "tabard": ["tabard_1", "tabard_2"], "lantern": ["lantern"]}
+
+
 if __name__ == "__main__" and bpy.app.background:
     o, _, _ = BUILD["build"]()
     animate_all(o)
     print("clipping per clip", clip_check(o))
     print("glb", toy3d.export_glb(o))
+    print("springs", toy3d.export_springs(o, SPRINGS))

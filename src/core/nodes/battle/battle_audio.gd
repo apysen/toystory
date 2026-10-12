@@ -9,6 +9,7 @@ const ART_SOUNDS := {
 	"guard_beam": "lamp_flash", "flashbulb": "lamp_flash", "spotlight": "lamp_flash", "pin": "staple", "staple_burst": "staple",
 	"staple_storm": "staple",
 	"eject": "toaster_pop", "flash_bake": "toaster_heat", "overheat": "toaster_heat", "warm_pour": "teacup_pour", "steady_sip": "teacup_pour",
+	"tea_break": "teacup_pour",
 	"suction": "vacuum_suction", "blowback": "vacuum_blow", "lunge": "umbrella_snap", "canopy": "umbrella_snap",
 	"cutting_line": "cutter_slice",
 }

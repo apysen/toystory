@@ -104,6 +104,18 @@ def glyph(name, d):
         d.arc([19, 15, 25, 21], 270, 90, fill=WHITE, width=2)
         for x in (12, 16):
             d.arc([x - 2, 6, x + 2, 12], 90, 270, fill=WHITE, width=1)
+    elif name == "tea_break":
+        tea, crest = (255, 206, 120, 255), (120, 66, 28, 255)
+        d.arc([4, 16, 28, 28], 0, 360, fill=tea, width=2)                        # the ring of tea round her
+        d.polygon([(14, 18), (14, 11), (9, 5), (13, 7), (16, 3), (19, 7), (23, 5), (18, 11), (18, 18)],
+                  fill=tea, outline=INK)                                         # the column bursting out of the cup
+        d.line([(16, 7), (16, 15)], fill=WHITE)
+        for x, y in ((6, 9), (26, 9), (5, 14), (27, 14)):                        # spray over the area
+            d.rectangle([x - 1, y - 1, x, y], fill=tea)
+        d.polygon([(9, 17), (23, 17), (21, 24), (11, 24)], fill=WHITE, outline=INK)  # the cup
+        d.line([(10, 18), (22, 18)], fill=crest)                                 # the tea in it
+        d.arc([20, 18, 26, 23], 270, 90, fill=WHITE, width=2)                    # its handle
+        d.line([(12, 25), (20, 25)], fill=INK)                                   # its foot
     elif name == "suction":
         for r in (10, 6, 2):
             d.arc([16 - r, 16 - r, 16 + r, 16 + r], 30, 300, fill=WHITE, width=2)
@@ -138,7 +150,8 @@ def glyph(name, d):
 ICONS = {
     "attack": "attack", "guard_beam": "noisy", "flashbulb": "noisy", "spotlight": "noisy", "pin": "noisy",
     "staple_burst": "noisy", "staple_storm": "noisy",
-    "eject": "noisy", "flash_bake": "noisy", "overheat": "noisy", "warm_pour": "noisy", "steady_sip": "quiet", "suction": "noisy",
+    "eject": "noisy", "flash_bake": "noisy", "overheat": "noisy", "warm_pour": "noisy", "steady_sip": "quiet",
+    "tea_break": "noisy", "suction": "noisy",
     "blowback": "noisy", "lunge": "noisy", "canopy": "quiet", "item": "item", "talk": "talk", "wait": "wait",
 }
 

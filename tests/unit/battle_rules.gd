@@ -488,3 +488,32 @@ func test_overheat() -> void:
 	var t2 := b2.field.find_unit("toaster")
 	t2.hp = 1
 	check(b2.overheat_burn(t2) == 0, "a toaster on 1 HP burns nothing")
+
+
+func test_tea_break() -> void:
+	var b := fresh()
+	var cup := b.field.find_unit("teacup")
+	var lamp := b.field.find_unit("lamp")
+	var stapler := b.field.find_unit("stapler")
+	var foe := b.field.find_unit("pencil_a")
+	cup.pos = Vector2(4.5, 4.5)
+	lamp.pos = Vector2(5.7, 4.5)
+	stapler.pos = Vector2(4.5, 7.5)
+	foe.pos = Vector2(4.5, 3.3)
+	for u in [cup, lamp, stapler, foe]:
+		u.hp = 5
+	lamp.status["pinned"] = true
+	lamp.status["dazzled"] = true
+	var ex := Exchange.preview(b, cup, "art:tea_break", cup)
+	check(ex.sides.any(func(s): return s.unit == lamp and s.hp_after == 5 + ceili(lamp.max_hp * 0.2)),
+		"the preview heals an ally within 1.6 m by 20% of max HP")
+	check(ex.sides.any(func(s): return s.unit == cup and s.hp_after > 5), "and Teacup herself")
+	check(not ex.sides.any(func(s): return s.unit == stapler or s.unit == foe), "but not an ally further off or an enemy")
+	check(b.use_art(cup, "tea_break", cup), "Tea Break resolves")
+	var events := b.take_events()
+	check(events.any(func(e): return e.type == "area" and e.kind == "tea_break" and is_equal_approx(e.radius, 1.6)),
+		"it marks the 1.6 m circle round Teacup")
+	check(lamp.hp == 5 + ceili(lamp.max_hp * 0.2) and cup.hp == 5 + ceili(cup.max_hp * 0.2), "it heals Lamp and Teacup")
+	check(stapler.hp == 5 and foe.hp == 5, "and leaves Stapler (out of the circle) and the enemy alone")
+	check(lamp.status.has("pinned") != lamp.status.has("dazzled"), "it removes one of Lamp's negative statuses")
+	check(b.noise >= 2, "it is +2 Noise")

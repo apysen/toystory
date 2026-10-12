@@ -53,6 +53,12 @@ static func light(energy: float, reach: float) -> OmniLight3D:
 	return l
 
 
+## Soft blobs of any colour (Teacup's tea droplets, steam and sparkles use them too):
+## `colors` run over a particle's life; additive ones glow, the rest are see-through.
+static func blobs(amount: int, size: float, lifetime: float, colors: Array[Color], additive: bool) -> CPUParticles3D:
+	return _emitter(amount, size, lifetime, _fire_material() if additive else _smoke_material(), colors)
+
+
 static func _emitter(amount: int, size: float, lifetime: float, mat: Material, colors: Array[Color]) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	var quad := QuadMesh.new()

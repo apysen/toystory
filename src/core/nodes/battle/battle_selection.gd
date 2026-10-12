@@ -55,7 +55,11 @@ func is_self_area() -> bool:
 func is_friendly_action() -> bool:
 	if action == "talk":
 		return true
-	return action.begins_with("art:") and Arts.get_art(action.substr(4)).target in ["ally", "area"]
+	if not action.begins_with("art:"):
+		return false
+	var art := Arts.get_art(action.substr(4))
+	# Tea Break: a circle round the user that only heals
+	return art.target in ["ally", "area"] or (art.target == "self" and art.has("radius") and not art.has("might"))
 
 
 func clear_action() -> void:

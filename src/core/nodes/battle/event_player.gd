@@ -29,6 +29,15 @@ extends Node
 ## white-hot from "slam", fire swirls round him as he lifts off on "rise", and on
 ## "erupt" pillars of fire burst up round him and a slice blasts sky-high at each
 ## enemy struck (front and back slots in turn); he lands on "land", smoking.
+##
+## Teacup bends tea, drawn as ribbons of her own tea (TeaRibbon) that follow her
+## hands or paths between the clip's events. Tea Lash snaps a rope of tea up after
+## her left hand on "draw" and punches a dart of it from "bend_L" on "hit". Warm Pour
+## and Steady Sip carry the tea across to the ally and heal (or ward) on their
+## clips' "hit". Tea Break, her signature, pushes the camera in: a column of tea
+## climbs out of her cup, rings her, bursts over the circle on "burst" (an amber ring
+## runs out), wraps every ally in it on "hit" under a warm rain (the heals follow),
+## and streams home on "return" as the camera eases back out.
 
 ## Where Lamp's lights come from, in the bone's frame (Y runs down it): the middle
 ## of the lantern's glass below its hinge, and the bulb inside the shade.
@@ -54,8 +63,28 @@ const SLICE_MIDDLE := Vector3(0, 0.055, 0)
 ## Pillars of fire Overheat's eruption throws up round him.
 const OVERHEAT_PILLARS := 6
 
+## Units whose model bends tea (Teacup): Tea Lash's dart leaves her left hand
+## ("bend_L"), a little off her palm (BEND_TIP, in the bone's frame).
+const TEA_BENDERS: Array[String] = ["teacup"]
+const BEND_TIP := Vector3(0, 0.04, 0)
+## Metres tea leaving (or coming back into) her cup goes straight up (down) over the
+## tea before it bends toward her hands, clear of the rim; and how high Steady Sip's
+## thread lobs on its way to the ally (it peaks about 0.6 m over the cup).
+const CUP_CLEAR := 0.14
+const SIP_RISE := 0.8
+## Seconds before Tea Lash's "draw" a stream of tea starts rising out of her cup to
+## her hovering hand.
+const LASH_GATHER := 0.45
+## The amber light Tea Break's burst rings out across the floor, the blue of Steady
+## Sip's ward, and where Tea Break's ring of tea orbits her (metres out, and up off
+## the floor).
+const TEA_AMBER := Color(1.0, 0.7, 0.3)
+const WARD_BLUE := Color(0.45, 0.65, 1.0)
+const TEA_RING_RADIUS := 0.55
+const TEA_RING_HEIGHT := 0.7
+
 ## Projectile effect each ranged attacker fires.
-const PROJECTILES := {"stapler": "staple_shot", "toaster": "toast", "teacup": "steam_curl"}
+const PROJECTILES := {"stapler": "staple_shot", "toaster": "toast", "teacup": "tea_lash"}
 
 @export_group("Collaborators")
 @export var camera: BattleCamera
@@ -236,6 +265,12 @@ func _play_one(e: Dictionary) -> void:
 				"overheat":
 					hud.toast(e.name)
 					await _overheat(c)
+				"warm_pour", "steady_sip":
+					hud.toast(e.name)
+					await _tea_art(c, e.art, e.target if e.target is Unit else null)
+				"tea_break":
+					hud.toast(e.name)
+					await _tea_break(c, e)
 				_:
 					c.play_art(e.art)
 					if e.art == "suction":
@@ -335,6 +370,8 @@ func _strike(e: Dictionary) -> void:
 		ac.play_once("attack")
 		if e.attacker.id in TOAST_SHOOTERS:
 			_toaster_clip(ac, "attack", ["front"])
+		elif e.attacker.id in TEA_BENDERS:
+			_tea_lash(ac)
 		await get_tree().create_timer(contact, false).timeout
 	else:
 		audio.play(BattleAudio.attack_sound(e.attacker), -10.0)
@@ -355,6 +392,8 @@ func _strike(e: Dictionary) -> void:
 		await _fire_staples(ac, _next_shots(e.attacker), tc.global_position + Vector3(0, 0.9 if e.target.is_large() else 0.45, 0), e.hit)
 	elif e.attacker.id in TOAST_SHOOTERS and ac.has_anim("attack"):
 		await _launch_toast(ac, _next_toast(e.attacker), tc.global_position + Vector3(0, _body_height(e.target), 0), e.hit)
+	elif e.attacker.id in TEA_BENDERS and ac.has_anim("attack"):
+		await effects.tea_dart(_bend(ac, "L").call(), tc.global_position + Vector3(0, _body_height(e.target), 0), e.hit)
 	elif gap > Defs.MELEE_REACH and proj != "" and e.attacker != _strike_in_clip:
 		await effects.projectile(proj, ac.global_position + Vector3(0, hand_height, 0), tc.global_position + Vector3(0, 0.45, 0))
 	if intercepted:
@@ -652,6 +691,242 @@ func _overheat_show(c: UnitCard) -> void:
 	await _wait(reload - _clip_time)
 	for slot in SLOT_BONES:
 		c.set_slice(slot, false, 1.0)
+
+
+# --- Teacup -------------------------------------------------------------------
+
+## A point on one of Teacup's bending bones just off her palm, where her bent tea
+## leaves her hand ("R" or "L").
+func _bend(c: UnitCard, side: String) -> Callable:
+	return func() -> Vector3: return c.bone_point("bend_" + side, 0.5, BEND_TIP)
+
+
+## Where her tea's surface is (Tea Break's column climbs out of it).
+func _cup(c: UnitCard) -> Callable:
+	var tea := c.tea()
+	return func() -> Vector3: return tea.surface() if tea != null else c.global_position + Vector3(0, 0.8, 0)
+
+
+## A point travelling along `path` (a Callable taking 0..1) over `seconds`, for a
+## ribbon of tea to follow; returns where it is now.
+func _moving(path: Callable, seconds: float) -> Callable:
+	var t := [0.0]
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: t[0] = v, 0.0, 1.0, maxf(seconds, 0.01)).set_trans(Tween.TRANS_SINE)
+	return func() -> Vector3: return path.call(t[0])
+
+
+## A fountain of tea from `from` to `to` (Callables: either end may be moving): it
+## leaves straight up, `rise` metres before it bends over (so tea out of her cup
+## clears the rim instead of cutting through the porcelain), and comes down onto
+## `to` from at least `land` metres above it. Its peak is about three quarters of
+## the way up to the higher of the two bends.
+func _fountain(from: Callable, to: Callable, rise: float, land: float) -> Callable:
+	return func(t: float) -> Vector3:
+		var a: Vector3 = from.call()
+		var b: Vector3 = to.call()
+		var up := a + Vector3.UP * rise
+		var down := Vector3(b.x, maxf(up.y, b.y + land), b.z)
+		var u := 1.0 - t
+		return a * u * u * u + up * 3.0 * u * u * t + down * 3.0 * u * t * t + b * t * t * t
+
+
+## A soft arc of tea from `from` to `to` (Callables: either end may be moving).
+func _arc(from: Callable, to: Callable, lift := 0.3) -> Callable:
+	return func(t: float) -> Vector3:
+		var a: Vector3 = from.call()
+		var b: Vector3 = to.call()
+		var mid := (a + b) * 0.5 + Vector3.UP * lift
+		return a.lerp(mid, t).lerp(mid.lerp(b, t), t)
+
+
+## A spiral of `loops` turns round the point `center` returns, `radius` out,
+## climbing `rise` metres from `height` above it, starting at angle `start`.
+func _spiral(center: Callable, radius: float, height: float, rise: float, loops: float, start := 0.0) -> Callable:
+	return func(t: float) -> Vector3:
+		var a := start + TAU * loops * t
+		return (center.call() as Vector3) + Vector3(cos(a) * radius, height + rise * t, sin(a) * radius)
+
+
+## Runs a ribbon of tea along `path` for `seconds`, then lets it drain away.
+func _tea_flow(path: Callable, seconds: float, half_width := 0.02, life := 0.4) -> void:
+	var r := effects.tea_ribbon(_moving(path, seconds), half_width, life)
+	await _wait(seconds)
+	r.stop()
+
+
+## A thread of tea drawn whole along `path` (a Callable taking 0..1): its head runs
+## from start to end over `seconds` with a tail `length` (share of the path) behind
+## it, which then drains in after it; smooth at any frame rate.
+func _tea_thread(path: Callable, seconds: float, half_width: float, length := 0.6) -> void:
+	var span := [0.0, 0.0]
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void:
+		span[1] = minf(v, 1.0)
+		span[0] = clampf(v - length, 0.0, 1.0), 0.0, 1.0 + length, maxf(seconds, 0.01) * (1.0 + length))
+	var thread := effects.tea_strand(func(t: float) -> Vector3: return path.call(lerpf(span[0], span[1], t)),
+		half_width, 0.4)
+	await tw.finished
+	thread.stop()
+
+
+## Where a unit's chest is in the world.
+func _chest(u: Unit) -> Callable:
+	return func() -> Vector3: return card(u).global_position + Vector3(0, _body_height(u), 0)
+
+
+## Tea Lash, alongside the attack clip from its start: just before "draw" the tea
+## rises out of her cup and arcs over onto her left hand hovering beside it, and as
+## she snaps the hand up it pulls a rope of tea after it that whips round with it
+## until the punch ("hit"), when the strike that follows fires the dart.
+func _tea_lash(c: UnitCard) -> void:
+	var draw := c.art_time("attack", "draw")
+	var hit := c.art_time("attack", "hit")
+	if is_nan(draw) or is_nan(hit):
+		return
+	await _wait(maxf(draw - LASH_GATHER, 0.0))
+	# a stream of tea rises out of the cup to her hovering hand...
+	var arc := _fountain(_cup(c), _bend(c, "L"), CUP_CLEAR, 0.06)
+	var grow := [0.0]
+	create_tween().tween_method(func(v: float) -> void: grow[0] = v, 0.0, 1.0, LASH_GATHER * 0.5)
+	var stream := effects.tea_strand(func(t: float) -> Vector3: return arc.call(t * grow[0]), 0.018, 0.3)
+	await _wait(LASH_GATHER)
+	# ...and snaps off the surface as she whips the hand up, the rope following it
+	stream.stop()
+	var rope := effects.tea_ribbon(_bend(c, "L"), 0.022, 0.32)
+	await _wait(hit - draw)
+	rope.stop()
+
+
+## Warm Pour and Steady Sip: the clip plays and its heal (or ward) follows on the
+## clip's "hit", when the tea reaches the ally; the clip plays out after it.
+func _tea_art(c: UnitCard, art_id: String, ally: Unit) -> void:
+	_clip_time = 0.0
+	c.play_art(art_id)
+	var hit := _moment(c, art_id, "hit", 1.0)
+	if art_id == "warm_pour":
+		_warm_pour_show(c, ally, hit)
+	else:
+		_steady_sip_show(c, ally, hit)
+	await _wait(hit)
+	_show_until = _moment(c, art_id, "end", hit + 0.6)
+
+
+## Warm Pour: on "rise" a ribbon of tea lifts out of the cup, arcs over and loops
+## round both hands; on "send" it flows across to the ally in a soft arc and wraps them in a
+## rising spiral, and on "end" it fades into light on them.
+func _warm_pour_show(c: UnitCard, ally: Unit, hit: float) -> void:
+	var rise := _moment(c, "warm_pour", "rise", 1.0)
+	var send := _moment(c, "warm_pour", "send", rise + 1.0)
+	var end := _moment(c, "warm_pour", "end", hit + 0.6)
+	var cup := _cup(c)
+	await _wait(rise)
+	_tea_flow(_fountain(cup, _bend(c, "L"), CUP_CLEAR, 0.08), 0.45, 0.02, 0.45)
+	await _wait(0.4)
+	var hands := [effects.tea_ribbon(_bend(c, "L"), 0.02, 0.55), effects.tea_ribbon(_bend(c, "R"), 0.02, 0.55)]
+	await _wait(send - _clip_time)
+	for h in hands:
+		h.stop()
+	var left := _bend(c, "L")
+	var right := _bend(c, "R")
+	var palms := func() -> Vector3: return ((left.call() as Vector3) + (right.call() as Vector3)) * 0.5
+	var r := (ally.radius if ally != null else 0.3) * 1.15
+	var at := _chest(ally) if ally != null else cup
+	var start := func() -> Vector3: return (at.call() as Vector3) + Vector3(r, -0.25, 0)
+	var arrive := maxf(hit - send - 0.25, 0.3)
+	_tea_flow(_arc(palms, start, 0.35), arrive, 0.024, 0.5)
+	await _wait(arrive)
+	_tea_flow(_spiral(at, r, -0.25, 0.5, 2.5), end - _clip_time, 0.022, 0.5)
+	await _wait(end - _clip_time)
+	effects.tea_sparkles((at.call() as Vector3) + Vector3(0, 0.25, 0), r)
+
+
+## Steady Sip: on "lift" two fingers draw one thin thread up out of the cup; it lobs
+## over to the ally in a gentle arc, circles them once at chest height and settles
+## into the blue ward on "hit".
+func _steady_sip_show(c: UnitCard, ally: Unit, hit: float) -> void:
+	var lift := _moment(c, "steady_sip", "lift", 1.0)
+	var cup := _cup(c)
+	await _wait(lift)
+	var r := (ally.radius if ally != null else 0.3) * 1.1
+	var at := _chest(ally) if ally != null else cup
+	var start := func() -> Vector3: return (at.call() as Vector3) + Vector3(r, 0, 0)
+	var across := (hit - lift) * 0.55
+	_tea_thread(_fountain(cup, start, SIP_RISE, 0.25), across, 0.009)
+	await _wait(across)
+	_tea_flow(_spiral(at, r, 0.0, 0.0, 1.0), hit - _clip_time, 0.009, 0.45)
+	await _wait(hit - _clip_time)
+	if ally != null:
+		lights.shimmer(at.call(), ally.radius * lights.bubble_scale, WARD_BLUE)
+
+
+## Tea Break: the camera pushes in. On "rise" a column of tea climbs out of her cup
+## and above her; on "ring" it unwinds into a ring orbiting her as she turns; on
+## "burst" the ring bursts out over the circle (an amber ring runs across the floor);
+## on "hit" a ribbon peels off round every ally in it under a soft warm rain (the
+## heals follow); on "return" the last of it streams back into her cup and the
+## camera eases back out.
+func _tea_break(c: UnitCard, e: Dictionary) -> void:
+	var u: Unit = e.unit
+	var area := _battle.around(u, "tea_break")
+	var allies := _battle.allies_in(u, area)
+	await camera.push_in(c.global_position, signature_zoom)
+	_clip_time = 0.0
+	c.play_art("tea_break")
+	var rise := _moment(c, "tea_break", "rise", 1.2)
+	var ring := _moment(c, "tea_break", "ring", rise + 1.0)
+	var burst := _moment(c, "tea_break", "burst", ring + 1.2)
+	var hit := _moment(c, "tea_break", "hit", burst + 0.2)
+	var back := _moment(c, "tea_break", "return", hit + 1.0)
+	_tea_break_show(c, allies, area.radius, [rise, ring, burst, hit, back])
+	await _wait(hit)
+	_ease_back_after(c, back)
+	_show_until = back + 0.6
+
+
+func _tea_break_show(c: UnitCard, allies: Array[Unit], radius: float, moments: Array) -> void:
+	var rise: float = moments[0]
+	var ring: float = moments[1]
+	var burst: float = moments[2]
+	var hit: float = moments[3]
+	var back: float = moments[4]
+	var cup := _cup(c)
+	var feet := func() -> Vector3: return c.global_position
+	await _wait(rise)
+	# the column: three strands twisting up out of the cup
+	for k in 3:
+		_tea_flow(_spiral(cup, 0.07, 0.0, 0.55, 1.5, TAU * k / 3.0), ring - rise, 0.022, 0.6)
+	await _wait(ring - _clip_time)
+	# the ring orbiting her as she turns, then bursting out over the circle
+	for k in 3:
+		_tea_flow(_spiral(feet, TEA_RING_RADIUS, TEA_RING_HEIGHT, 0.0, (burst - ring) * 0.55, TAU * k / 3.0),
+			burst - ring, 0.026, 0.55)
+	await _wait(burst - _clip_time)
+	lights.ground_ring(c.global_position, TEA_AMBER)
+	for k in 6:
+		var a := TAU * k / 6.0
+		var out := func(t: float) -> Vector3:
+			var r := lerpf(TEA_RING_RADIUS, radius, t)
+			return c.global_position + Vector3(cos(a + t * 0.6) * r, TEA_RING_HEIGHT - 0.3 * t, sin(a + t * 0.6) * r)
+		_tea_flow(out, hit - burst + 0.1, 0.024, 0.3)
+	await _wait(hit - _clip_time)
+	# round every ally in the circle, under a warm rain
+	effects.tea_rain(c.global_position, radius, back - hit)
+	for o in allies:
+		var r := o.radius * 1.15
+		_tea_flow(_spiral(_chest(o), r, -0.3, 0.6, 2.0), back - hit - 0.1, 0.02, 0.45)
+		_sparkle_after(_chest(o), back - hit - 0.1, r)
+	await _wait(back - _clip_time)
+	# what's left streams home into her cup
+	for k in 3:
+		var a := TAU * k / 3.0 + 0.4
+		var from := func() -> Vector3: return c.global_position + Vector3(cos(a) * 0.9, 0.35, sin(a) * 0.9)
+		_tea_flow(_fountain(from, cup, 0.35, CUP_CLEAR), 0.55, 0.018, 0.4)
+
+
+func _sparkle_after(at: Callable, seconds: float, radius: float) -> void:
+	await _wait(seconds)
+	effects.tea_sparkles(at.call(), radius)
 
 
 ## Flashbulb: the lamp arm throws the head out and it pops; the cone's hits follow.

@@ -5,3 +5,9 @@
 # Blender's automatic backup copies and throwaway debug renders from the 3D model scripts
 *.blend1
 assets/models/*/source/**/dbg*.png
+# Review renders the 3D model scripts write beside a model's sources (regenerable):
+# per-frame shots behind contact sheets, before/after compares, review captures, .blend copies
+assets/models/*/source/**/_frames/
+assets/models/*/source/**/_compare/
+assets/models/*/source/review/
+assets/models/*/source/**/*.blend

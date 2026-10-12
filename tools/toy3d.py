@@ -39,7 +39,8 @@ class Character:
 
     def __init__(self, name, folder, object_name, pivot, palette, part_bone=None, body_weights=None,
                  clip_checks=(), ik_limbs=(("forearm_R", "hand_R"), ("forearm_L", "hand_L"),
-                                           ("shin_R", "foot_R"), ("shin_L", "foot_L")), detail=None):
+                                           ("shin_R", "foot_R"), ("shin_L", "foot_L")), detail=None,
+                 detail_size=None):
         self.name = name
         self.object_name = object_name
         self.px, self.ground = pivot          # sprite foot pivot (x, y) in px
@@ -56,6 +57,8 @@ class Character:
         # top-left PALETTE_PX corner, the art everywhere else; None keeps the plain
         # 16x16 palette
         self.detail = detail
+        # the atlas's size in px (square); its palette corner scales with it
+        self.detail_size = detail_size or DETAIL_SIZE
 
 
 # The character being built (P, H, Builder and build use it). Every character
@@ -94,15 +97,23 @@ DETAIL_SIZE = 1024   # px square of a detail atlas
 PALETTE_PX = 256     # its top-left corner holds the 4x4 palette swatches
 
 
+def atlas_size(character=None):
+    """(atlas px, palette corner px) of a character's detail atlas."""
+    size = (character or CFG).detail_size
+    return size, PALETTE_PX * size // DETAIL_SIZE
+
+
 def swatch_uv(name):
     i = CFG.swatch[name]
-    k = PALETTE_PX / DETAIL_SIZE if CFG.detail else 1.0
+    size, pal = atlas_size()
+    k = pal / size if CFG.detail else 1.0
     return Vector(((i % 4 + 0.5) / 4.0 * k, 1.0 - (i // 4 + 0.5) / 4.0 * k))
 
 
 def detail_uv(x, y):
     """UV of pixel (x, y) of a character's detail atlas (origin top-left)."""
-    return Vector((x / DETAIL_SIZE, 1.0 - y / DETAIL_SIZE))
+    size = atlas_size()[0]
+    return Vector((x / size, 1.0 - y / size))
 
 
 class Builder:
@@ -657,20 +668,21 @@ def detail_atlas(emissive_only):
     its detail art with the palette swatches in the top-left corner; for the glow
     texture, black but for the glowing swatches."""
     import numpy as np
+    size, pal = atlas_size()
     art = bpy.data.images.load(CFG.detail, check_existing=False)
     try:
-        px = np.array(art.pixels[:], dtype=np.float32).reshape(DETAIL_SIZE, DETAIL_SIZE, 4)
+        px = np.array(art.pixels[:], dtype=np.float32).reshape(size, size, 4)
     finally:
         bpy.data.images.remove(art)
     px[..., 3] = 1.0
     if emissive_only:
         px[...] = (0.0, 0.0, 0.0, 1.0)
-    cell = PALETTE_PX // 4
+    cell = pal // 4
     for k, (_, hexv, emissive) in enumerate(CFG.palette):
         rgb = [int(hexv[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
         if emissive_only and not emissive:
             rgb = [0.0, 0.0, 0.0]
-        top = DETAIL_SIZE - (k // 4) * cell          # rows count up from the bottom
+        top = size - (k // 4) * cell                 # rows count up from the bottom
         px[top - cell:top, (k % 4) * cell:(k % 4 + 1) * cell, :3] = rgb
     return px.ravel()
 
@@ -684,7 +696,7 @@ def make_material():
         if old:
             bpy.data.images.remove(old)
         if CFG.detail:
-            img = bpy.data.images.new(name, DETAIL_SIZE, DETAIL_SIZE, alpha=False)
+            img = bpy.data.images.new(name, CFG.detail_size, CFG.detail_size, alpha=False)
             img.pixels = detail_atlas(emissive_only)
         else:
             img = bpy.data.images.new(name, 16, 16, alpha=False)
@@ -738,6 +750,7 @@ def build(build_mesh, collection_name=None):
         old = bpy.data.objects.get(name)
         if old:
             bpy.data.objects.remove(old, do_unlink=True)
+    bpy.context.view_layer.update()     # (else the view layer can still list the removed objects, as None)
     for coll in (bpy.data.meshes, bpy.data.armatures):
         for d in [d for d in coll if d.name.startswith(CFG.object_name) and d.users == 0]:
             coll.remove(d)
@@ -997,6 +1010,62 @@ def export_glb(obj):
         for t in list(ad.nla_tracks):
             ad.nla_tracks.remove(t)
         ad.action = active
+    return path
+
+
+# Bones a model's spring-bone cloth collides with in the game, when the rig has them:
+# the limbs and the trunk, each a capsule along its bone. (Not Lamp's staff: its bone
+# doesn't run along the pole; his lantern hangs out from the staff's bracket and its
+# swing limit keeps it off the pole.)
+SPRING_COLLIDERS = ("hips", "spine", "chest", "upperarm_L", "forearm_L", "upperarm_R", "forearm_R",
+                    "thigh_L", "shin_L", "thigh_R", "shin_R")
+
+
+def export_springs(obj, chains, radius_share=0.6):
+    """<out_dir>/<name>_springs.json beside the GLB: what the game's spring bones
+    (UnitSprings) are built from, in Godot's frame (x, z, -y; metres, rest pose).
+    "springs" the cloth chains ({name: [bones root to tip]}), "bones" each chain bone's
+    head and tail, and "capsules" a collider round each limb and the trunk
+    (SPRING_COLLIDERS), along its bone, as thick as the mesh skinned mostly to it is
+    at `radius_share` of its points (cloth hanging off a bone can't fatten it much).
+    The game slims a capsule for a chain that rests inside it."""
+    import json
+    rig = obj.parent
+    toy = char_of(obj)
+
+    def godot(v):
+        return [round(v[0], 5), round(v[2], 5), round(-v[1], 5)]
+
+    bones = {}
+    for chain in chains.values():
+        for bone in chain:
+            b = rig.data.bones[bone]
+            bones[bone] = {"head": godot(b.head_local), "tail": godot(b.tail_local)}
+    mesh = obj.data
+    index = {g.index: g.name for g in obj.vertex_groups}
+    near = {name: [] for name in SPRING_COLLIDERS}
+    for v in mesh.vertices:
+        best = max(v.groups, key=lambda g: g.weight, default=None)
+        if best is None or best.weight < 0.6:
+            continue
+        name = index.get(best.group)
+        if name in near:
+            b = rig.data.bones[name]
+            a, t = b.head_local, b.tail_local
+            ab = t - a
+            u = max(0.0, min(1.0, (v.co - a).dot(ab) / max(ab.length_squared, 1e-9)))
+            near[name].append((v.co - (a + ab * u)).length)
+    capsules = []
+    for name, dists in near.items():
+        if name not in rig.data.bones or len(dists) < 8:
+            continue
+        dists.sort()
+        b = rig.data.bones[name]
+        capsules.append({"name": name, "bone": name, "head": godot(b.head_local), "tail": godot(b.tail_local),
+                         "radius": round(dists[int(len(dists) * radius_share)], 4)})
+    path = os.path.join(toy.out_dir, toy.name + "_springs.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"springs": chains, "bones": bones, "capsules": capsules}, f, indent=1)
     return path
 
 

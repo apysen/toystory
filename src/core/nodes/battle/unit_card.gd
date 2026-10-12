@@ -229,6 +229,11 @@ func fire() -> UnitFire:
 	return _model.fire() if _model != null else null
 
 
+## The tea in the model's cup (the Teacup's), or null.
+func tea() -> UnitTea:
+	return _model.tea() if _model != null else null
+
+
 ## Hides or browns one of the Toaster's toast slices ("front", "back"); see
 ## UnitModel.set_slice. Does nothing without a model.
 func set_slice(slot: String, hidden: bool, brown := -1.0) -> void:

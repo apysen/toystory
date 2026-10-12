@@ -344,7 +344,7 @@ Toaster trades safety and Noise efficiency for explosive output.
 
 Teacup is deliberately straightforward. The primary healer should not require a complicated subsystem.
 
-### Basic Attack: Steam Curl
+### Basic Attack: Tea Lash
 
 - Range: 2
 - Type: Bind
@@ -375,7 +375,7 @@ Because it is a true 0-Noise Art, Teacup can use it while Human Gaze is active, 
 ### Signature Art: Tea Break
 
 - Noise: +2
-- Area: small radius
+- Area: every ally within 1.6 m of Teacup (Teacup included)
 
 Heals all allies in the area for **20% of maximum HP**, rounded up, and removes one negative status from each affected ally.
 

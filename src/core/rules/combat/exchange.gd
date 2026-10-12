@@ -91,6 +91,10 @@ static func preview(battle: Battle, u: Unit, action: String, target: Variant) ->
 					_add_strike(battle, out, hp, u, u.pos, o, player_spec(battle, u, o, {"might": art.might, "type": art.type}), false)
 			if art_id == "overheat":
 				hp[u] -= battle.overheat_burn(u)
+			if art_id == "tea_break":
+				for o in battle.allies_in(u, battle.around(u, art_id)):
+					_side(out, hp, o)
+					hp[o] = mini(o.hp + ceili(o.max_hp * 0.2), o.max_hp)
 			out.effect = art.desc
 	return _finish(out, hp)
 

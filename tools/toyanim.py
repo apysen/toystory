@@ -9,6 +9,10 @@ A pose maps bone names to channels:
          tilts toward +X (their left), z > 0 turns them toward their left.
   "loc": (x, y, z) metres in world space (hips, root and the ik_* / pole_*
          controls), as an offset from rest.
+  "shrink": (k, k, k) how far the bone is scaled down about its head, 0 full
+         size to 1 gone (a prop put away, a drink drained; absent is full size, so
+         it keys and mixes like the others); keyed only on the bones the rig lists
+         in its "scaled_bones" property.
 ik_hand_* and ik_foot_* carry the hands and feet; IK bends the limbs to reach
 them, so the hands follow the body only if the pose moves them too.
 
@@ -173,6 +177,7 @@ def apply_pose(rig, pose, settle=None):
         pb.rotation_mode = "QUATERNION"
         pb.rotation_quaternion = (1, 0, 0, 0)
         pb.location = (0, 0, 0)
+        pb.scale = (1, 1, 1)
     for name, chans in pose.items():
         pb = rig.pose.bones[name]
         rest = pb.bone.matrix_local.to_quaternion()
@@ -181,6 +186,8 @@ def apply_pose(rig, pose, settle=None):
             pb.rotation_quaternion = rest.inverted() @ q @ rest
         if "loc" in chans:
             pb.location = rest.inverted() @ Vector(chans["loc"])
+        if "shrink" in chans:
+            pb.scale = tuple(1.0 - k for k in chans["shrink"])
 
 
 def action_name(rig, clip):
@@ -198,11 +205,14 @@ def key_clip(rig, name, frames, loops, pose_at, settle=None):
     act.use_fake_user = True
     rig.animation_data_create()
     rig.animation_data.action = act
+    scaled = set(rig.get("scaled_bones", ()))
     for f in range(frames + 1):
         apply_pose(rig, pose_at(f if not (loops and f == frames) else 0), settle)
         for pb in rig.pose.bones:
             pb.keyframe_insert("rotation_quaternion", frame=f, group=pb.name)
             pb.keyframe_insert("location", frame=f, group=pb.name)
+            if pb.name in scaled:
+                pb.keyframe_insert("scale", frame=f, group=pb.name)
     act.use_frame_range = True
     act.frame_start, act.frame_end = 0, frames
     act.use_cyclic = loops

@@ -34,13 +34,20 @@ static func load_unit(name: String) -> Variant:
 
 
 ## One-shot effect sheet: assets/sprites/vfx/<name>/<name>_sheet.* (SpriteFrames or null).
+## A sheet drawn smooth at several times the battle's pixel density (vector art such
+## as tools/draw_vfx.py draws, its JSON meta "scale" above 1) carries that
+## density as the SpriteFrames' "density" meta, so it is shown smoothly at its size.
 static func load_vfx(name: String) -> SpriteFrames:
 	var key := "vfx:" + name
 	if not _cache.has(key):
-		var sf := _load_sheet("res://assets/sprites/vfx/%s/" % name, name)
+		var dir := "res://assets/sprites/vfx/%s/" % name
+		var sf := _load_sheet(dir, name)
 		if sf != null:
 			for a in sf.get_animation_names():
 				sf.set_animation_loop(a, false)
+			var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(dir + name + "_sheet.json"))
+			var density := float(String(data.get("meta", {}).get("scale", "1"))) if data is Dictionary else 1.0
+			sf.set_meta("density", maxf(density, 1.0))
 		_cache[key] = sf
 	return _cache[key]
 

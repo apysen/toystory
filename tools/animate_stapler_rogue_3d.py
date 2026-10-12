@@ -361,8 +361,13 @@ def clip_check(obj=None, every=1):
     return toyanim.clip_check(obj, CLIPS, toy3d.clip_report, every)
 
 
+# The cloth chains the game's spring bones swing (UnitSprings), written beside the GLB.
+SPRINGS = {"cloak": ["cloak_1", "cloak_2", "cloak_3"], "scarf": ["scarf_1", "scarf_2"]}
+
+
 if __name__ == "__main__" and bpy.app.background:
     o, _, _ = BUILD["build_stapler"]()
     animate_stapler(o)
     print("clipping per clip", {k: v for k, v in clip_check(o, 2).items() if v})
     print("glb", toy3d.export_glb(o))
+    print("springs", toy3d.export_springs(o, SPRINGS))

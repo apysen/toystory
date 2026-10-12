@@ -2,8 +2,8 @@ class_name Arts
 extends RefCounted
 ## Art and item definitions for the slice squad (character_abilities_stats.md).
 ## Signature Arts are paralogue unlocks ("signature": true); Lamp's Spotlight,
-## Stapler's Staple Storm and Toaster's Overheat are in the slice so they can be
-## played and tested.
+## Stapler's Staple Storm, Toaster's Overheat and Teacup's Tea Break are in the
+## slice so they can be played and tested.
 ##
 ## Reach is the edge-to-edge gap in metres between the user and the target
 ## ("min" and "max"). The interface draws it as a ring around the user.
@@ -12,7 +12,7 @@ extends RefCounted
 ##   "enemy"     pick a hostile unit (or destructible cover for attacks) within reach
 ##   "ally"      pick a friendly unit within reach ("self": true allows the user)
 ##   "self"      no pick; with a "radius" it covers the circle round the user, shown
-##               before it is confirmed
+##               before it is confirmed (enemies in it with "might", allies without)
 ##   "direction" aim a cone in any direction ("length" past the user's edge)
 ##   "area"      place a circle ("radius") whose centre is within "max" of the user's edge
 ##   "lunge"     pick a hostile unit along a clear straight dash of up to "dash" metres
@@ -45,6 +45,8 @@ const DATA := {
 		"desc": "Restore 30% of the ally's max HP."},
 	"steady_sip": {"name": "Steady Sip", "noise": 0, "target": "ally", "min": 0.0, "max": 1.6, "self": true,
 		"desc": "Remove one negative status and grant +2 Defense until your next phase."},
+	"tea_break": {"name": "Tea Break", "noise": 2, "target": "self", "radius": 1.6, "signature": true,
+		"desc": "Every ally within 1.6 m (Teacup too) restores 20% of max HP and loses one negative status."},
 	"suction": {"name": "Suction", "noise": 1, "target": "enemy", "min": 0.9, "max": 3.6,
 		"desc": "Pull a normal-sized enemy up to 3 m toward Vacuum. Always succeeds."},
 	"blowback": {"name": "Blowback", "noise": 1, "target": "direction", "length": 1.8,

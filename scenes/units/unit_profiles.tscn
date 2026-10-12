@@ -62,7 +62,7 @@ power = 6
 skill = 9
 speed = 7
 attack_range = 1.6
-arts = PackedStringArray("warm_pour", "steady_sip")
+arts = PackedStringArray("warm_pour", "steady_sip", "tea_break")
 item = "repair_tape"
 
 [node name="Vacuum" type="Node" parent="." unique_id=394445962]

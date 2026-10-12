@@ -5,8 +5,9 @@ extends Node3D
 ## camera-facing sprites, Stapler's 3D staples (assets/models/vfx/staples.glb, built
 ## by tools/build_staples_3d.py), the Toaster's flying toast (toast.glb, built by
 ## tools/build_toast_3d.py) and his fire (FireFX particles: Flash Bake's cone,
-## Overheat's swirl and pillars, smoke), floating damage numbers, and the Gaze
-## transformation puff. Nothing here feeds back into the rules; everything it
+## Overheat's swirl and pillars, smoke), Teacup's bent tea (TeaRibbon streams, Tea
+## Lash's dart, splashes, warm rain and sparkles), floating damage numbers, and the
+## Gaze transformation puff. Nothing here feeds back into the rules; everything it
 ## spawns frees itself.
 
 const STAPLES := "res://assets/models/vfx/staples.glb"
@@ -49,6 +50,14 @@ const LIGHT_SHADER := preload("res://assets/shaders/art_light.gdshader")
 @export var cone_speed := 3.6
 @export var cone_size := 0.2
 @export var cone_amount := 60
+
+@export_group("Tea")
+## Metres per second Tea Lash's dart of tea flies.
+@export var dart_speed := 8.0
+## How much thicker and longer bent tea is drawn than its path's true size, so it
+## reads at battle zoom.
+@export var tea_width := 2.0
+@export var tea_length := 1.5
 
 ## "Staple" / "StapleHeavy" -> [Mesh, ShaderMaterial], loaded on first use.
 var _staple_parts := {}
@@ -287,6 +296,81 @@ func fire_swirl(center: Callable, radius: float, seconds: float) -> void:
 	_free_later(p, seconds + 0.8)
 
 
+## A ribbon of Teacup's bent tea trailing a moving point (`head` returns it in the
+## world), `half_width` metres either side, `seconds` long; `stop()` it to end it.
+func tea_ribbon(head: Callable, half_width := 0.02, seconds := 0.4) -> TeaRibbon:
+	var r := TeaRibbon.new(head, half_width * tea_width, seconds * tea_length)
+	add_child(r)
+	return r
+
+
+## A strand of tea drawn whole along `path` (a Callable taking 0..1 from tail to head)
+## each frame, joining two moving ends; `stop()` it and it drains away.
+func tea_strand(path: Callable, half_width := 0.02, seconds := 0.4) -> TeaRibbon:
+	var r := TeaRibbon.new(Callable(), half_width * tea_width, seconds * tea_length)
+	r.strand = path
+	add_child(r)
+	return r
+
+
+## Tea Lash's dart: a hard bead of tea punched straight from `a` (her bending hand)
+## to `b` with a short tail; it splashes where it lands (one that missed flies on
+## past). Waits until it gets there.
+func tea_dart(a: Vector3, b: Vector3, hit := true) -> void:
+	var at := [a]
+	var tail := tea_ribbon(func() -> Vector3: return at[0], 0.03, 0.12)
+	var end := b if hit else b + (b - a).normalized() * staple_miss_metres
+	var tw := create_tween()
+	tw.tween_method(func(p: Vector3) -> void: at[0] = p, a, end, clampf(a.distance_to(end) / dart_speed, 0.08, 0.5))
+	await tw.finished
+	tail.stop()
+	if hit:
+		tea_splash(end, 16)
+
+
+## A splash of tea droplets bursting out of `at` and falling.
+func tea_splash(at: Vector3, amount := 12) -> void:
+	var p := TeaFX.drops(amount, 0.03, 0.6)
+	p.one_shot = true
+	p.explosiveness = 0.95   # (a one-shot burst at 1.0 draws nothing)
+	p.spread = 70.0
+	p.initial_velocity_min = 0.6
+	p.initial_velocity_max = 1.3
+	add_child(p)
+	p.global_position = at
+	_free_later(p, 1.0)
+
+
+## Tea Break's warm rain: droplets of tea falling softly over the circle round
+## `center` for `seconds`.
+func tea_rain(center: Vector3, radius: float, seconds: float) -> void:
+	var p := TeaFX.drops(int(radius * 40.0), 0.025, 0.55)
+	p.preprocess = 0.55   # (rain that's still filling draws its unborn drops black)
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(radius * 0.7, 0.05, radius * 0.7)
+	p.direction = Vector3.DOWN
+	p.spread = 5.0
+	p.initial_velocity_min = 0.3
+	p.initial_velocity_max = 0.6
+	add_child(p)
+	p.global_position = center + Vector3(0, 1.4, 0)
+	var tw := create_tween()
+	tw.tween_interval(seconds)
+	tw.tween_callback(func() -> void: p.emitting = false)
+	_free_later(p, seconds + 0.8)
+
+
+## Glints of amber light drifting up round `at` (a heal settling in).
+func tea_sparkles(at: Vector3, radius := 0.25, amount := 14) -> void:
+	var p := TeaFX.sparkles(amount, 0.06, 0.9)
+	p.one_shot = true
+	p.explosiveness = 0.6
+	p.emission_sphere_radius = radius
+	add_child(p)
+	p.global_position = at
+	_free_later(p, 1.2)
+
+
 ## A puff of smoke at `at` (a slot, the floor where he lands).
 func smoke_puff(at: Vector3, amount := 10, size := 0.18) -> void:
 	var p := FireFX.smoke(amount, size, 1.2)
@@ -362,9 +446,12 @@ func gaze_poof(card: UnitCard, to_object: bool) -> void:
 func _sprite(sf: SpriteFrames) -> AnimatedSprite3D:
 	var s := AnimatedSprite3D.new()
 	s.sprite_frames = sf
-	s.pixel_size = 1.0 / BattleSpace.PIXELS_PER_METRE
+	# pixel art stays crisp; a smooth sheet drawn at a higher density (SpriteLib's
+	# "density" meta) is shrunk to the same size and filtered
+	var density: float = sf.get_meta("density", 1.0)
+	s.pixel_size = 1.0 / (BattleSpace.PIXELS_PER_METRE * density)
 	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST if density <= 1.0 		else BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	s.shaded = false
 	s.no_depth_test = true
 	s.render_priority = 15

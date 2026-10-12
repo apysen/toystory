@@ -1,0 +1,36 @@
+{
+  "attack": {
+    "stamp": 0.8,
+    "draw": 1.4667,
+    "hit": 2.3667,
+    "refill": 3.3
+  },
+  "hurt": {
+    "spill": 0.0833
+  },
+  "broken": {
+    "pour": 1.1667,
+    "empty": 1.6667
+  },
+  "warm_pour": {
+    "rise": 1.1,
+    "send": 2.1667,
+    "hit": 2.9,
+    "end": 3.5,
+    "refill": 4.3667
+  },
+  "steady_sip": {
+    "lift": 1.1,
+    "hit": 2.0
+  },
+  "tea_break": {
+    "rise": 1.2,
+    "ring": 2.3333,
+    "burst": 3.6,
+    "hit": 3.8,
+    "return": 4.6667
+  },
+  "move": {
+    "speed": 1.8
+  }
+}

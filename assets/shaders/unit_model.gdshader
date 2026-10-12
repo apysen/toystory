@@ -23,6 +23,19 @@ instance uniform float glow_boost = 1.0;
 instance uniform vec4 toast_state = vec4(0.0);
 // What toasting does to a slice's colours (toast.glb is built in them).
 const vec3 TOASTED = vec3(0.8, 0.66, 0.52);
+// Teacup's tea, marked 3 in UV2.y with its radius in UV2.x (0 middle .. 1 edge): one
+// plain tea brown, heaving in waves that run out from the middle as it sloshes
+// (`tea_slosh`, 0 calm .. 1 sloshing hard: she's running, hit or bending it). The
+// game tips the whole surface about in the cup as well (TeaLevel).
+instance uniform float tea_slosh = 0.0;
+// Cloth on spring bones (UnitSprings) also ripples a little in a breeze: each vertex
+// by its cloth sway weight in UV2.x (0 pinned .. 1 at the hem). 0 off, 1 on.
+instance uniform float cloth_ripple = 0.0;
+const float RIPPLE = 0.0035;
+uniform vec3 tea_surface : source_color = vec3(0.443, 0.212, 0.086);
+// Metres the waves heave at the edge at full slosh (UnitTea.WAVE keeps the tilt
+// inside the rim with this much to spare).
+const float TEA_WAVE = 0.002;
 
 float bayer4(vec2 p) {
 	ivec2 q = ivec2(mod(p, 4.0));
@@ -31,13 +44,28 @@ float bayer4(vec2 p) {
 	return (m[i] + 0.5) / 16.0;
 }
 
+void vertex() {
+	float tag = 1.0 - UV2.y;
+	if (tag > 2.5) {
+		// waves running out from the middle while it sloshes
+		VERTEX.y += tea_slosh * TEA_WAVE * UV2.x * sin(UV2.x * 11.0 - TIME * 9.0);
+	} else if (tag < 0.5 && cloth_ripple > 0.0) {
+		// a slow ripple running down the cloth, strongest at the hem
+		float w = UV2.x * cloth_ripple * RIPPLE;
+		VERTEX.x += w * sin(TIME * 1.7 + VERTEX.y * 11.0 + VERTEX.z * 5.0);
+		VERTEX.z += w * cos(TIME * 1.3 + VERTEX.y * 9.0 + VERTEX.x * 5.0);
+	}
+}
+
 void fragment() {
 	if (fade < 0.999 && bayer4(FRAGCOORD.xy) > fade) {
 		discard;
 	}
 	float slice = 1.0 - UV2.y;   // glTF's V is flipped on import: untouched faces read 0
 	vec3 c = texture(palette, UV).rgb;
-	if (slice > 0.5) {
+	if (slice > 2.5) {
+		c = tea_surface;
+	} else if (slice > 0.5) {
 		bool front = slice < 1.5;
 		if ((front ? toast_state.x : toast_state.y) > 0.5) {
 			discard;

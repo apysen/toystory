@@ -86,13 +86,13 @@ func beam(from: Callable, to: Callable, radius := -1.0) -> Node3D:
 
 
 ## A bubble of light round a unit (Guard Beam): pops up to `radius` at `center`.
-func bubble(center: Vector3, radius: float) -> Node3D:
+func bubble(center: Vector3, radius: float, tint := Color.TRANSPARENT) -> Node3D:
 	var sphere := SphereMesh.new()
 	sphere.radius = 1.0
 	sphere.height = 2.0
 	sphere.radial_segments = 24
 	sphere.rings = 12
-	var m := _mesh(sphere, _material(Look.SHELL, light_color))
+	var m := _mesh(sphere, _material(Look.SHELL, light_color if tint.a == 0.0 else tint))
 	m.global_position = center
 	m.scale = Vector3.ONE * 0.01
 	var tw := create_tween()
@@ -174,9 +174,10 @@ func stage_light(center: Vector3, radius: float) -> Node3D:
 	return root
 
 
-## A quick shimmer round a unit the light has just covered.
-func shimmer(center: Vector3, radius: float) -> void:
-	var b := bubble(center, radius)
+## A quick shimmer round a unit the light has just covered (in lamplight unless
+## `tint` is given: Steady Sip's ward settles in blue).
+func shimmer(center: Vector3, radius: float, tint := Color.TRANSPARENT) -> void:
+	var b := bubble(center, radius, tint)
 	await get_tree().create_timer(bubble_pop_seconds + 0.15, false).timeout
 	fade(b, 0.35)
 

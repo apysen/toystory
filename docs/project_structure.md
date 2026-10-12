@@ -17,10 +17,15 @@ that matters: every source folder that exists must be described here.
 ```text
 assets/                         Imported source art and audio; shared presentation
   audio/                        Effects (sfx/) and the room themes (music/)
+  fonts/                        Typefaces with their licences (ebgaramond/: EB Garamond,
+                              OFL; the Teacup Cleric's book pages are set in it)
   models/                       3D models built by tools/ scripts: one folder per toy
-                              (lamp/, stapler/, toaster/), and vfx/ for effect models
-                              (staples, toast);
-                              each keeps its .blend and previews in a gdignored source/
+                              (lamp/, stapler/, toaster/, teacup/), and vfx/ for effect
+                              models (staples, toast);
+                              each keeps its .blend and previews in a gdignored source/;
+                              teacup/source/v2/ holds the sources of the Teacup Cleric
+                              (v2, the game's model: atlas, layout, cloth colliders,
+                              contact sheets, compare_*.png renders against v1)
   portraits/                    Conversation portraits, one per speaker
   sprites/                      Battle sprites, cover, Gaze objects, effects, UI icons
   ui/                           Shared Godot themes and the styles that dress panels

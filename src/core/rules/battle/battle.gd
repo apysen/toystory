@@ -248,6 +248,16 @@ func storm_targets(u: Unit, area: Dictionary) -> Array[Unit]:
 	return out
 
 
+## The allies a healing area (Tea Break) reaches: in the circle, on the user's side
+## and not frozen by the Gaze (the user too).
+func allies_in(u: Unit, area: Dictionary) -> Array[Unit]:
+	var out: Array[Unit] = []
+	for o in units_in_area(area):
+		if o.faction == u.faction and not o.frozen:
+			out.append(o)
+	return out
+
+
 ## Units standing in an area: their centre is inside the circle.
 func units_in_area(area: Dictionary) -> Array[Unit]:
 	var out: Array[Unit] = []
@@ -473,11 +483,14 @@ func use_art(u: Unit, art_id: String, target) -> bool:
 		"warm_pour":
 			_heal(target, ceili(target.max_hp * 0.3))
 		"steady_sip":
-			for s in ["dazzled", "pinned", "taped"]:
-				if target.status.has(s):
-					target.status.erase(s)
-					break
+			_cleanse(target)
 			target.status["steady_sip"] = true
+		"tea_break":
+			var area := around(u, art_id)
+			_emit({"type": "area", "shape": "circle", "center": area.center, "radius": area.radius, "kind": art_id})
+			for o in allies_in(u, area):
+				_cleanse(o)
+				_heal(o, ceili(o.max_hp * 0.2))
 		"suction":
 			pull_toward(target, u, 3.0)
 		"blowback":
@@ -653,6 +666,14 @@ func _damage(u: Unit, amount: int) -> void:
 		telegraphs = telegraphs.filter(func(t): return t.owner != u)
 		_changed()
 		_emit({"type": "broken", "unit": u})
+
+
+## Removes one negative status (the first of Dazzled, Pinned, Taped it has).
+func _cleanse(u: Unit) -> void:
+	for s in ["dazzled", "pinned", "taped"]:
+		if u.status.has(s):
+			u.status.erase(s)
+			return
 
 
 func _heal(u: Unit, amount: int) -> void:
