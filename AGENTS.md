@@ -87,6 +87,13 @@ Toy Story mirrors **Sporekeeper**'s structure
   Units used to be pixel-art sprite cards; they are being replaced by 3D models one
   character at a time (Lamp Warden, Stapler Rogue, Toaster Pyromancer, Teacup Cleric and Umbrella
   Lancer so far).
+- Battle interface reading aids and feel (2026-10-12, the owner's picks from the Midnight Suns, Fire Emblem, XCOM and
+  Into the Breach discussion): the movement area's lit rim (`reach_area.gdshader`), reach rings and reticles, cover
+  shields, type matchup arrows and triangle, the danger toggle (V / Y), strike
+  close-ups, hit-stop, shake, damage numbers and the signature letterbox. `docs/battle_composition.md` maps them; the
+  test is `tests/integration/battle_ui.gd`. Move-first stays: the full Midnight Suns action-first flow was rejected
+  because it would weaken positioning, and so was walking up to a target out of reach (removed
+  2026-10-12, the owner's call: Attack lists only what is in reach from where the unit stands).
 - Every character faces its last horizontal move. Sprite art is drawn once at a base
   facing and mirrored. 3D models turn to their heading, and in standing clips (idle, hurt,
   broken) they turn three-quarters toward the camera.

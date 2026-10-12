@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/battle/battle_root.gd" id="1_root"]
 [ext_resource type="Resource" path="res://data/missions/under_the_desk.tres" id="2_mission"]
@@ -22,6 +22,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/action_ring.tscn" id="18_ring"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/battle_preview.tscn" id="19_preview"]
 [ext_resource type="Script" path="res://src/core/nodes/battle/art_lights.gd" id="22_lights"]
+[ext_resource type="Script" path="res://src/core/nodes/ui/cover_shields.gd" id="23_shields"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -51,7 +52,7 @@ dof_blur_far_enabled = true
 dof_blur_near_enabled = true
 dof_blur_amount = 0.06
 
-[node name="BattleRoot" type="Node3D" node_paths=PackedStringArray("unit_profiles", "metrics", "audio", "audio_settings", "display_settings", "speed_settings", "camera", "diorama", "units_root", "overlays", "arcs", "effects", "event_player", "hud", "plates", "ring", "preview", "dialogue", "pause_menu")]
+[node name="BattleRoot" type="Node3D" node_paths=PackedStringArray("unit_profiles", "metrics", "audio", "audio_settings", "display_settings", "speed_settings", "camera", "diorama", "units_root", "overlays", "arcs", "effects", "event_player", "hud", "plates", "cover_shields", "ring", "preview", "dialogue", "pause_menu")]
 script = ExtResource("1_root")
 mission = ExtResource("2_mission")
 unit_profiles = NodePath("GameplayComponents/UnitProfiles")
@@ -68,6 +69,7 @@ arcs = NodePath("World/ThreatArcs")
 effects = NodePath("World/Effects")
 event_player = NodePath("EventPlayer")
 hud = NodePath("Interface/BattleHud")
+cover_shields = NodePath("Interface/CoverShields")
 plates = NodePath("Interface/UnitPlates")
 ring = NodePath("Interface/ActionRing")
 preview = NodePath("Interface/BattlePreview")
@@ -170,6 +172,16 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("17_plates")
+
+[node name="CoverShields" type="Control" parent="Interface"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("23_shields")
 
 [node name="BattleHud" parent="Interface" instance=ExtResource("10_hud")]
 

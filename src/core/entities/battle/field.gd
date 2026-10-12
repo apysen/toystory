@@ -131,16 +131,22 @@ func has_los(a: Vector2, b: Vector2) -> bool:
 ## Half cover protects a ranged target when a half-cover object stands close to the
 ## target, between it and the shot. Large units are too big to hide behind it.
 func has_half_cover(defender: Unit, def_pos: Vector2, from: Vector2) -> bool:
+	return not covering(defender, def_pos, from).is_empty()
+
+
+## The half-cover objects (ids) that shelter `defender` at `def_pos` from a shot from `from`.
+func covering(defender: Unit, def_pos: Vector2, from: Vector2) -> Array:
+	var out: Array = []
 	if defender.is_large():
-		return false
+		return out
 	var toward := (from - def_pos).normalized()
 	var near := def_pos + toward * Defs.COVER_REACH
 	for o in objects.values():
 		if o.cover != Defs.Cover.HALF:
 			continue
 		if Geometry.segment_hits_rect(def_pos, near, o.rect) and Geometry.segment_hits_rect(def_pos, from, o.rect):
-			return true
-	return false
+			out.append(o.id)
+	return out
 
 
 ## Deals damage to destructible cover. Returns true when it breaks.

@@ -120,6 +120,24 @@ const PROJECTILES := {"stapler": "staple_shot", "toaster": "toast", "teacup": "t
 @export var lunge_metres := 0.25
 @export var after_strike_seconds := 0.2
 
+@export_group("Feel")
+## Hit-stop: on a hit, the whole scene freezes this long (real seconds), longer on a crit.
+@export var hit_stop_seconds := 0.07
+@export var crit_hit_stop_seconds := 0.13
+## How fast time runs during a hit-stop (a near freeze).
+@export var hit_stop_scale := 0.04
+## Camera shake on a hit, from a scratch (light) to a heavy blow (a quarter of the
+## target's max HP or more), in metres; a crit shakes half again as hard.
+@export var shake_light := 0.025
+@export var shake_heavy := 0.09
+@export var shake_seconds := 0.28
+## Strikes push the camera in and down a little for the blow and ease back after
+## the exchange. Skipped from this Battle Speed up.
+@export var close_ups := true
+@export var close_up_zoom := 0.78
+@export var close_up_lower_degrees := 9.0
+@export var close_up_max_speed := 1.5
+
 @export_group("Arts")
 ## How bright the lamp's glow flares when Flashbulb pops (1 = its usual glow).
 @export var flash_glow := 7.0
@@ -151,6 +169,9 @@ var _show_until := 0.0
 ## The unit whose Lunge has started: its dash runs couched and its strike is the
 ## Lunge's, not the basic swing.
 var _charging: Unit = null
+## Whether a strike's close-up has the camera pushed in (eased back when the
+## exchange is over).
+var _close_up := false
 
 
 func setup(b: Battle, cards: Dictionary) -> void:
@@ -182,11 +203,16 @@ func play(events: Array) -> void:
 	_playing = true
 	_apply_speed()
 	for e in events:
+		if _close_up and not e.type in ["strike", "damage", "broken"]:
+			await _end_close_up()
 		await _play_one(e)
 		_sync()
+	if _close_up:
+		await _end_close_up()
 	if _show_until > _clip_time:
 		await _wait(_show_until - _clip_time)
 	_show_until = 0.0
+	hud.signature_out()
 	_playing = false
 	_strike_in_clip = null
 	_charging = null
@@ -260,6 +286,8 @@ func _play_one(e: Dictionary) -> void:
 			if _enemy_turn(e.unit):
 				await camera.glide_to(c.global_position)
 			_face_art(c, e)
+			if Arts.DATA.has(e.art) and Arts.get_art(e.art).get("signature", false):
+				hud.signature_in(e.name, e.unit.name)
 			match e.art:
 				"flashbulb":
 					hud.toast(e.name)
@@ -389,6 +417,7 @@ func _strike(e: Dictionary) -> void:
 		# Watchful: Lamp gets between the ally and the attacker before the blow lands.
 		await tc.intercept(card(e.original).global_position, ac.global_position)
 	ac.face_along(BattleSpace.to_floor(tc.global_position - ac.global_position))
+	await _start_close_up(ac, tc)
 	# Lunge's strike is its own clip, landing as the dash arrives
 	var swing := "lunge_strike" if e.attacker == _charging and ac.has_anim("lunge_strike") else "attack"
 	if e.attacker == _charging:
@@ -435,16 +464,42 @@ func _strike(e: Dictionary) -> void:
 	var hit_at := tc.global_position + Vector3(0, 0.9 if e.target.is_large() else 0.45, 0)
 	if e.hit:
 		effects.burst("crit_burst" if e.crit else "hit_spark", hit_at)
-	var txt := "Miss"
-	if e.hit:
-		txt = ("CRIT %d" if e.crit else "%d") % e.damage
 	if intercepted:
 		hud.notify("Umbrella draws the shot (Raincheck)." if e.get("raincheck", false) else "Lamp intercepts the hit (Watchful).")
-	effects.float_text(hit_at + Vector3(0, 0.5, 0), txt, Color("ffe070") if e.crit else (Color.WHITE if e.hit else Color("b8b0c8")))
+	effects.damage_number(hit_at + Vector3(0, 0.5, 0), e.damage, e.hit, e.crit, e.get("type_rel", 0))
+	if e.hit:
+		var weight := clampf(float(e.damage) / maxf(e.target.max_hp * 0.25, 1.0), 0.0, 1.0)
+		camera.shake(lerpf(shake_light, shake_heavy, weight) * (1.5 if e.crit else 1.0), shake_seconds)
+		await _hit_stop(crit_hit_stop_seconds if e.crit else hit_stop_seconds)
 	await get_tree().create_timer(after_strike_seconds, false).timeout
 	if intercepted:
 		tc.absorbed_hit = e.hit and tc.has_anim("intercept_guard")
 		await tc.stand_down(ac.global_position)
+
+
+## Freezes the scene for `seconds` of real time at the moment of a hit.
+func _hit_stop(seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	Engine.time_scale = hit_stop_scale
+	await get_tree().create_timer(seconds, true, false, true).timeout
+	_apply_speed()
+
+
+## Pushes the camera in on a strike between `ac` and `tc`, unless an Art already has
+## it pushed in or Battle Speed is fast.
+func _start_close_up(ac: UnitCard, tc: UnitCard) -> void:
+	if _close_up or not close_ups or camera.is_pushed_in():
+		return
+	if speed_settings != null and speed_settings.speed() > close_up_max_speed:
+		return
+	_close_up = true
+	await camera.push_in((ac.global_position + tc.global_position) * 0.5, close_up_zoom, 0.25, close_up_lower_degrees)
+
+
+func _end_close_up() -> void:
+	_close_up = false
+	await camera.ease_back(camera.target_focus, 0.3)
 
 
 # --- Arts ---------------------------------------------------------------------

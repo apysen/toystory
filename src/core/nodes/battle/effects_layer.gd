@@ -24,6 +24,19 @@ const DUST_LIFT := 0.18
 
 @export var float_text_size := 56
 @export var float_text_pixel_size := 0.006
+
+@export_group("Damage Numbers")
+## Font size of a strike's damage, and how much bigger a crit's is.
+@export var damage_size := 84
+@export var crit_scale := 1.45
+## How far a number overshoots as it pops in, and the seconds it holds before it rises off.
+@export var damage_pop := 1.35
+@export var damage_hold := 0.35
+@export var damage_color := Color(1.0, 0.98, 0.94)
+@export var crit_color := Color(1.0, 0.82, 0.25)
+## A hit with the type advantage (Smash on Pierce, Pierce on Bind, Bind on Smash).
+@export var effective_color := Color(0.55, 1.0, 0.55)
+@export var miss_color := Color(0.72, 0.69, 0.8)
 ## Metres per second a projectile travels, clamped to a short flight.
 @export var projectile_speed := 11.0
 
@@ -485,6 +498,49 @@ func float_text(p: Vector3, text: String, c: Color) -> void:
 	var tw := create_tween()
 	tw.tween_property(l, "position:y", p.y + 0.5, 0.7).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.5).set_delay(0.45)
+	tw.tween_callback(l.queue_free)
+
+
+## A strike's result over the target: the damage pops in big with a dark outline
+## (bigger and gold on a crit, with "CRIT!" over it; a green ▲ when the type
+## advantage told), holds a moment and rises away. A miss is a smaller grey "Miss".
+func damage_number(p: Vector3, damage: int, hit: bool, crit := false, type_rel := 0) -> void:
+	if not hit:
+		_pop_label(p, "Miss", int(damage_size * 0.6), miss_color, 1.0)
+		return
+	var size := int(damage_size * (crit_scale if crit else 1.0))
+	var text := "%d" % damage
+	if type_rel > 0:
+		text += " ▲"
+	_pop_label(p, text, size, crit_color if crit else damage_color, damage_pop)
+	if type_rel > 0:
+		_pop_label(p + Vector3(0, -0.16, 0), "Effective", int(damage_size * 0.36), effective_color, 1.15)
+	if crit:
+		_pop_label(p + Vector3(0, 0.3, 0), "CRIT!", int(damage_size * 0.5), crit_color, 1.5, 0.05)
+
+
+func _pop_label(p: Vector3, text: String, size: int, c: Color, pop: float, delay := 0.0) -> void:
+	var l := Label3D.new()
+	l.text = text
+	l.font_size = size
+	l.pixel_size = float_text_pixel_size
+	l.modulate = c
+	l.outline_modulate = Color(0.08, 0.05, 0.08)
+	l.outline_size = maxi(int(size * 0.24), 8)
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.render_priority = 21
+	l.position = p
+	l.scale = Vector3.ONE * 0.2
+	add_child(l)
+	var tw := create_tween()
+	if delay > 0.0:
+		tw.tween_interval(delay)
+	tw.tween_property(l, "scale", Vector3.ONE * pop, 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "scale", Vector3.ONE, 0.1).set_trans(Tween.TRANS_SINE)
+	tw.tween_interval(damage_hold)
+	tw.tween_property(l, "position:y", p.y + 0.45, 0.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.4).set_delay(0.2)
 	tw.tween_callback(l.queue_free)
 
 

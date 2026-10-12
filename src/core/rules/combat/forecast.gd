@@ -96,6 +96,64 @@ static func for_destination(battle: Battle, u: Unit, p: Vector2, map: ThreatMap 
 		"predicted_hp": predicted, "max_damage": max_damage, "risk": risk}
 
 
+## Every enemy's combined danger zone for the next Enemy Phase, on the ReachField
+## grid: a cell is 1 when some enemy that will act could move and then reach a
+## Normal unit standing there. Line of sight is ignored (an enemy can usually walk
+## round what blocks it), so it can only over-warn. Returns {cols, rows, cells}.
+static func danger_grid(battle: Battle) -> Dictionary:
+	var cols := int(ceil(battle.field.size.x / ReachField.CELL))
+	var rows := int(ceil(battle.field.size.y / ReachField.CELL))
+	var cells := PackedFloat32Array()
+	cells.resize(cols * rows)
+	for e in battle.enemy_units():
+		if not _may_threaten(battle, e):
+			continue
+		var r := ReachField.compute(battle.field, e, e.pos, battle.effective_move(e))
+		var reach := (e.radius + e.attack_range + Defs.UNIT_RADIUS) / ReachField.CELL
+		var d := _distance_from(r, cols, rows)
+		for i in cells.size():
+			if d[i] <= reach:
+				cells[i] = 1.0
+	return {"cols": cols, "rows": rows, "cells": cells}
+
+
+## Distance in cells from every cell to the nearest one `r` can reach (two-pass
+## chamfer, 1 and √2).
+static func _distance_from(r: ReachField, cols: int, rows: int) -> PackedFloat32Array:
+	var d := PackedFloat32Array()
+	d.resize(cols * rows)
+	for i in d.size():
+		d[i] = 0.0 if r.cost[i] <= r.budget else 1.0e9
+	const DIAG := 1.41421356
+	for y in rows:
+		for x in cols:
+			var i := y * cols + x
+			var v := d[i]
+			if x > 0:
+				v = minf(v, d[i - 1] + 1.0)
+			if y > 0:
+				v = minf(v, d[i - cols] + 1.0)
+				if x > 0:
+					v = minf(v, d[i - cols - 1] + DIAG)
+				if x < cols - 1:
+					v = minf(v, d[i - cols + 1] + DIAG)
+			d[i] = v
+	for y in range(rows - 1, -1, -1):
+		for x in range(cols - 1, -1, -1):
+			var i := y * cols + x
+			var v := d[i]
+			if x < cols - 1:
+				v = minf(v, d[i + 1] + 1.0)
+			if y < rows - 1:
+				v = minf(v, d[i + cols] + 1.0)
+				if x < cols - 1:
+					v = minf(v, d[i + cols + 1] + DIAG)
+				if x > 0:
+					v = minf(v, d[i + cols - 1] + DIAG)
+			d[i] = v
+	return d
+
+
 ## Whether `e` takes part in the next Enemy Phase's attacks at all.
 static func _may_threaten(battle: Battle, e: Unit) -> bool:
 	if e.frozen:

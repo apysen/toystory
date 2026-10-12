@@ -3,15 +3,36 @@ extends Node3D
 
 ## Every marking painted on the floor: the controlled unit's movement area and
 ## where its move began, the reach ring of the chosen action, the aimed cone or
-## placed circle,
-## target rings, an inspected enemy's reach, the Gaze circle with its watching eye,
-## Paper Cutter's telegraphed lanes and short-lived area flashes.
+## placed circle, target rings, gold rings under what it can hit from here, an
+## inspected enemy's reach, every enemy's danger zone, the Gaze circle with its
+## watching eye, Paper Cutter's telegraphed lanes and short-lived area flashes.
 ##
 ## It reads the Battle and changes nothing. All shapes are one shader on flat quads.
 
 const SHAPE_SHADER := preload("res://assets/shaders/ground_shape.gdshader")
 const LIGHT_WALL_SHADER := preload("res://assets/shaders/light_wall.gdshader")
+const AREA_SHADER := preload("res://assets/shaders/reach_area.gdshader")
 const HEIGHT := 0.05
+
+## How movement areas are drawn. GLOW: a lit rim that fades inward, fainter where
+## furniture stops it, growing out from the unit. CLASSIC: the earlier flat sheet
+## with a line at the budget's edge, kept to compare against.
+enum AreaStyle { GLOW, CLASSIC }
+
+@export var area_style := AreaStyle.GLOW
+
+@export_group("Movement Areas")
+## The controlled unit's area (GLOW): warm cream, like chalk under the lamp.
+@export var move_rim := Color(1.0, 0.94, 0.78, 1.0)
+@export var move_glow_fill := Color(1.0, 0.92, 0.72, 0.05)
+## An inspected enemy's reach (GLOW).
+@export var enemy_rim := Color(1.0, 0.5, 0.4, 1.0)
+@export var enemy_glow_fill := Color(1.0, 0.45, 0.35, 0.07)
+## Every enemy's combined danger zone (the danger toggle).
+@export var danger_rim := Color(1.0, 0.36, 0.3, 1.0)
+@export var danger_fill := Color(1.0, 0.3, 0.25, 0.05)
+## Seconds the area takes to grow out from the unit.
+@export var grow_seconds := 0.35
 
 @export_group("Colours")
 @export var move_fill := Color(0.32, 0.62, 1.0, 0.1)
@@ -43,6 +64,10 @@ var gaze_visible := false
 var shown_telegraphs: Array = []
 var _move: MeshInstance3D
 var _enemy_reach: MeshInstance3D
+var _move_glow: MeshInstance3D
+var _enemy_glow: MeshInstance3D
+var _danger: MeshInstance3D
+var _grows := {} # area mesh -> its grow-in Tween
 var _reach_ring: MeshInstance3D
 var _cone: MeshInstance3D
 var _area: MeshInstance3D
@@ -53,6 +78,7 @@ var _light_wall: MeshInstance3D
 var _gaze_light: SpotLight3D
 var _trail: MeshInstance3D
 var _targets: Array[MeshInstance3D] = []
+var _marks: Array[MeshInstance3D] = []
 var _telegraphs: Array[MeshInstance3D] = []
 
 
@@ -63,6 +89,11 @@ func setup(b: Battle) -> void:
 	var size := b.field.size
 	_move = _quad(size, 3)
 	_enemy_reach = _quad(size, 3)
+	_move_glow = _area_quad(size, move_rim, move_glow_fill)
+	_enemy_glow = _area_quad(size, enemy_rim, enemy_glow_fill)
+	_danger = _area_quad(size, danger_rim, danger_fill)
+	_params(_danger, {"glow_alpha": 0.26, "shimmer": 0.45, "shimmer_speed": 2.2})
+	_danger.visible = false
 	_reach_ring = _quad(size, 0)
 	_cone = _quad(size, 1)
 	_area = _quad(size, 0)
@@ -125,10 +156,11 @@ func setup(b: Battle) -> void:
 
 
 func hide_all() -> void:
-	for m in [_move, _enemy_reach, _reach_ring, _cone, _area, _start_marker]:
+	for m in [_move, _enemy_reach, _move_glow, _enemy_glow, _reach_ring, _cone, _area, _start_marker]:
 		m.visible = false
 	_trail.visible = false
 	clear_targets()
+	clear_marks()
 
 
 ## Re-reads the Gaze and the telegraphs (call after every batch of events).
@@ -164,13 +196,17 @@ func remove_telegraphs(owner: Unit) -> void:
 
 ## The movement area of a unit and where its activation began.
 func show_move_area(r: ReachField, start: Vector2, radius: float) -> void:
-	_show_field(_move, r)
+	if area_style == AreaStyle.CLASSIC:
+		_show_field(_move, r)
+	else:
+		_show_glow(_move_glow, r, start)
 	_start_marker.visible = true
 	_params(_start_marker, {"center": start, "radius": radius, "inner_radius": radius * 0.7})
 
 
 func hide_move_area() -> void:
 	_move.visible = false
+	_move_glow.visible = false
 	_start_marker.visible = false
 	_trail.visible = false
 
@@ -210,11 +246,32 @@ func show_trail(path: Array[Vector2]) -> void:
 
 
 func show_enemy_reach(r: ReachField) -> void:
-	_show_field(_enemy_reach, r)
+	if area_style == AreaStyle.CLASSIC:
+		_show_field(_enemy_reach, r)
+	else:
+		_show_glow(_enemy_glow, r, r.start)
+
+
+## Every enemy's combined danger zone, from Forecast.danger_grid.
+func show_danger(grid: Dictionary) -> void:
+	var none := PackedFloat32Array()
+	none.resize(grid.cells.size())
+	var t := ReachAreaTexture.from_grid(grid.cells, none, grid.cols, grid.rows, false)
+	_danger.visible = true
+	_params(_danger, {"shape_tex": t.shape, "glow_tex": t.glow, "tex_origin": t.origin, "tex_size": t.size})
+
+
+func hide_danger() -> void:
+	_danger.visible = false
+
+
+func is_danger_shown() -> bool:
+	return _danger.visible
 
 
 func hide_enemy_reach() -> void:
 	_enemy_reach.visible = false
+	_enemy_glow.visible = false
 
 
 ## The ring an action reaches to, measured from the unit's centre.
@@ -246,6 +303,23 @@ func show_area(area: Dictionary) -> void:
 
 func hide_area() -> void:
 	_area.visible = false
+
+
+## Thin gold rings under the units the controlled unit could Basic Attack from here.
+func show_marks(units: Array) -> void:
+	clear_marks()
+	for o in units:
+		var q := _quad(_battle.field.size, 0)
+		_params(q, {"center": o.pos, "radius": o.radius + 0.13, "inner_radius": o.radius + 0.09,
+			"fill_color": Color(reach_ring_color, 0.0), "edge_color": Color(reach_ring_color, 0.85), "edge_width": 0.04,
+			"pulse": 2.0})
+		_marks.append(q)
+
+
+func clear_marks() -> void:
+	for m in _marks:
+		m.queue_free()
+	_marks.clear()
 
 
 ## Rings under the units (or cover) an action could pick; the current one pulses brighter.
@@ -311,6 +385,38 @@ func _show_field(m: MeshInstance3D, r: ReachField) -> void:
 	var tex := ImageTexture.create_from_image(img)
 	m.visible = true
 	_params(m, {"field_tex": tex, "field_size": Vector2(r.cols, r.rows) * ReachField.CELL, "budget": r.budget})
+
+
+## Draws `r` on `m` with the reach-area shader, growing out from `from`.
+func _show_glow(m: MeshInstance3D, r: ReachField, from: Vector2) -> void:
+	var t := ReachAreaTexture.build(r)
+	m.visible = true
+	_params(m, {"shape_tex": t.shape, "glow_tex": t.glow, "tex_origin": t.origin, "tex_size": t.size, "center": from})
+	if _grows.has(m):
+		(_grows[m] as Tween).kill()
+	var mat := m.material_override as ShaderMaterial
+	var far := r.budget + 1.0
+	var grow := create_tween()
+	_grows[m] = grow
+	grow.tween_method(func(v: float) -> void: mat.set_shader_parameter("reveal", v), 0.0, far, grow_seconds) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	grow.tween_callback(func() -> void: mat.set_shader_parameter("reveal", 1000.0))
+
+
+func _area_quad(size: Vector2, rim: Color, fill: Color) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = size + Vector2(4, 4)
+	m.mesh = plane
+	var mat := ShaderMaterial.new()
+	mat.shader = AREA_SHADER
+	mat.set_shader_parameter("rim_color", rim)
+	mat.set_shader_parameter("fill_color", fill)
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	m.position = BattleSpace.to_world(size * 0.5, HEIGHT)
+	add_child(m)
+	return m
 
 
 func _quad(size: Vector2, mode: int) -> MeshInstance3D:

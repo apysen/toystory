@@ -1,10 +1,11 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/core/nodes/ui/battle_hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://src/core/nodes/ui/noise_meter.gd" id="2_noise"]
 [ext_resource type="Script" path="res://src/core/nodes/ui/minimap.gd" id="3_minimap"]
+[ext_resource type="Script" path="res://src/core/nodes/ui/type_triangle.gd" id="4_types"]
 
-[node name="BattleHud" type="Control" node_paths=PackedStringArray("objective_label", "stars_label", "turn_panel", "turn_label", "phase_label", "noise_meter", "end_turn_button", "hint_label", "banner_label", "toast_label", "notice_label", "minimap")]
+[node name="BattleHud" type="Control" node_paths=PackedStringArray("objective_label", "stars_label", "turn_panel", "turn_label", "phase_label", "noise_meter", "end_turn_button", "hint_label", "banner_label", "toast_label", "notice_label", "minimap", "letterbox_top", "letterbox_bottom", "signature_card", "signature_name", "signature_who", "type_triangle")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -25,6 +26,61 @@ banner_label = NodePath("Banner")
 toast_label = NodePath("Toast")
 notice_label = NodePath("Notice")
 minimap = NodePath("Minimap")
+letterbox_top = NodePath("LetterboxTop")
+letterbox_bottom = NodePath("LetterboxBottom")
+signature_card = NodePath("SignatureCard")
+signature_name = NodePath("SignatureCard/Name")
+signature_who = NodePath("SignatureCard/Who")
+type_triangle = NodePath("TypeTriangle")
+
+[node name="LetterboxTop" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 96.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.03, 0.02, 0.04, 1)
+
+[node name="LetterboxBottom" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -96.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.03, 0.02, 0.04, 1)
+
+[node name="SignatureCard" type="VBoxContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 64.0
+offset_top = -92.0
+offset_right = 864.0
+offset_bottom = -8.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = -6
+
+[node name="Who" type="Label" parent="SignatureCard"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.86, 0.5, 1)
+theme_override_font_sizes/font_size = 18
+
+[node name="Name" type="Label" parent="SignatureCard"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.97, 0.9, 1)
+theme_override_colors/font_outline_color = Color(0.03, 0.02, 0.04, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 52
 
 [node name="Objective" type="PanelContainer" parent="."]
 layout_mode = 0
@@ -97,6 +153,19 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 focus_mode = 0
 text = "End Turn  (T)"
+
+[node name="TypeTriangle" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -272.0
+offset_right = 146.0
+offset_bottom = -160.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_types")
 
 [node name="Hint" type="Label" parent="."]
 layout_mode = 1

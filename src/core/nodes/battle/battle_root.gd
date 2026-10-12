@@ -10,11 +10,14 @@ extends Node3D
 ## The flow (Mario + Rabbids: Sparks of Hope style):
 ##   IDLE     free camera. Click a unit, or Tab / RB, to take control of it.
 ##   CONTROL  steer it anywhere inside its movement area (WASD / left stick, or
-##            click a spot). Enemy arcs and the predicted HP follow it. Z / X undoes
-##            the move, Esc / B lets go, Space / A opens the action ring.
+##            click a spot). Enemy arcs, the predicted HP, cover shields and gold
+##            rings under what it could hit from here follow it. Z / X undoes the
+##            move, Esc / B lets go, Space / A opens the action ring.
 ##   MENU     the action ring above the unit.
 ##   TARGET   pick a target (left/right, or click) or aim a cone; the battle preview
 ##            shows the whole exchange. Confirm to act; any action ends the turn.
+##
+## V / Y toggles every enemy's danger zone on the floor, in any of those modes.
 ##
 ## The battle reports upward: `battle_finished` after the closing conversation, or
 ## `battle_abandoned` when the player leaves from the pause menu.
@@ -47,6 +50,7 @@ const Mode := BattleSelection.Mode
 @export_group("Interface")
 @export var hud: BattleHud
 @export var plates: UnitPlates
+@export var cover_shields: CoverShields
 @export var ring: ActionRing
 @export var preview: BattlePreview
 @export var dialogue: DialogueBox
@@ -69,6 +73,9 @@ var _threats: Forecast.ThreatMap
 var _forecast_at := Vector2.INF
 var _walk_path: Array[Vector2] = []
 var _was_moving := false
+## Whether the danger zone is toggled on, and the battle version it was drawn for.
+var _danger_on := false
+var _danger_version := -1
 
 
 func _ready() -> void:
@@ -200,6 +207,21 @@ func _refresh_forecast() -> void:
 	arcs.show_forecast(selection.forecast, u, u.pos)
 	plates.set_prediction(u, selection.forecast.predicted_hp, selection.forecast.risk)
 	overlays.show_trail(battle.reach(u).path_to(u.pos))
+	cover_shields.show_for(battle, u, u.pos, selection.forecast)
+	_refresh_marks()
+
+
+## Gold rings (and reticles on the bars) under the units the controlled unit could
+## Basic Attack from where it stands.
+func _refresh_marks() -> void:
+	var near := battle.basic_targets(selection.controlled)
+	overlays.show_marks(near)
+	plates.set_in_reach(near)
+
+
+func _clear_marks() -> void:
+	overlays.clear_marks()
+	plates.set_in_reach([])
 
 
 # --- Input ------------------------------------------------------------------------
@@ -209,6 +231,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("pause") or (event.is_action_pressed("cancel") and selection.mode in [Mode.IDLE, Mode.BUSY]):
 		open_pause()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("danger_zone") and selection.mode != Mode.BUSY:
+		toggle_danger()
 		get_viewport().set_input_as_handled()
 		return
 	if selection.mode == Mode.BUSY or selection.mode == Mode.MENU:
@@ -365,6 +391,8 @@ func control(u: Unit) -> void:
 	camera.follow = card_of(u)
 	camera.free_pan = false
 	hud.minimap.set_controlled(u)
+	hud.show_type(u.dmg_type)
+	plates.set_matchup(u)
 	_threats = null
 	_forecast_at = Vector2.INF
 	_refresh_forecast()
@@ -380,6 +408,10 @@ func release() -> void:
 	_walk_path.clear()
 	arcs.clear()
 	plates.set_prediction(null)
+	plates.set_matchup(null)
+	plates.set_in_reach([])
+	cover_shields.clear()
+	hud.show_type(-1)
 	overlays.hide_all()
 	preview.hide_preview()
 	ring.close()
@@ -432,6 +464,7 @@ func open_menu() -> void:
 	card_of(u).land_now()   # Umbrella comes down before he picks what to do
 	_was_moving = false
 	selection.mode = Mode.MENU
+	_refresh_marks()
 	var actions := _action_list(u)
 	ring.open(card_of(u), 1.9 if u.is_large() else 1.05, actions, selection.ring_memory.get(u.id, 0))
 	audio.play("ui_select")
@@ -529,6 +562,7 @@ func choose_action(id: String) -> void:
 			else:
 				selection.targets = battle.art_targets(u, id.substr(4))
 	selection.mode = Mode.TARGET
+	_clear_marks()
 	audio.play("ui_select")
 	_refresh_target()
 	_update_hint()
@@ -551,6 +585,7 @@ func _back_to_menu() -> void:
 	overlays.hide_area()
 	overlays.clear_targets()
 	preview.hide_preview()
+	_refresh_forecast()
 	open_menu()
 
 
@@ -635,6 +670,11 @@ func execute() -> void:
 	preview.hide_preview()
 	arcs.clear()
 	plates.set_prediction(null)
+	plates.set_matchup(null)
+	_clear_marks()
+	cover_shields.clear()
+	hud.show_type(-1)
+	_sync_danger()
 	match selection.action:
 		"attack":
 			if target is Unit:
@@ -648,12 +688,37 @@ func execute() -> void:
 	await _after_action()
 
 
+# --- Danger zone ------------------------------------------------------------------
+
+## Shows or hides every enemy's danger zone (V / Y).
+func toggle_danger() -> void:
+	_danger_on = not _danger_on
+	audio.play("ui_select" if _danger_on else "ui_cancel")
+	_sync_danger()
+
+
+## The danger zone shows while toggled on and the player is choosing; it hides during
+## playback and is redrawn when the battle has changed since.
+func _sync_danger() -> void:
+	var wanted := _danger_on and selection.mode in [Mode.IDLE, Mode.CONTROL, Mode.MENU, Mode.TARGET]
+	if not wanted:
+		overlays.hide_danger()
+		return
+	if not overlays.is_danger_shown() or _danger_version != battle.version:
+		overlays.show_danger(Forecast.danger_grid(battle))
+		_danger_version = battle.version
+
+
 func _after_action() -> void:
 	selection.mode = Mode.BUSY
 	overlays.hide_all()
 	preview.hide_preview()
 	arcs.clear()
 	plates.set_prediction(null)
+	plates.set_matchup(null)
+	plates.set_in_reach([])
+	cover_shields.clear()
+	hud.show_type(-1)
 	_update_hint()
 	await event_player.play(battle.take_events())
 	release()
@@ -725,11 +790,13 @@ func _closing_lines(result: Dictionary) -> Array:
 
 func _update_hint() -> void:
 	hud.set_end_turn_enabled(selection.mode == Mode.IDLE or selection.mode == Mode.CONTROL)
+	if battle != null:
+		_sync_danger()
 	match selection.mode:
 		Mode.IDLE:
-			hud.set_hint("Click a unit or Tab / RB to take control   ·   WASD pan   ·   Q E / right-drag orbit   ·   wheel zoom   ·   T end turn")
+			hud.set_hint("Click a unit or Tab / RB to take control   ·   WASD pan   ·   Q E / right-drag orbit   ·   wheel zoom   ·   V danger   ·   T end turn")
 		Mode.CONTROL:
-			hud.set_hint("WASD / stick or click to move   ·   Space / A actions   ·   Z / X undo move   ·   Tab next unit   ·   Esc let go")
+			hud.set_hint("WASD / stick or click to move   ·   Space / A actions   ·   Z / X undo move   ·   Tab next unit   ·   V danger   ·   Esc let go")
 		Mode.MENU:
 			hud.set_hint("◀ ▶ turn the ring   ·   Space / A choose   ·   Esc / B back")
 		Mode.TARGET:

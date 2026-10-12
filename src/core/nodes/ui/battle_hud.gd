@@ -2,9 +2,11 @@ class_name BattleHud
 extends Control
 
 ## The battle's whole interface apart from the diorama itself: the objective in
-## the top-left; turn, phase, Noise meter and End Turn in the bottom-left, with a
-## line of control hints; the phase banner, Art name toasts and short notices.
-## The minimap sits in the bottom-right as its own child.
+## the top-left; turn, phase, Noise meter and End Turn in the bottom-left (the type
+## triangle over them while a unit is controlled), with a
+## line of control hints; the phase banner, Art name toasts and short notices; and
+## the letterbox and name card a signature Art plays under. The minimap sits in the
+## bottom-right as its own child.
 ##
 ## It reads the Battle it is handed in `setup()` and reports End Turn upward.
 
@@ -34,9 +36,26 @@ signal end_turn_requested
 @export_group("Minimap")
 @export var minimap: Minimap
 
+@export_group("Type Triangle")
+## Smash > Pierce > Bind > Smash, shown while a unit is controlled.
+@export var type_triangle: TypeTriangle
+
+@export_group("Signature Arts")
+@export var letterbox_top: ColorRect
+@export var letterbox_bottom: ColorRect
+@export var signature_card: Control
+@export var signature_name: Label
+@export var signature_who: Label
+## Height of the letterbox bars, and the seconds they take to slide in.
+@export var letterbox_height := 96.0
+@export var letterbox_seconds := 0.3
+
 var _battle: Battle
 var _objective := ""
 var _notice_tween: Tween
+var _letterbox_tween: Tween
+var _type := -1
+var _signature_on := false
 
 
 func _ready() -> void:
@@ -44,6 +63,10 @@ func _ready() -> void:
 	banner_label.visible = false
 	toast_label.visible = false
 	notice_label.modulate.a = 0.0
+	letterbox_top.offset_bottom = 0.0
+	letterbox_bottom.offset_top = 0.0
+	signature_card.position.x = -900.0
+	signature_card.modulate.a = 0.0
 
 
 func setup(b: Battle, objective: String) -> void:
@@ -77,6 +100,13 @@ func set_bottom_visible(on: bool) -> void:
 	turn_panel.visible = on
 	hint_label.visible = on
 	minimap.visible = on
+	type_triangle.visible = on and _type >= 0
+
+
+## Lights the controlled unit's type on the triangle; -1 hides it.
+func show_type(t: int) -> void:
+	_type = t
+	type_triangle.show_type(t)
 
 
 func set_end_turn_enabled(on: bool) -> void:
@@ -96,6 +126,8 @@ func banner(s: String) -> void:
 
 
 func toast(s: String) -> void:
+	if _signature_on:
+		return # the name card already says it
 	toast_label.text = s
 	toast_label.visible = true
 	await get_tree().create_timer(toast_seconds, false).timeout
@@ -111,6 +143,46 @@ func notify(s: String) -> void:
 	_notice_tween = create_tween()
 	_notice_tween.tween_interval(notice_seconds)
 	_notice_tween.tween_property(notice_label, "modulate:a", 0.0, 0.4)
+
+
+## A signature Art: letterbox bars slide in, the rest of the interface steps
+## aside, and the Art's name slides in on the bottom bar under who uses it.
+func signature_in(art_name: String, who: String) -> void:
+	_signature_on = true
+	signature_name.text = art_name
+	signature_who.text = who
+	_letterbox(true)
+
+
+## Back to the battle once the signature Art's playback is over.
+func signature_out() -> void:
+	if not _signature_on:
+		return
+	_signature_on = false
+	_letterbox(false)
+
+
+func _letterbox(on: bool) -> void:
+	if _letterbox_tween != null:
+		_letterbox_tween.kill()
+	var h := letterbox_height if on else 0.0
+	letterbox_top.visible = true
+	letterbox_bottom.visible = true
+	signature_card.visible = true
+	for n in [turn_panel, hint_label, minimap, objective_label.get_parent().get_parent()]:
+		(n as CanvasItem).visible = not on
+	type_triangle.visible = not on and _type >= 0
+	_letterbox_tween = create_tween().set_parallel()
+	_letterbox_tween.tween_property(letterbox_top, "offset_bottom", h, letterbox_seconds).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_letterbox_tween.tween_property(letterbox_bottom, "offset_top", -h, letterbox_seconds).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var x := 64.0 if on else -900.0
+	_letterbox_tween.tween_property(signature_card, "position:x", x, letterbox_seconds + 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT if on else Tween.EASE_IN).set_delay(0.12 if on else 0.0)
+	_letterbox_tween.tween_property(signature_card, "modulate:a", 1.0 if on else 0.0, 0.2).set_delay(0.12 if on else 0.0)
+	if not on:
+		_letterbox_tween.chain().tween_callback(func() -> void:
+			letterbox_top.visible = false
+			letterbox_bottom.visible = false
+			signature_card.visible = false)
 
 
 func pulse_end_turn() -> void:

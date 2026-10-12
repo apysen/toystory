@@ -39,6 +39,11 @@ func cell_center(i: int) -> Vector2:
 	return Vector2((i % cols + 0.5) * CELL, (i / cols + 0.5) * CELL)
 
 
+## Whether a unit's body fits at cell `i` at all (furniture, other units, the Gaze's light).
+func passable(i: int) -> bool:
+	return _passable[i] == 1
+
+
 func cell_of(p: Vector2) -> int:
 	var cx := clampi(int(p.x / CELL), 0, cols - 1)
 	var cy := clampi(int(p.y / CELL), 0, rows - 1)

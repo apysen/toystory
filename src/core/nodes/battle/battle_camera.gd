@@ -60,6 +60,12 @@ var _dragging_orbit := false
 var _dragging_pan := false
 ## The zoom to come back to after a signature Art's push-in (negative: none under way).
 var _cinematic_distance := -1.0
+## The tilt to come back to after a push-in that lowered the camera.
+var _cinematic_pitch := -1.0
+## Screen shake: how far the camera is thrown (metres) and the seconds left of it.
+var _shake_strength := 0.0
+var _shake_left := 0.0
+var _shake_seconds := 0.0
 
 
 func _ready() -> void:
@@ -109,16 +115,36 @@ func glide_to(p: Vector3, seconds := 0.35) -> void:
 	await tw.finished
 
 
-## Signature Arts: glides to `p` and eases in to `scale` of the current zoom, and
-## waits until it is there. `ease_back` returns to the zoom it started from.
-func push_in(p: Vector3, scale: float, seconds := 0.35) -> void:
+## Signature Arts and strikes: glides to `p` and eases in to `scale` of the current
+## zoom, `lower_degrees` closer to the floor, and waits until it is there.
+## `ease_back` returns to the zoom and tilt it started from.
+func push_in(p: Vector3, scale: float, seconds := 0.35, lower_degrees := 0.0) -> void:
 	if _cinematic_distance < 0.0:
 		_cinematic_distance = distance
+		_cinematic_pitch = pitch
 	follow = null
 	target_focus = _clamp(p)
 	var tw := create_tween()
-	tw.tween_property(self, "distance", maxf(_cinematic_distance * scale, min_distance), seconds) 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(self, "distance", maxf(_cinematic_distance * scale, min_distance), seconds) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	if lower_degrees > 0.0:
+		var low := maxf(_cinematic_pitch - deg_to_rad(lower_degrees), deg_to_rad(min_pitch_degrees * 0.7))
+		tw.parallel().tween_property(self, "pitch", low, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tw.finished
+
+
+## Whether a push-in is under way (and not yet eased back).
+func is_pushed_in() -> bool:
+	return _cinematic_distance >= 0.0
+
+
+## Throws the camera about by up to `strength` metres, dying away over `seconds`.
+func shake(strength: float, seconds := 0.25) -> void:
+	if strength < _shake_strength * (_shake_left / maxf(_shake_seconds, 0.001)):
+		return
+	_shake_strength = strength
+	_shake_left = seconds
+	_shake_seconds = seconds
 
 
 ## Eases back out to the zoom from before `push_in`, framing `p`.
@@ -129,7 +155,10 @@ func ease_back(p: Vector3, seconds := 0.4) -> void:
 		return
 	var tw := create_tween()
 	tw.tween_property(self, "distance", _cinematic_distance, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	if _cinematic_pitch >= 0.0 and absf(pitch - _cinematic_pitch) > 0.001:
+		tw.parallel().tween_property(self, "pitch", _cinematic_pitch, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_cinematic_distance = -1.0
+	_cinematic_pitch = -1.0
 	await tw.finished
 
 
@@ -162,6 +191,7 @@ func _process(delta: float) -> void:
 	if follow != null:
 		target_focus = _clamp(follow.global_position)
 	focus = focus.lerp(target_focus, 1.0 - exp(-follow_sharpness * delta))
+	_shake_left = maxf(_shake_left - delta, 0.0)
 	_apply()
 
 
@@ -194,6 +224,9 @@ func _apply() -> void:
 	global_position = focus
 	camera.global_position = focus + offset
 	camera.look_at(focus + Vector3(0, 0.4, 0), Vector3.UP)
+	if _shake_left > 0.0:
+		var k := _shake_strength * pow(_shake_left / _shake_seconds, 2.0)
+		camera.global_position += camera.global_transform.basis * Vector3(randf_range(-k, k), randf_range(-k, k), 0.0)
 	# Focus blur follows where the camera really is (the room may have pulled it in).
 	var actual := offset.length()
 	var attrs := camera.attributes as CameraAttributesPractical

@@ -617,7 +617,7 @@ func _strike(att: Unit, def: Unit, spec: Dictionary, allow_counter: bool) -> Dic
 	if att.status.has("dazzled"):
 		att.status.erase("dazzled")
 	_emit({"type": "strike", "attacker": att, "target": target, "hit": hit, "crit": crit,
-		"damage": dmg, "intercepted": intercepted, "original": def, "raincheck": raincheck})
+		"damage": dmg, "intercepted": intercepted, "original": def, "raincheck": raincheck, "type_rel": pv.type_rel})
 	if hit:
 		_damage(target, dmg)
 	var res := {"hit": hit, "crit": crit, "damage": dmg, "target": target}
@@ -629,7 +629,7 @@ func _strike(att: Unit, def: Unit, spec: Dictionary, allow_counter: bool) -> Dic
 		if chit:
 			att.status.erase("guard_beam")
 		_emit({"type": "strike", "attacker": target, "target": att, "hit": chit, "crit": ccrit,
-			"damage": cdmg, "counter": true})
+			"damage": cdmg, "counter": true, "type_rel": cpv.type_rel})
 		if chit:
 			_damage(att, cdmg)
 		res["counter"] = {"hit": chit, "damage": cdmg}

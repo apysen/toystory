@@ -52,7 +52,7 @@ BattleRoot (Node3D)        (src/core/nodes/battle/battle_root.gd)
 │   ├── Sun                warm afternoon light with soft shadows
 │   ├── UnderDeskGlow
 │   ├── Diorama            the room, built from the mission and the Field
-│   ├── GroundOverlays     movement area, reach rings, cones, areas, Gaze, telegraphs
+│   ├── GroundOverlays     movement area, danger zone, reach rings, cones, areas, Gaze, telegraphs
 │   ├── Units              one UnitCard per unit, added at start
 │   ├── ThreatArcs
 │   ├── Effects
@@ -61,8 +61,9 @@ BattleRoot (Node3D)        (src/core/nodes/battle/battle_root.gd)
 │   └── Camera3D           depth of field follows the zoom
 ├── EventPlayer
 └── Interface (CanvasLayer)
-    ├── UnitPlates         HP bars over units; predicted HP on the controlled one
-    ├── BattleHud          (scenes/ui/hud/battle_hud.tscn) objective, turn, Noise, minimap
+    ├── UnitPlates         HP bars over units with type icons; predicted HP, matchup arrows, reach reticles
+    ├── CoverShields       cover shields round the controlled unit
+    ├── BattleHud          (scenes/ui/hud/battle_hud.tscn) objective, turn, Noise, minimap, type triangle, signature letterbox
     ├── ActionRing         (scenes/ui/hud/action_ring.tscn)
     ├── BattlePreview      (scenes/ui/hud/battle_preview.tscn)
     ├── DialogueBox        (scenes/ui/dialogue/dialogue_box.tscn)
@@ -75,23 +76,25 @@ of their rules:
 | Mode | What the player does |
 | --- | --- |
 | IDLE | Free camera. Click a unit or Tab / RB to take control. |
-| CONTROL | Steer the unit inside its movement area; arcs and predicted HP follow it. Undo, let go, or open the ring. |
+| CONTROL | Steer the unit inside its movement area; arcs, predicted HP, cover shields and gold rings under what it can hit from here follow it. Undo, let go, or open the ring. |
 | MENU | The action ring is open. |
-| TARGET | Pick a target or aim a cone; the battle preview shows the exchange. Confirm acts and ends the unit's turn. |
+| TARGET | Pick a target or aim a cone; the battle preview shows the exchange. Attack also lists enemies the unit could walk up to (fainter rings): the preview, arcs and HP show from the spot it would attack from, and confirming walks there and strikes in one go. Confirm acts and ends the unit's turn. |
+| any but BUSY | V / Y toggles every enemy's danger zone. |
 | BUSY / DONE | Playback / battle over. |
 
 | Component | Owns |
 | --- | --- |
 | `Battle` (rules, not a node) | Phases, free movement, actions, Noise, Human Gaze, telegraphs, objectives; emits events |
 | `Field`, `ReachField` (rules) | Furniture, slow zones, line of sight, cover; movement areas and paths |
-| `Forecast`, `Exchange` (rules) | The threat forecast while moving; the head-to-head preview |
+| `Forecast`, `Exchange` (rules) | The threat forecast while moving, every enemy's danger zone; the head-to-head preview |
 | `BattleSelection` (view model) | Mode, controlled unit, action, targets, aim, forecast. Written by `BattleRoot` only |
 | `Diorama` | The room and furniture, cover damage, tape patches |
 | `UnitCard` | One unit's sprite card, shadow, silhouette and faction ring; animations and Gaze form |
-| `GroundOverlays` | Every floor marking |
+| `GroundOverlays` | Every floor marking. Movement areas and the danger zone are drawn by `reach_area.gdshader` from `ReachAreaTexture`'s smooth masks (a lit rim that fades inward, fainter where furniture stops it, growing out from the unit); `area_style` CLASSIC brings back the old flat sheet |
+| `UnitPlates`, `CoverShields`, `TypeTriangle` | HP bars with type icons, matchup arrows and reach reticles; XCOM-style cover shields; the Smash > Pierce > Bind reminder |
 | `ThreatArcs` | The thin pulsing enemy arcs and push/pull arrows |
-| `BattleCamera` | Orbit, tilt, zoom, pan, following the controlled unit, gliding to enemies |
-| `EventPlayer` | Turning battle events into movement, animation, effects, sound and notices |
+| `BattleCamera` | Orbit, tilt, zoom, pan, following the controlled unit, gliding to enemies, push-ins and screen shake |
+| `EventPlayer` | Turning battle events into movement, animation, effects, sound and notices; strike close-ups, hit-stop and shake; the signature letterbox |
 | `EffectsLayer` | One-shot bursts, projectiles, Stapler's 3D staples, the Toaster's flying toast and fire (Flash Bake's cone, Overheat's swirl and pillars, smoke), floating numbers, the Gaze puff |
 | `ArtLights` | 3D light the Arts throw: Flashbulb's pop, Guard Beam's beam and bubble, Spotlight's ring, sky beam and stage light |
 | `BattleAudio`, `AudioSettings` | Effect voices, the battle theme; the volume slider's bus and saved setting |
@@ -118,16 +121,17 @@ has played, or `battle_abandoned` when the player leaves from the pause menu.
 | `BattleRoot` → `Mission` | Open `data/missions/under_the_desk.tres`: map size, full and half cover, footprints per kind, cover durability, spill tiles, camera start, mission wording |
 | `BattleRoot` → Control | Unit move speed, cone aim step, click slack |
 | `Diorama` | Room size, wall and rug colours, painter's tape, desk height and extent, chair seat height, book and cabinet colours |
-| `GroundOverlays` | Colours of every floor marking |
+| `GroundOverlays` | Colours of every floor marking, the movement area's style and grow-in time |
+| `Interface/UnitPlates`, `Interface/CoverShields` | Bar sizes and colours, type icon and arrow size; shield height, size and colours |
 | `ThreatArcs` | Arc colours by attack type, the crit threshold, line and arrowhead width, arc height |
 | `BattleCamera` | Orbit speed, pitch limits, zoom range, follow sharpness, pan speed, depth-of-field offsets |
 | `World/Sun`, `World/WorldEnvironment` | Light colour and angle; ambient, SSAO, SSIL, glow, fog, grade |
-| `EventPlayer` | Walk and shove speed, attack lunge, pause after strikes; Flashbulb's glow flare, the signature push-in zoom (Spotlight, Staple Storm, Overheat), how long Spotlight's light holds; the Toaster's vent flare, Overheat's white-hot flare, Flash Bake's flame growth |
-| `EffectsLayer` | Floating text size, projectile speed; staple speed, display scale, stick and fade time, miss distance, trail; toast speed, scale, arc and tumble; Flash Bake's fire speed, size and amount |
+| `EventPlayer` | Feel: hit-stop length and freeze, shake strength, strike close-ups (on/off, zoom, how far down, the Battle Speed that skips them). Walk and shove speed, attack lunge, pause after strikes; Flashbulb's glow flare, the signature push-in zoom (Spotlight, Staple Storm, Overheat), how long Spotlight's light holds; the Toaster's vent flare, Overheat's white-hot flare, Flash Bake's flame growth |
+| `EffectsLayer` | Floating text size, damage number size, crit scale, pop and colours, projectile speed; staple speed, display scale, stick and fade time, miss distance, trail; toast speed, scale, arc and tumble; Flash Bake's fire speed, size and amount |
 | `World/ArtLights` | Light colours; flash energy, range and glare size; beam width; bubble size; ring, sky beam and stage light size, energy and motes |
 | `BattleAudio`, `AudioSettings` | Effect folder, voices and volume; the battle theme; volume bus and first-run volume |
 | `PlaytestMetrics` | Output folder, the Vacuum "path-blocked" threshold |
-| `Interface/BattleHud` | Banner, toast and notice timing |
+| `Interface/BattleHud` | Banner, toast and notice timing; letterbox height and slide time |
 | `Interface/ActionRing` | Ring size, icon size, back-of-ring scale, turn time |
 
 A profile is copied into a `Unit` when a battle starts, so editing one changes the
