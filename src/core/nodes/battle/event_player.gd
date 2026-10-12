@@ -38,6 +38,15 @@ extends Node
 ## climbs out of her cup, rings her, bursts over the circle on "burst" (an amber ring
 ## runs out), wraps every ally in it on "hit" under a warm rain (the heals follow),
 ## and streams home on "return" as the camera eases back out.
+##
+## Umbrella floats when he travels (UnitModel launches, hovers and lands him). His
+## Lunge is three clips split at the game's handoffs: the lead-in ("lunge", ending
+## couched), the dash played as the couched run loop ("lunge_run", at the pace it was
+## authored for, never the float), and the strike ("lunge_strike", the spike landing
+## on its "hit"). Canopy opens over his neighbours on "open" (a shimmer and Half Cover
+## over each). Raincheck, his signature, turns him to the nearest enemy that can shoot,
+## pushes the camera in, rains over its circle from "open" to "end" and eases back
+## on "shield"; a shot it draws off an ally flies to him instead.
 
 ## Where Lamp's lights come from, in the bone's frame (Y runs down it): the middle
 ## of the lantern's glass below its hinge, and the bulb inside the shade.
@@ -84,6 +93,10 @@ const TEA_RING_RADIUS := 0.55
 const TEA_RING_HEIGHT := 0.7
 
 ## Projectile effect each ranged attacker fires.
+## Canopy's shelter and Raincheck's rain, as light.
+const CANOPY_TINT := Color(0.55, 0.9, 0.85)
+const RAIN_TINT := Color(0.6, 0.8, 1.0)
+
 const PROJECTILES := {"stapler": "staple_shot", "toaster": "toast", "teacup": "tea_lash"}
 
 @export_group("Collaborators")
@@ -135,6 +148,9 @@ var _shots: Array = []
 ## Clip time until which an Art's show is still running after its events (Staple
 ## Storm's last volley and the camera easing back out); playback waits for it.
 var _show_until := 0.0
+## The unit whose Lunge has started: its dash runs couched and its strike is the
+## Lunge's, not the basic swing.
+var _charging: Unit = null
 
 
 func setup(b: Battle, cards: Dictionary) -> void:
@@ -173,6 +189,7 @@ func play(events: Array) -> void:
 	_show_until = 0.0
 	_playing = false
 	_strike_in_clip = null
+	_charging = null
 	_shots.clear()
 	_apply_speed()
 	# Whatever playback didn't show explicitly catches up at the end.
@@ -205,7 +222,10 @@ func _play_one(e: Dictionary) -> void:
 			var u: Unit = e.unit
 			if _enemy_turn(u):
 				await camera.glide_to(BattleSpace.to_world(e.path[0]))
-			await _walk(card(u), e.path, walk_speed if e.type == "move" else shove_speed, e.type == "move")
+			if u == _charging and e.type == "move":
+				await _charge(card(u), e.path)
+			else:
+				await _walk(card(u), e.path, walk_speed if e.type == "move" else shove_speed, e.type == "move")
 		"teleport":
 			card(e.unit).position = BattleSpace.to_world(e.unit.pos)
 		"strike":
@@ -271,6 +291,15 @@ func _play_one(e: Dictionary) -> void:
 				"tea_break":
 					hud.toast(e.name)
 					await _tea_break(c, e)
+				"lunge" when c.has_anim("lunge_run"):
+					hud.toast(e.name)
+					await _lunge(c)
+				"canopy" when c.has_anim("canopy"):
+					hud.toast(e.name)
+					await _canopy(c)
+				"raincheck":
+					hud.toast(e.name)
+					await _raincheck(c, e)
 				_:
 					c.play_art(e.art)
 					if e.art == "suction":
@@ -360,14 +389,18 @@ func _strike(e: Dictionary) -> void:
 		# Watchful: Lamp gets between the ally and the attacker before the blow lands.
 		await tc.intercept(card(e.original).global_position, ac.global_position)
 	ac.face_along(BattleSpace.to_floor(tc.global_position - ac.global_position))
-	var contact := ac.contact_time("attack")
+	# Lunge's strike is its own clip, landing as the dash arrives
+	var swing := "lunge_strike" if e.attacker == _charging and ac.has_anim("lunge_strike") else "attack"
+	if e.attacker == _charging:
+		_charging = null
+	var contact := ac.contact_time(swing)
 	if e.attacker == _strike_in_clip:
 		pass # the Art's own clip already showed the blow
 	elif not is_nan(contact):
 		audio.play(BattleAudio.attack_sound(e.attacker), -10.0)
 		# A model's swing carries its own lunge: the hit lands on its contact frame
 		# while the follow-through plays on.
-		ac.play_once("attack")
+		ac.play_once(swing)
 		if e.attacker.id in TOAST_SHOOTERS:
 			_toaster_clip(ac, "attack", ["front"])
 		elif e.attacker.id in TEA_BENDERS:
@@ -406,7 +439,7 @@ func _strike(e: Dictionary) -> void:
 	if e.hit:
 		txt = ("CRIT %d" if e.crit else "%d") % e.damage
 	if intercepted:
-		hud.notify("Lamp intercepts the hit (Watchful).")
+		hud.notify("Umbrella draws the shot (Raincheck)." if e.get("raincheck", false) else "Lamp intercepts the hit (Watchful).")
 	effects.float_text(hit_at + Vector3(0, 0.5, 0), txt, Color("ffe070") if e.crit else (Color.WHITE if e.hit else Color("b8b0c8")))
 	await get_tree().create_timer(after_strike_seconds, false).timeout
 	if intercepted:
@@ -983,3 +1016,73 @@ func _spotlight(c: UnitCard, e: Dictionary) -> void:
 	await _wait(spotlight_hold_seconds)
 	lights.fade(head_beam, 0.3)
 	lights.fade(stage, 0.6)
+
+
+# --- Umbrella -----------------------------------------------------------------
+
+## Lunge's lead-in: he couches the umbrella and paws the floor; the dash and the
+## strike that follow are his (see `_charge`, `_strike`).
+func _lunge(c: UnitCard) -> void:
+	_charging = c.unit
+	await c.play_once("lunge", false)
+
+
+## Lunge's dash: the couched run loop along the path at the pace it was authored for.
+func _charge(c: UnitCard, path: Array) -> void:
+	var speed := _moment(c, "lunge_run", "speed", walk_speed)
+	c.play("lunge_run")
+	for k in range(1, path.size()):
+		var a: Vector2 = path[k - 1]
+		var b: Vector2 = path[k]
+		c.face_along(b - a)
+		var tw := create_tween()
+		tw.tween_property(c, "position", BattleSpace.to_world(b), maxf(a.distance_to(b) / speed, 0.02))
+		await tw.finished
+
+
+## Canopy: the umbrella springs open over him; on "open" each neighbour it shelters
+## shimmers and shows it is in Half Cover.
+func _canopy(c: UnitCard) -> void:
+	var u := c.unit
+	c.play_art("canopy")
+	var open := _moment(c, "canopy", "open", 1.2)
+	await _wait(open)
+	for o in _battle.field.living_units():
+		if o.status.has("canopy") and o.faction == u.faction and u.is_adjacent(o):
+			var at := card(o).global_position + Vector3(0, _body_height(o), 0)
+			lights.shimmer(at, o.radius * lights.bubble_scale, CANOPY_TINT)
+			effects.float_text(at + Vector3(0, 0.5, 0), "Half Cover", CANOPY_TINT)
+	await _wait(c.clip_length("canopy") - open)
+
+
+## Raincheck: he turns to the nearest enemy that can shoot, snaps the umbrella open
+## (the camera pushed in) and twirls it as rain falls over the circle he covers,
+## plants it as a shield on "shield" (the camera easing back out) and closes it with a
+## bow on "end".
+func _raincheck(c: UnitCard, e: Dictionary) -> void:
+	var u: Unit = e.unit
+	var shooter := _nearest_shooter(u)
+	if shooter != null:
+		c.face_along(shooter.pos - u.pos)
+	var radius := float(Arts.get_art("raincheck").radius)
+	await camera.push_in(c.global_position, signature_zoom)
+	c.play_art("raincheck")
+	var open := _moment(c, "raincheck", "open", 1.1)
+	var shield := _moment(c, "raincheck", "shield", open + 1.6)
+	var end := _moment(c, "raincheck", "end", shield + 1.4)
+	await _wait(open)
+	lights.ground_ring(c.global_position, RAIN_TINT)
+	effects.rain(c.global_position, radius, end - open)
+	await _wait(shield - open)
+	camera.ease_back(c.global_position, 0.5)
+	await _wait(c.clip_length("raincheck") - shield)
+
+
+## The nearest living enemy with a ranged attack, or null.
+func _nearest_shooter(u: Unit) -> Unit:
+	var best: Unit = null
+	for o in _battle.field.living_units():
+		if o.faction == Defs.Faction.ENEMY and o.attack_range > Defs.MELEE_REACH 				and (best == null or o.pos.distance_to(u.pos) < best.pos.distance_to(u.pos)):
+			best = o
+	return best
+

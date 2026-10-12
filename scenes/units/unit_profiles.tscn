@@ -99,9 +99,11 @@ skill = 8
 speed = 8
 move = 6.0
 might = 4
-arts = PackedStringArray("lunge", "canopy")
+arts = PackedStringArray("lunge", "canopy", "raincheck")
 item = "repair_tape"
 recruiter = "lamp"
+dev_in_squad = true
+dev_squad_tile = Vector2i(3, 4)
 
 [node name="PencilLancerA" type="Node" parent="." unique_id=606856832]
 script = ExtResource("2_51tdw")

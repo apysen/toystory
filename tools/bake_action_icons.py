@@ -131,6 +131,16 @@ def glyph(name, d):
         d.pieslice([6, 7, 26, 27], 180, 360, fill=WHITE, outline=INK)
         d.line([(16, 17), (16, 25)], fill=INK, width=2)
         d.arc([13, 22, 17, 27], 0, 180, fill=INK, width=2)
+    elif name == "raincheck":
+        rain = (150, 200, 240, 255)
+        for x, y in ((6, 4), (12, 3), (20, 3), (26, 5), (9, 9), (23, 8)):           # the rain falling on it
+            d.line([(x, y), (x - 1, y + 3)], fill=rain, width=1)
+        d.pieslice([5, 10, 27, 30], 180, 360, fill=WHITE, outline=INK)           # the open canopy
+        for x in (11, 16, 21):                                                   # its ribs
+            d.line([(16, 11), (x, 20)], fill=INK)
+        d.line([(16, 20), (16, 27)], fill=INK, width=2)                          # the shaft and its hook
+        d.arc([12, 24, 16, 29], 0, 180, fill=INK, width=2)
+        d.line([(25, 18), (29, 15)], fill=rain, width=2)                         # a shot glancing off it
     elif name == "item":
         d.ellipse([8, 8, 24, 24], fill=(214, 206, 176, 255), outline=INK)
         d.ellipse([12, 12, 20, 20], fill=(70, 100, 160, 255), outline=INK)
@@ -152,7 +162,7 @@ ICONS = {
     "staple_burst": "noisy", "staple_storm": "noisy",
     "eject": "noisy", "flash_bake": "noisy", "overheat": "noisy", "warm_pour": "noisy", "steady_sip": "quiet",
     "tea_break": "noisy", "suction": "noisy",
-    "blowback": "noisy", "lunge": "noisy", "canopy": "quiet", "item": "item", "talk": "talk", "wait": "wait",
+    "blowback": "noisy", "lunge": "noisy", "canopy": "quiet", "raincheck": "noisy", "item": "item", "talk": "talk", "wait": "wait",
 }
 
 

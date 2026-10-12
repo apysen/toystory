@@ -1,0 +1,43 @@
+{
+ "frames": {
+  "rain_streak 0": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   },
+   "duration": 100
+  }
+ },
+ "meta": {
+  "app": "tools/draw_vfx.py",
+  "image": "rain_streak_sheet.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 128,
+   "h": 128
+  },
+  "scale": "4",
+  "frameTags": [
+   {
+    "name": "rain_streak",
+    "from": 0,
+    "to": 0,
+    "direction": "forward"
+   }
+  ]
+ }
+}

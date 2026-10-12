@@ -26,7 +26,7 @@ topics.
 | Import after new assets | `godot --headless --path . --import` |
 | Blender 5.2 | `D:/Blender/blender.exe` |
 | Blender, live | The **Blender MCP** server (`execute_blender_code`, window screenshots) drives the open Blender session |
-| Blender, headless | `D:/Blender/blender.exe --background --python tools/animate_<name>_3d.py` builds, animates, checks and exports in a clean session |
+| Blender, headless | `D:/Blender/blender.exe --background --python tools/animate_<name>_3d.py` (a fallback only: the owner wants the work done live, below) |
 | Python helpers | Plain `python` (Pillow) for contact sheets, GLB inspection and file edits |
 
 ### Skills used for the 3D work
@@ -85,7 +85,8 @@ Toy Story mirrors **Sporekeeper**'s structure
 
 - HD-2D diorama: a modelled, lit 3D room, a free orbit camera and a minimal HUD.
   Units used to be pixel-art sprite cards; they are being replaced by 3D models one
-  character at a time (Lamp Warden, Stapler Rogue, Toaster Pyromancer and Teacup Cleric so far).
+  character at a time (Lamp Warden, Stapler Rogue, Toaster Pyromancer, Teacup Cleric and Umbrella
+  Lancer so far).
 - Every character faces its last horizontal move. Sprite art is drawn once at a base
   facing and mirrored. 3D models turn to their heading, and in standing clips (idle, hurt,
   broken) they turn three-quarters toward the camera.
@@ -104,8 +105,9 @@ script and rebuild.
 | `tools/build_<name>_3d.py` | One character's palette, parts, joints, clip-check pairs and checks |
 | `tools/animate_<name>_3d.py` | One character's poses, clips, `settle` fix-ups and events |
 
-Current characters: `lamp_warden` (Lamp), `stapler_rogue` (Stapler) and `toaster_pyromancer`
-(Toaster). The Toaster's line art is drawn by `tools/draw_toaster_details.py` (run it first).
+Current characters: `lamp_warden` (Lamp), `stapler_rogue` (Stapler), `toaster_pyromancer`
+(Toaster), `teacup_cleric_v2` (Teacup) and `umbrella_lancer` (Umbrella). The Toaster's line art is
+drawn by `tools/draw_toaster_details.py` (run it first), Umbrella's by `tools/draw_umbrella_details.py`.
 
 ### Outputs
 
@@ -131,8 +133,11 @@ clip_check(obj, every=1)                                  # {clip: {pair: (tris,
 toy3d.export_glb(obj)
 ```
 
-Headless: `D:/Blender/blender.exe --background --python tools/animate_<name>_3d.py`.
-Prefer headless for a final export when other toys are loaded in the live session.
+Build, animate, check, render and export **live in the owner's open Blender through the MCP**, not
+headless (the owner's rule, 2026-10-11): they look at the work in Blender. Leave the result in the
+session and hide the other toys standing on the origin; `toy3d.export_glb` exports only the rig's
+own actions, so other toys in the session don't leak into the GLB. Headless
+(`D:/Blender/blender.exe --background --python tools/animate_<name>_3d.py`) is a fallback only.
 
 In a live session, animating a toy adds a sidebar tab (3D view, **N**) named after it,
 with a button per clip that shows and plays it (and hides the other toys, which all stand
@@ -152,7 +157,7 @@ on the origin) plus **Stop**.
 ### Godot integration
 
 - `src/core/nodes/battle/unit_model.gd` (`UnitModel`): `MODELS` maps a unit id or sprite
-  to its GLB. It swaps in `assets/shaders/unit_model.gdshader`, which matches the card
+  to its GLB, and `SCALE` shows a model bigger than built (Umbrella 1.16x, to the squad's height). It swaps in `assets/shaders/unit_model.gdshader`, which matches the card
   lighting and fades by an instance uniform. It reads `<glb>_events.json`. It loops
   `LOOPS` and turns `STANDING` clips toward the camera. It strips root motion from the
   skeleton's root bone and scales the travel loop to the unit's real speed.
@@ -165,7 +170,9 @@ on the origin) plus **Stop**.
   `spotlight.stamp` / `.beam_up` / `.land`, `staple_burst.shot_1` .. `.shot_4`,
   `staple_storm.volley_1` / `.volley_2`, the Toaster's `attack` / `eject` `.slam` / `.hit` /
   `.reload`, `flash_bake.stomp` / `.charge` / `.fire` / `.fire_end`, `overheat.slam` / `.rise` /
-  `.erupt` / `.land` / `.reload`,
+  `.erupt` / `.land` / `.reload`, Umbrella's `move_start.lift`, `move_end.land`,
+  `lunge.charge`, `lunge_run.speed` (2.6), `lunge_strike.hit`, `canopy.open`, `raincheck.open` /
+  `.shield` / `.end`,
   `move.speed` (m/s the run was authored for, 1.8).
 - Stapler's staples are a VFX model, `assets/models/vfx/staples.glb` (`Staple`,
   `StapleHeavy`), built by `tools/build_staples_3d.py` (no rig; headless run builds,
@@ -199,7 +206,7 @@ on the origin) plus **Stop**.
   from the model (`UnitCard.bone_point`). An Art whose clip is the strike (Flashbulb) lands
   its hits without the attack swing.
 - Every character gets an integration test like `tests/integration/lamp_model.gd`,
-  `stapler_model.gd`, `toaster_model.gd` and `teacup_model.gd`: the model shows, the expected clips exist (and removed ones do not),
+  `stapler_model.gd`, `toaster_model.gd`, `teacup_model.gd` and `umbrella_model.gd`: the model shows, the expected clips exist (and removed ones do not),
   timings match, Arts play their own clips, a strike plays through.
 
 ---
@@ -592,6 +599,61 @@ sources, previews, contact sheets and cloth colliders stay in `assets/models/tea
   (child of `head`), 12 mm under the rim, tagged UV2.y = 3. `settle()` keeps it level with the world
   but at most `TEA_MAX_TILT` (about 4°) off the cup's own tilt, so it never reaches the rim; the
   colliders JSON carries it for Godot's TeaSlosh shader (to come).
+
+**Umbrella Lancer** (`umbrella`, about 13.4k tris, 54 bones; 48 deform; the plan and the owner's
+answers are in `docs/umbrella_animation_plan.md`):
+- **Look:** an open umbrella worn as a wide hat (gold drops on `hat_tip_0..7`), a blank cream face,
+  a teal scarf (the owner's pick: the green of his livery), silver plate, a teal tabard with a lion
+  and fleur, teal pauldrons, a teal cape the same inside and out (gold hem and fleurs both sides).
+  - **Cape:** it lies on his back and skirt from the shoulder blades down and hangs almost straight
+    past them, flaring only a little at the hem (the owner's note: standing off his back, it stuck
+    out). Its first bone pivots at its top edge. In `settle()` it goes with every lean forward and
+    hangs off his shoulders on a lean back.
+  - **The lance:** a real stick umbrella's layout, about 1 m: eight ribs hinged at the notch, a
+    sliding runner and eight stretchers, all on bones; `canopy(deg)` in the animate script opens it
+    (72 degrees in the float). The canopy is a cloth shell with a lining, so it shows the same panels
+    inside as out (the owner's note) and the ribs under it.
+  - **Rig:** the `lance` bone hangs off `root`, not the hand. `settle()` carries it in his left fist
+    from the fist's own grip each frame (`_gL` pseudo-bones: grip point, shaft and wrist directions in
+    the body's space), so `broken` can let go of it. His arms reach only 13.9 cm; a grip out of reach
+    is pulled in toward the shoulder, and `grip_check()` reports any fist short of its grip.
+  - **Right arm:** it hangs relaxed at his side in every clip (the owner's pick), with gravity under
+    the shoulder (`_hangR`), except where it pumps (the charge), flourishes (the bow) or rests on a
+    knee (broken).
+- **Clips:** idle (umbrella shouldered pike-style, head tipped 12 degrees right to clear it);
+  move_start (0.6 s: crouch, spring, it pops open at the top; `lift` 0.22 s), move (Mary Poppins
+  float 20 cm up, canopy tilted to his heading), hover (the float standing still), move_end (0.7 s:
+  toes first, it snaps shut, back on his shoulder; `land` 0.28 s); attack (Tip Thrust, 3.4 s, hit
+  2.2 s); lunge (1.5 s lead-in, ends couched), lunge_run (couched run loop, 2.6 m/s), lunge_strike
+  (hit 0.2 s); canopy (3.2 s, open 1.2 s); raincheck (signature, 5.2 s: open 1.1 s, twirl, shield
+  2.77 s, end 4.17 s with a bow); hurt (0.6 s); broken (2.5 s: the umbrella pops open, flies out of
+  his hand and lands over him like a little tent).
+  - The umbrella only ever leaves or reaches his shoulder out to his side (`OUT_BACK`, `OVER`,
+    `UPRIGHT`), outside the hat's brim.
+- **Game:**
+  - **Size:** built from his smaller sprite (0.77 m to the hat's cross), he is shown 1.16x
+    (`UnitModel.SCALE`, the owner's pick) so he stands 0.89 m, the squad's average. The whole model
+    node scales: clips, springs and bone positions follow, and `event_time(.., "speed")` and the
+    travel loops' pace scale with it.
+  - **Float:** `UnitModel` floats a model that has `move_start`: moving launches him, stopping
+    hovers, `land_after` (3 s of game time) still lands him, and `UnitCard.land_now()` (called as
+    his action ring opens) lands him at once. Any other clip asked for aloft waits for the landing.
+    Dust (`EffectsLayer.dust`) kicks up on `lift` and `land`.
+  - **Lunge:** `EventPlayer` plays the lead-in, runs the dash's `move` event as `lunge_run` (never
+    the float) and the strike as `lunge_strike`.
+  - **Canopy:** shimmer and "Half Cover" over each neighbour on `open`.
+  - **Raincheck:** he faces the nearest enemy that can shoot; the camera pushes in; vector rain
+    (`EffectsLayer.rain`, `rain_streak` and `rain_splash` from `tools/draw_vfx.py`) falls over 2 m
+    from `open` to `end`. Rules: until the next Player Phase, a ranged enemy attack on an ally
+    within 2 m (centre to centre) that could reach him goes to him for 80% damage
+    (`Battle.raincheck_interceptor`, before Watchful).
+  - **Dev:** `UnitProfile.dev_in_squad` (on for Umbrella, the owner's request for testing) starts
+    him in the squad at `dev_squad_tile`; `SliceFixtures` leaves it off, so the rule tests check the
+    real slice.
+- **Known contact** (triangle pairs, every frame): knee cops under the skirt hem in crouches and
+  the run (up to 180, `lunge_run`), sitting in broken (shins under the tabard, up to about 170),
+  the cape's top tucked into the scarf wrap (8-22), the umbrella past the brim as Raincheck swings
+  it to the front (42; the owner's allowance for Arts).
 
 ### Planned, agreed in principle
 

@@ -23,6 +23,8 @@ const FACTION_COLORS := {
 }
 
 signal animation_done(anim: String)
+## A floating model's feet leave or touch the floor (UnitModel.kicked_dust).
+signal kicked_dust(at: Vector3)
 
 ## How far the card leans back toward the camera (see unit_card.gdshaderinc).
 @export_range(0.0, 1.0) var lean := 0.75
@@ -77,6 +79,7 @@ func setup(u: Unit) -> void:
 		_model.heading = heading
 		_model.face_now()
 		_model.animation_done.connect(_emit_done)
+		_model.kicked_dust.connect(kicked_dust.emit)
 	position = BattleSpace.to_world(u.pos)
 	refresh()
 
@@ -280,6 +283,22 @@ func play_hurt() -> void:
 
 func set_moving(on: bool) -> void:
 	play("move" if on else "idle")
+
+
+## Seconds the model's clip runs, or 0 without one.
+func clip_length(anim: String) -> float:
+	return _model.clip_length(anim) if _model != null else 0.0
+
+
+## A floating model (Umbrella) lands now instead of hovering on; nothing otherwise.
+func land_now() -> void:
+	if _model != null:
+		_model.land_now()
+
+
+## Whether the unit's model is off the floor, floating.
+func is_aloft() -> bool:
+	return _model != null and _model.is_aloft()
 
 
 ## Points the card along a direction of travel on the floor.

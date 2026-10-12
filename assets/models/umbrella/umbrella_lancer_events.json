@@ -1,0 +1,31 @@
+{
+  "move_start": {
+    "lift": 0.2167
+  },
+  "move": {
+    "speed": 1.8
+  },
+  "move_end": {
+    "land": 0.2833
+  },
+  "attack": {
+    "hit": 2.2
+  },
+  "lunge": {
+    "charge": 1.5
+  },
+  "lunge_run": {
+    "speed": 2.6
+  },
+  "lunge_strike": {
+    "hit": 0.2
+  },
+  "canopy": {
+    "open": 1.2
+  },
+  "raincheck": {
+    "open": 1.1,
+    "shield": 2.7667,
+    "end": 4.1667
+  }
+}

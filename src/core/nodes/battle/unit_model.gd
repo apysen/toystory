@@ -19,6 +19,13 @@ extends Node3D
 ## impact lands, and the ground speed "move" was authored for. The travel loop's
 ## playback follows the unit's real speed so its feet match the floor.
 ##
+## A model with a "move_start" clip floats instead of walking (Umbrella, hanging from
+## his open umbrella): starting to move launches him ("move_start", then the "move"
+## float), stopping leaves him hovering ("hover"), moving again carries on floating,
+## and after `land_after` seconds of game time hovering still, or when `land_now()`
+## is called (his action ring opening), he lands ("move_end", then idle). Any other
+## clip asked for while he's aloft waits for the landing. Other models never float.
+##
 ## A model with flame bones (the Toaster) keeps a UnitFire burning on them. His
 ## toast slices can be hidden (launched, not yet back) and browned (`set_slice`).
 ## A model with a "tea" bone (the Teacup) keeps a UnitTea: steam, and the tea level
@@ -27,6 +34,8 @@ extends Node3D
 ## shader too.
 
 signal animation_done(anim: String)
+## A floating model's feet leave or touch the floor (dust to kick up), at `at` (world).
+signal kicked_dust(at: Vector3)
 
 ## Sprite or unit id -> model scene.
 const MODELS := {
@@ -34,13 +43,22 @@ const MODELS := {
 	"stapler": "res://assets/models/stapler/stapler_rogue.glb",
 	"toaster": "res://assets/models/toaster/toaster_pyromancer.glb",
 	"teacup": "res://assets/models/teacup/teacup_cleric.glb",
+	"umbrella": "res://assets/models/umbrella/umbrella_lancer.glb",
+}
+## Sprite or unit id -> how much bigger the model is shown than it was built, so the
+## squad stands about the same height (the owner's pick: Umbrella was built from his
+## smaller sprite, 0.77 m to his hat's cross, against the others' 0.82 to 1.0 m).
+## Everything scales with it: clips, spring bones, bone positions; travel loops
+## scale their authored speeds with it, so feet still match the floor.
+const SCALE := {
+	"umbrella": 1.16,
 }
 ## Clips that loop; everything else plays once.
-const LOOPS: Array[String] = ["idle", "move"]
+const LOOPS: Array[String] = ["idle", "move", "hover", "lunge_run"]
 ## Clips where the unit just stands: it turns three-quarters toward the camera, on
 ## the side of its heading, so the viewer sees its front the way the sprite shows
 ## it. Moving, striking and casting face the heading exactly.
-const STANDING: Array[String] = ["idle", "hurt", "broken"]
+const STANDING: Array[String] = ["idle", "hover", "hurt", "broken"]
 const SHADER := preload("res://assets/shaders/unit_model.gdshader")
 
 ## Seconds to cross-fade from one clip into the next.
@@ -53,6 +71,9 @@ const SHADER := preload("res://assets/shaders/unit_model.gdshader")
 @export var glow_energy := 1.6
 ## How quickly the travel loop's playback follows a change in speed.
 @export var speed_follow := 10.0
+## Seconds of game time a floating model hovers still before it lands (Battle Speed
+## shortens it; moving again starts the count over).
+@export var land_after := 3.0
 
 ## Direction the unit faces on the floor; the model turns toward it each frame.
 var heading := Vector3.RIGHT
@@ -72,6 +93,15 @@ var _tea: UnitTea
 var _springs: UnitSprings
 ## Toast slices: hidden front, hidden back, browned front, browned back.
 var _toast := Vector4.ZERO
+## How much bigger than built the model is shown (SCALE).
+var _scale := 1.0
+## Floating models: off the floor (launched, not yet landed), whether the unit is
+## travelling, seconds hovered still, and the clip waiting for the landing
+## ([anim, return_to_idle], or empty).
+var _aloft := false
+var _travelling := false
+var _still := 0.0
+var _after_landing: Array = []
 
 
 ## The model for a unit, or null when it only has sprite art.
@@ -81,6 +111,7 @@ static func for_unit(u: Unit) -> UnitModel:
 		return null
 	var m := UnitModel.new()
 	m.name = "Model"
+	m._scale = float(SCALE.get(u.sprite, SCALE.get(u.id, 1.0)))
 	m._load(load(path))
 	m._events = _read_events(path.get_basename() + "_events.json")
 	m._add_springs(UnitSprings.read(path))
@@ -95,14 +126,18 @@ static func _read_events(path: String) -> Dictionary:
 
 
 ## Seconds into `anim` at which `event` happens, or NAN when the clip has no such
-## moment (or the unit has no model).
+## moment (or the unit has no model). A clip's "speed" (the m/s it was authored for)
+## comes back at the size the model is shown.
 func event_time(anim: String, event: String) -> float:
 	var ev: Dictionary = _events.get(anim, {})
-	return float(ev[event]) if ev.has(event) and has_anim(anim) else NAN
+	if not ev.has(event) or not has_anim(anim):
+		return NAN
+	return float(ev[event]) * (_scale if event == "speed" else 1.0)
 
 
 func _load(scene: PackedScene) -> void:
 	var inst := scene.instantiate()
+	inst.scale = Vector3.ONE * _scale
 	add_child(inst)
 	_player = inst.find_child("AnimationPlayer", true, false)
 	for n in inst.find_children("*", "MeshInstance3D", true, false):
@@ -165,9 +200,54 @@ func has_anim(anim: String) -> bool:
 
 ## Plays a clip: looping clips run until replaced; others finish with
 ## `animation_done` and then fall back to idle unless `return_to_idle` is false.
+## A floating model routes travel through its launch, float, hover and landing.
 func play(anim: String, return_to_idle := true) -> void:
 	if not has_anim(anim):
 		return
+	if floats():
+		if anim == "move":
+			_travelling = true
+			if not _aloft:
+				_aloft = true
+				_play_clip("move_start", false)
+			elif _anim == "hover":
+				_play_clip("move")
+			elif _anim == "move_end":
+				_after_landing = ["move", true]  # off again once the landing's done
+			return
+		if anim == "idle" and _aloft:
+			_travelling = false
+			if _anim == "move":
+				_still = 0.0
+				_play_clip("hover")
+			return
+		if _aloft and anim != "move_end":
+			_after_landing = [anim, return_to_idle]
+			land_now()
+			return
+	_play_clip(anim, return_to_idle)
+
+
+## Whether this model floats on its umbrella instead of walking.
+func floats() -> bool:
+	return has_anim("move_start") and has_anim("move_end") and has_anim("hover")
+
+
+## Whether a floating model is off the floor.
+func is_aloft() -> bool:
+	return _aloft
+
+
+## Lands a floating model now ("move_end", then idle or the clip that was waiting);
+## does nothing on the ground or for other models.
+func land_now() -> void:
+	if not _aloft or _anim == "move_end":
+		return
+	_travelling = false
+	_play_clip("move_end", false)
+
+
+func _play_clip(anim: String, return_to_idle := true) -> void:
 	_return_to_idle = return_to_idle
 	_hold_at = NAN
 	if anim == _anim and anim in LOOPS and _player.is_playing():
@@ -209,6 +289,20 @@ func clip_length(anim: String) -> float:
 
 func _on_finished(anim: StringName) -> void:
 	if String(anim) != _anim:
+		return
+	if anim == &"move_start":
+		_still = 0.0
+		_play_clip("move" if _travelling else "hover")
+		return
+	if anim == &"move_end":
+		_aloft = false
+		var next := _after_landing
+		_after_landing = []
+		if next.is_empty():
+			_play_clip("idle")
+		else:
+			play(next[0], next[1])
+		animation_done.emit("move_end")
 		return
 	if _return_to_idle:
 		play("idle")
@@ -291,9 +385,27 @@ func set_opacity(v: float) -> void:
 
 func _process(delta: float) -> void:
 	_follow_clip_timing(delta)
+	_float_timing(delta)
 	var yaw := _target_yaw()
 	if not is_nan(yaw):
 		rotation.y = lerp_angle(rotation.y, yaw, 1.0 - exp(-turn_rate * delta))
+
+
+## A floating model kicks up dust as it lifts off and lands, and lands by itself
+## after hovering still for `land_after` seconds.
+func _float_timing(delta: float) -> void:
+	if not floats() or _player == null:
+		return
+	if _anim == "move_start" or _anim == "move_end":
+		var ev := "lift" if _anim == "move_start" else "land"
+		var t := event_time(_anim, ev)
+		var pos := _player.current_animation_position
+		if not is_nan(t) and pos >= t and pos - delta * _player.speed_scale < t:
+			kicked_dust.emit(global_position)
+	if _aloft and _anim == "hover":
+		_still += delta
+		if _still >= land_after:
+			land_now()
 
 
 func _follow_clip_timing(delta: float) -> void:
@@ -302,14 +414,14 @@ func _follow_clip_timing(delta: float) -> void:
 	if not is_nan(_hold_at) and _player.is_playing() and _player.current_animation_position >= _hold_at:
 		_player.pause()
 		_player.seek(_hold_at, true)
-	# The travel loop plays at the pace the unit actually covers ground.
-	var authored := float(_events.get("move", {}).get("speed", 0.0))
+	# Travel loops play at the pace the unit actually covers ground.
+	var authored := float(_events.get(_anim, {}).get("speed", 0.0)) * _scale
 	if delta > 0.0 and _last_pos != Vector3.INF:
 		var moved := global_position - _last_pos
 		moved.y = 0.0
 		_speed = lerpf(_speed, moved.length() / delta, 1.0 - exp(-speed_follow * delta))
 	_last_pos = global_position
-	if _anim == "move" and authored > 0.0:
+	if _anim in LOOPS and authored > 0.0:
 		_player.speed_scale = clampf(_speed / authored, 0.35, 2.5)
 	else:
 		_player.speed_scale = 1.0

@@ -100,6 +100,7 @@ func start(seed_value := 0, intro: Array = []) -> void:
 		c.name = u.id
 		units_root.add_child(c)
 		c.setup(u)
+		c.kicked_dust.connect(effects.dust)
 		cards[u.id] = c
 	overlays.setup(battle)
 	event_player.setup(battle, cards)
@@ -428,6 +429,7 @@ func open_menu() -> void:
 		return
 	_walk_path.clear()
 	card_of(u).set_moving(false)
+	card_of(u).land_now()   # Umbrella comes down before he picks what to do
 	_was_moving = false
 	selection.mode = Mode.MENU
 	var actions := _action_list(u)

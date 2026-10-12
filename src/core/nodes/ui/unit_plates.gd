@@ -7,7 +7,7 @@ extends Control
 
 ## Status -> the letter shown under the bar, in this order.
 const STATUS_PIPS := {
-	"pinned": "P", "taped": "T", "guard_beam": "G", "spotlight": "L", "canopy": "C", "steady_sip": "S",
+	"pinned": "P", "taped": "T", "guard_beam": "G", "spotlight": "L", "canopy": "C", "raincheck": "R", "steady_sip": "S",
 	"heated": "H", "dazzled": "D",
 }
 

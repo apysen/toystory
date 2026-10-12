@@ -14,6 +14,13 @@ const STAPLES := "res://assets/models/vfx/staples.glb"
 const TOAST := "res://assets/models/vfx/toast.glb"
 const MODEL_SHADER := preload("res://assets/shaders/unit_model.gdshader")
 const LIGHT_SHADER := preload("res://assets/shaders/art_light.gdshader")
+const RAIN_STREAK := "res://assets/sprites/vfx/rain_streak/rain_streak_sheet.png"
+## Raincheck's drops: their size (m), how high over the circle they start, how fast they fall.
+const RAIN_DROP_SIZE := Vector2(0.025, 0.11)
+const RAIN_HEIGHT := 1.7
+const RAIN_SPEED := 3.4
+## How far up the dust sheet's middle sits over the feet (its floor line is 28 px below it).
+const DUST_LIFT := 0.18
 
 @export var float_text_size := 56
 @export var float_text_pixel_size := 0.006
@@ -50,6 +57,11 @@ const LIGHT_SHADER := preload("res://assets/shaders/art_light.gdshader")
 @export var cone_speed := 3.6
 @export var cone_size := 0.2
 @export var cone_amount := 60
+
+@export_group("Rain")
+## Raincheck's drops per square metre of its circle, and seconds between splashes.
+@export var rain_density := 70.0
+@export var rain_splash_every := 0.05
 
 @export_group("Tea")
 ## Metres per second Tea Lash's dart of tea flies.
@@ -369,6 +381,53 @@ func tea_sparkles(at: Vector3, radius := 0.25, amount := 14) -> void:
 	add_child(p)
 	p.global_position = at
 	_free_later(p, 1.2)
+
+
+## Floor dust kicked out from under a unit at `at` (its feet) as it springs up into
+## its float or lands.
+func dust(at: Vector3) -> void:
+	burst("dust_puff", at + Vector3(0, DUST_LIFT, 0), 0.8)
+
+
+## Raincheck's shower: vector raindrops falling over the circle round `center` for
+## `seconds`, with splashes where they land.
+func rain(center: Vector3, radius: float, seconds: float) -> void:
+	var p := CPUParticles3D.new()
+	var quad := QuadMesh.new()
+	quad.size = RAIN_DROP_SIZE
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(RAIN_STREAK)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y   # upright streaks
+	mat.vertex_color_use_as_albedo = true
+	mat.disable_fog = true   # fog would tint the whole quad
+	quad.material = mat
+	p.mesh = quad
+	p.amount = int(radius * radius * rain_density)
+	p.lifetime = RAIN_HEIGHT / RAIN_SPEED
+	p.preprocess = p.lifetime   # already falling when it starts
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(radius * 0.75, 0.05, radius * 0.75)
+	p.direction = Vector3.DOWN
+	p.spread = 4.0
+	p.gravity = Vector3.ZERO
+	p.initial_velocity_min = RAIN_SPEED
+	p.initial_velocity_max = RAIN_SPEED * 1.1
+	p.color = Color(1, 1, 1, 0.85)
+	add_child(p)
+	p.global_position = center + Vector3(0, RAIN_HEIGHT, 0)
+	var tw := create_tween()
+	tw.tween_interval(seconds)
+	tw.tween_callback(func() -> void: p.emitting = false)
+	_free_later(p, seconds + p.lifetime + 0.2)
+	var t := 0.0
+	while t < seconds and is_inside_tree():
+		t += rain_splash_every
+		var a := randf() * TAU
+		var d := sqrt(randf()) * radius * 0.75
+		burst("rain_splash", center + Vector3(cos(a) * d, 0.12, sin(a) * d), 0.5)
+		await get_tree().create_timer(rain_splash_every, false).timeout
 
 
 ## A puff of smoke at `at` (a slot, the floor where he lands).

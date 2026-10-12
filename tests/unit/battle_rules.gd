@@ -517,3 +517,44 @@ func test_tea_break() -> void:
 	check(stapler.hp == 5 and foe.hp == 5, "and leaves Stapler (out of the circle) and the enemy alone")
 	check(lamp.status.has("pinned") != lamp.status.has("dazzled"), "it removes one of Lamp's negative statuses")
 	check(b.noise >= 2, "it is +2 Noise")
+
+
+func test_raincheck() -> void:
+	var b := fresh()
+	var umb := b.field.find_unit("umbrella")
+	var lamp := b.field.find_unit("lamp")
+	var stapler := b.field.find_unit("stapler")
+	var rubber := b.field.find_unit("rubber")
+	var pencil := b.field.find_unit("pencil_a")
+	umb.faction = Defs.Faction.PLAYER
+	umb.pos = Vector2(2.5, 5.5)
+	lamp.pos = Vector2(3.7, 5.5)
+	stapler.pos = Vector2(2.5, 8.6)
+	rubber.pos = Vector2(3.7, 7.1)
+	pencil.pos = Vector2(13.5, 1.5)
+	check(b.use_art(umb, "raincheck", umb), "Raincheck resolves")
+	check(umb.status.has("raincheck") and b.noise >= 2, "it covers him until the next phase, +2 Noise")
+	b.take_events()
+	var res := b.enemy_attack(rubber, lamp)
+	var ev: Array = b.take_events().filter(func(e): return e.type == "strike" and not e.get("counter", false))
+	check(res.target == umb, "a ranged attack on an ally within 2 m goes to Umbrella")
+	check(not ev.is_empty() and ev[0].raincheck and ev[0].intercepted and ev[0].original == lamp,
+		"and playback is told it was drawn off Lamp")
+	rubber.power += 12   # (hard enough that 20% shows through the rounding)
+	var full := Combat.preview(b.field, rubber, rubber.pos, umb, umb.pos, {"might": rubber.might, "type": rubber.dmg_type})
+	var less := Combat.preview(b.field, rubber, rubber.pos, umb, umb.pos,
+		{"might": rubber.might, "type": rubber.dmg_type, "dmg_mult": Defs.RAINCHECK_DAMAGE})
+	check(less.damage == int(round(full.damage * Defs.RAINCHECK_DAMAGE)) or absf(less.damage - full.damage * 0.8) <= 1.0,
+		"he takes 20%% less from it (%d, not %d)" % [less.damage, full.damage])
+	check(less.damage < full.damage, "which is less than the full blow")
+	rubber.power -= 12
+	# out of his circle: the shot goes where it was aimed
+	rubber.pos = Vector2(2.5, 10.2)
+	check(b.enemy_attack(rubber, stapler).target == stapler, "an ally 3 m away is not covered")
+	# a melee blow isn't drawn off
+	pencil.pos = Vector2(3.7, 4.5)
+	rubber.pos = Vector2(13.5, 2.5)
+	check(b.enemy_attack(pencil, lamp).target == lamp, "a melee attack is not redirected")
+	b.begin_player_phase()
+	check(not umb.status.has("raincheck"), "Raincheck ends at the next Player Phase")
+

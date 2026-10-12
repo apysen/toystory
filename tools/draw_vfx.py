@@ -14,6 +14,9 @@ and scaled down, never pixel art (the owner's rule, 2026-10-11):
   tea_lash       Teacup's dart of tea (the sprite fallback; her model bends 3D tea)
   staple_shot    a flying staple (the fallback for Stapler's 3D staples)
   toast          a tumbling slice (the fallback for the Toaster's 3D toast)
+  dust_puff      floor dust kicked up as Umbrella springs into his float, or lands
+  rain_streak    one falling drop of Raincheck's rain (a particle's picture)
+  rain_splash    a drop of that rain landing: a little crown splash and ring
 
 Each keeps its pixel original's frames, size and timing (the game plays them the
 same), in Aseprite "hash" JSON with a frame tag, but drawn at DENSITY times the
@@ -380,11 +383,55 @@ def toast(f, n):
     return fr.done(blur=1.5)
 
 
+def dust_puff(f, n):
+    """Floor dust kicked out sideways from under a jump or a landing: low puffs
+    rolling out both ways along the floor, thinning as they go."""
+    INK, FILL, LIGHT = (96, 84, 70), (214, 202, 182), (240, 232, 216)
+    fr = Frame(128)
+    floor = 92
+    spread, size, alpha = [(6, 7, 0.95), (16, 10, 0.95), (26, 11, 0.85), (36, 10, 0.6), (44, 8, 0.3)][f]
+    for side in (-1, 1):
+        for k, (d, s, up) in enumerate(((0.55, 0.8, 0.0), (1.0, 1.0, 0.2), (1.35, 0.7, 0.1))):
+            r = size * s
+            x, y = 64 + side * spread * d, floor - r * 0.7 - up * size
+            fr.circle((x, y), r, rgba(FILL, alpha), rgba(INK, alpha * 0.8), 0.8)
+            fr.circle((x - side * r * 0.25, y - r * 0.3), r * 0.4, rgba(LIGHT, alpha))
+    return fr.done(blur=1.5)
+
+
+def rain_streak(f, n):
+    """One falling drop: a slim tapered streak of pale blue with a bright head."""
+    INK, WATER, GLOW = (60, 98, 140), (170, 214, 250), (150, 200, 255)
+    fr = Frame(32)
+    fr.stroke([(16, 3), (16, 27)], 2.0, rgba(WATER, 0.9), ink=rgba(INK, 0.6), ink_w=0.4, glow=rgba(GLOW, 0.35),
+              taper=[0.3, 2.4])
+    fr.circle((16, 27), 1.3, rgba((235, 246, 255), 1.0))
+    return fr.done(blur=1.0)
+
+
+def rain_splash(f, n):
+    """A drop landing: a crown of droplets thrown up and a ring spreading out."""
+    INK, WATER, LIGHT = (60, 98, 140), (170, 214, 250), (235, 246, 255)
+    fr = Frame(64)
+    t = (f + 1) / n
+    a = 1.0 - 0.75 * t
+    fr.ring((32, 46), 6 + 16 * t, 2 + 4 * t, 1.6, rgba(WATER, a), glow=rgba(WATER, 0.25 * a))
+    for k in range(5):
+        ang = math.radians(-160 + 35 * k)
+        h = 14 * math.sin(math.pi * min(1.0, t * 1.3))
+        x = 32 + math.cos(ang) * (4 + 10 * t)
+        y = 46 - h * (0.6 + 0.4 * abs(math.sin(ang)))
+        fr.circle((x, y), 1.6 * (1 - 0.4 * t), rgba(LIGHT, a), rgba(INK, a * 0.6), 0.4)
+    return fr.done(blur=1.0)
+
+
 EFFECTS = {
     "hit_spark": (hit_spark, 4, 128, 80), "crit_burst": (crit_burst, 6, 128, 80),
     "heal_sparkle": (heal_sparkle, 6, 128, 100), "gaze_poof": (gaze_poof, 5, 128, 80),
     "suction_swirl": (suction_swirl, 6, 128, 80), "cutting_line": (cutting_line, 4, 128, 80),
     "tea_lash": (tea_lash, 5, 128, 100), "staple_shot": (staple_shot, 3, 64, 80), "toast": (toast, 4, 64, 80),
+    "dust_puff": (dust_puff, 5, 128, 80), "rain_streak": (rain_streak, 1, 32, 100),
+    "rain_splash": (rain_splash, 4, 64, 70),
 }
 
 

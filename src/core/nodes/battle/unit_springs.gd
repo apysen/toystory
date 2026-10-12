@@ -16,7 +16,8 @@ extends Node
 ## can't swing into the body. SpringLimit keeps each bone within its kind of cloth's
 ## swing of the clip. UnitModel adds one to a model
 ## that has the file: the Teacup's 20 chains (written by her animate script), and
-## Lamp's cape, tabard and lantern, Stapler's cloak and scarf and Toaster's cape
+## Lamp's cape, tabard and lantern, Stapler's cloak and scarf, Toaster's cape and
+## Umbrella's cape, tabard and the gold drops round his hat's brim ("drop")
 ## (toy3d.export_springs).
 
 ## How each kind of cloth moves, by the start of its chain's name: stiffness (how
@@ -35,6 +36,7 @@ extends Node
 	"scarf": {"stiffness": 2.0, "drag": 0.5, "gravity": 0.0, "limit": 20.0, "radius": 0.02},
 	"tabard": {"stiffness": 4.0, "drag": 0.6, "gravity": 0.0, "limit": 12.0, "radius": 0.02},
 	"lantern": {"stiffness": 1.0, "drag": 0.35, "gravity": 1.0, "limit": 20.0, "radius": 0.03},
+	"drop": {"stiffness": 1.5, "drag": 0.45, "gravity": 0.6, "limit": 30.0, "radius": 0.01},
 }
 ## Metres a chain's joints are kept clear of a capsule at rest.
 @export var rest_clearance := 0.004

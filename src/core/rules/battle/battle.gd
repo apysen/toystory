@@ -513,6 +513,8 @@ func use_art(u: Unit, art_id: String, target) -> bool:
 			for o in field.living_units():
 				if o != u and o.faction == u.faction and u.is_adjacent(o):
 					o.status["canopy"] = true
+		"raincheck":
+			u.status["raincheck"] = true
 	if art.noise >= 2 and u.id == "toaster" and not u.broken:
 		u.status["heated"] = turn # Hot Coils
 	_finish_action(u, art.noise)
@@ -589,8 +591,16 @@ func end_gaze() -> void:
 func _strike(att: Unit, def: Unit, spec: Dictionary, allow_counter: bool) -> Dictionary:
 	var target := def
 	var intercepted := false
-	var lamp := watchful_interceptor(att, def, spec)
-	if lamp != null:
+	var raincheck := false
+	var umbrella := raincheck_interceptor(att, def)
+	var lamp := watchful_interceptor(att, def, spec) if umbrella == null else null
+	if umbrella != null:
+		target = umbrella
+		intercepted = true
+		raincheck = true
+		spec = spec.duplicate()
+		spec["dmg_mult"] = float(spec.get("dmg_mult", 1.0)) * Defs.RAINCHECK_DAMAGE
+	elif lamp != null:
 		target = lamp
 		intercepted = true
 		lamp.status["watchful_used"] = true
@@ -607,7 +617,7 @@ func _strike(att: Unit, def: Unit, spec: Dictionary, allow_counter: bool) -> Dic
 	if att.status.has("dazzled"):
 		att.status.erase("dazzled")
 	_emit({"type": "strike", "attacker": att, "target": target, "hit": hit, "crit": crit,
-		"damage": dmg, "intercepted": intercepted, "original": def})
+		"damage": dmg, "intercepted": intercepted, "original": def, "raincheck": raincheck})
 	if hit:
 		_damage(target, dmg)
 	var res := {"hit": hit, "crit": crit, "damage": dmg, "target": target}
@@ -624,6 +634,24 @@ func _strike(att: Unit, def: Unit, spec: Dictionary, allow_counter: bool) -> Dic
 			_damage(att, cdmg)
 		res["counter"] = {"hit": chit, "damage": cdmg}
 	return res
+
+
+## Umbrella's Raincheck: until the next Player Phase, a ranged enemy attack on an ally
+## within its radius of him (centre to centre) goes to Umbrella instead, when the
+## attacker could make that attack on him (in range, in sight). Returns him or null.
+func raincheck_interceptor(att: Unit, def: Unit) -> Unit:
+	if att.faction != Defs.Faction.ENEMY or def.id == "umbrella" or def.faction != Defs.Faction.PLAYER:
+		return null
+	if def.gap_to(att) <= Defs.MELEE_REACH:
+		return null # only ranged attacks
+	var umb := field.find_unit("umbrella")
+	if umb == null or not umb.status.has("raincheck") or umb.faction != Defs.Faction.PLAYER:
+		return null
+	if umb.pos.distance_to(def.pos) > float(Arts.get_art("raincheck").radius) + 0.001:
+		return null
+	if not basic_targets(att).has(umb):
+		return null
+	return umb
 
 
 ## Lamp's Watchful: once per Enemy Phase, takes a hit meant for an ally right next
@@ -760,7 +788,7 @@ func begin_player_phase() -> void:
 	for u in field.living_units():
 		u.displaced_this_phase = false
 		u.moved_distance = 0.0
-		for s in ["guard_beam", "spotlight", "steady_sip", "canopy", "pinned", "watchful_used"]:
+		for s in ["guard_beam", "spotlight", "steady_sip", "canopy", "raincheck", "pinned", "watchful_used"]:
 			u.status.erase(s)
 		if u.status.has("heated") and int(u.status.heated) < turn - 1:
 			u.status.erase("heated")

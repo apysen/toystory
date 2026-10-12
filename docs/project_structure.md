@@ -20,7 +20,7 @@ assets/                         Imported source art and audio; shared presentati
   fonts/                        Typefaces with their licences (ebgaramond/: EB Garamond,
                               OFL; the Teacup Cleric's book pages are set in it)
   models/                       3D models built by tools/ scripts: one folder per toy
-                              (lamp/, stapler/, toaster/, teacup/), and vfx/ for effect
+                              (lamp/, stapler/, toaster/, teacup/, umbrella/), and vfx/ for effect
                               models (staples, toast);
                               each keeps its .blend and previews in a gdignored source/;
                               teacup/source/v2/ holds the sources of the Teacup Cleric

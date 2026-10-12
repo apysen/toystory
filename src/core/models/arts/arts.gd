@@ -55,6 +55,8 @@ const DATA := {
 		"desc": "Dash up to 3 m in a straight line and attack."},
 	"canopy": {"name": "Canopy", "noise": 0, "target": "self",
 		"desc": "Allies right next to Umbrella count as in Half Cover against ranged attacks until your next phase."},
+	"raincheck": {"name": "Raincheck", "noise": 2, "target": "self", "radius": 2.0, "signature": true,
+		"desc": "Until your next phase, ranged attacks on allies within 2 m are drawn to Umbrella when they can reach him, and he takes 20% less from them."},
 }
 
 const ITEMS := {

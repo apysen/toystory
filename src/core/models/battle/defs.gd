@@ -16,6 +16,8 @@ const TYPE_HIT_BONUS := 15
 const TYPE_DMG_BONUS := 0.20
 const HALF_COVER_EVASION := 25
 const WEATHERPROOF_EVASION := 15
+## Raincheck: damage Umbrella takes from a ranged attack it drew off an ally.
+const RAINCHECK_DAMAGE := 0.8
 ## Lamp's Spotlight: Evasion for allies standing in its light.
 const SPOTLIGHT_EVASION := 20
 ## Toaster's Overheat: the share of his max HP it burns off him (never Breaks him).

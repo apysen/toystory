@@ -50,14 +50,21 @@ extends Node
 ## For a neutral unit: the id of the player unit that can Talk to recruit it.
 @export var recruiter := ""
 
+@export_group("Dev")
+## Dev testing: a neutral that starts the battle already in the player's squad (no
+## recruiting), standing at `dev_squad_tile`. Off for the real slice.
+@export var dev_in_squad := false
+@export var dev_squad_tile := Vector2i.ONE
+
 
 ## The plain definition `Unit.from_def` reads.
 func to_def() -> Dictionary:
 	return {
 		"id": unit_id, "name": display_name, "sprite": sprite if sprite != "" else unit_id,
-		"faction": faction, "type": damage_type, "size": footprint, "start_tile": start_tile,
+		"faction": Defs.Faction.PLAYER if dev_in_squad else faction, "type": damage_type, "size": footprint,
+		"start_tile": dev_squad_tile if dev_in_squad else start_tile,
 		"hp": max_hp, "pow": power, "def": defense, "skl": skill, "spd": speed, "mov": move,
 		"might": might, "range": attack_range, "min_range": min_range,
 		"arts": Array(arts), "item": item, "ai": ai, "forced_move_reduction": forced_move_reduction,
-		"expected_behavior": expected_behavior, "recruiter": recruiter,
+		"expected_behavior": expected_behavior, "recruiter": "" if dev_in_squad else recruiter,
 	}
