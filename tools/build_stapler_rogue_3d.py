@@ -64,6 +64,10 @@ PALETTE = [
 ]
 
 CX = 64  # the body's centre line, px
+# regions of the detail atlas (draw_stapler_details.COLLAR, BAND_FORE, BAND_SHIN)
+DETAIL_COLLAR = (256, 0, 896, 256)
+DETAIL_BAND_FORE = (0, 256, 320, 512)
+DETAIL_BAND_SHIN = (320, 256, 640, 512)
 
 
 def body_weights(z):
@@ -98,6 +102,9 @@ CHAR = toy3d.Character(
     palette=PALETTE,
     part_bone={"torso": "body", "shirt": "body", "bandolier": "body", "belt": "body", "pouch": "body",
                "skirt": "body", "cloak": "body", "hood": "head", "collar": "chest", "scarf": "chest"},
+    # line art (the seams of the scarf's wrap and of the bandages) drawn by
+    # tools/draw_stapler_details.py (run it first) onto a detail atlas laid over the cloth
+    detail=os.path.join(toy3d.ROOT, "assets", "models", "stapler", "source", "stapler_details.png"),
     body_weights=body_weights, clip_checks=CLIP_CHECKS)
 toy3d.configure(CHAR)
 
@@ -217,9 +224,7 @@ def build_hood(b):
     b.paint(list(backs.values()), "outline")                      # the deep inside
     for (j, i), f in fronts.items():
         if any(is_open(jj, ii) for jj, ii in ((j, i - 1), (j, i + 1), (j + 1, i), (j - 1, i))):
-            b.paint(f, "purple_light")                          # the folded rim
-        elif j < 8 and i % 7 == 3:
-            b.paint(f, "purple_dark")                           # creases down from the peak
+            b.paint(f, "purple_light")                          # the folded rim (no painted creases)
     b.joints["head"] = (P(CX, 42, 0.0), P(CX, 20, 0.0), "chest")
 
 
@@ -241,11 +246,18 @@ def build_scarf(b):
         return p
     verts, bands, _ = b.lathe(vprof(prof), 18, Matrix.Translation(Vector((NECK.x, NECK.y, 0))), sy=NECK_SY,
                               loop=True, warp=wrap)
-    b.finish(verts, "purple", "collar", smooth=False)
-    for k, band in enumerate(bands):
-        for i, f in enumerate(band):
-            if (i + 2 * k) % 6 == 0:
-                b.paint([f], "purple_dark")                       # the turns of the wrap
+    faces = b.finish(verts, "purple", "collar", smooth=False)
+
+    # the turns of the wrap are drawn seams (draw_stapler_details.COLLAR): u round
+    # the neck, v round the tube of cloth
+    def collar_uv(co):
+        dx, dy = co.x - NECK.x, (co.y - NECK.y) / NECK_SY
+        r = math.hypot(dx, dy) / S
+        py = CHAR.ground - co.z / S
+        u = (math.atan2(dy, dx) / (2 * math.pi)) % 1.0
+        v = (math.atan2((COLLAR_PY - py) / COLLAR_FLAT, r - COLLAR_R) / (2 * math.pi)) % 1.0
+        return u, v
+    b.map_detail(faces, DETAIL_COLLAR, collar_uv, wrap=True, wrap_v=True)
 
     # the tail: a ribbon down a path, turning a little as it hangs
     path = [P(CX - x, py, y) for x, py, y in ((6, 39, 0.12), (11, 39.5, 0.21), (16, 41.5, 0.28), (21, 45, 0.33),
@@ -397,10 +409,7 @@ def build_torso(b):
     toy3d.follow_limbs(b, [v for v in verts if v.co.z > H(SHIRT_FOLLOW[2])], H(0),
                        {"upperarm_R": ARM_R[:2], "upperarm_L": ARM_L[:2]},
                        reach=SHIRT_FOLLOW[0], fade=SHIRT_FOLLOW[1], pin=0.1)
-    b.paint(list(backs.values()), "cream_shade")
-    for (j, i), f in fronts.items():
-        if i % 5 == 1:
-            b.paint(f, "cream_shade")
+    b.paint(list(backs.values()), "cream_shade")   # its inside (the folds are geometry: no painted valleys)
 
 
 def build_gear(b):
@@ -521,10 +530,7 @@ def build_skirt(b):
     tears = {(rows - 2, 7), (rows - 2, 22)}
     verts, fronts, backs = cloth(b, mids, norms, 0.5 * S, keep=lambda j, i: (j, i) not in tears)
     faces = b.finish(verts, "cream", "skirt", smooth=False)
-    b.paint(list(backs.values()), "cream_shade")
-    for (j, i), f in fronts.items():
-        if i % 4 == 2:
-            b.paint(f, "cream_shade")
+    b.paint(list(backs.values()), "cream_shade")   # its inside (the folds are geometry: no painted valleys)
     b.set_sway(faces, H(BELT_BOTTOM), H(SKIRT_HEM))
     return verts
 
@@ -564,12 +570,7 @@ def build_cloak(b):
     tears = {(rows - 2, 9), (rows - 3, 9), (rows - 2, 18)}
     verts, fronts, backs = cloth(b, mids, norms, 1.3 * S, keep=lambda j, i: (j, i) not in tears, holes=holes)
     faces = b.finish(verts, "purple", "cloak", smooth=False)
-    b.paint(list(backs.values()), "purple_dark")
-    for (j, i), f in fronts.items():
-        a0, a1 = span(j / (rows - 1))
-        a = a0 + (a1 - a0) * (i + 0.5) / cols
-        if j > 2 and math.sin(6 * a + 0.4) > 0.6:
-            b.paint(f, "purple_light")
+    b.paint(list(backs.values()), "purple_dark")   # its lining (the folds are geometry: no painted streaks)
     b.set_sway(faces, H(top_py), H(hem_py))
 
     c = cols // 2
@@ -623,7 +624,7 @@ def build_arm(b, shoulder, elbow, grip, axis, barrel, side):
         if (fc.calc_center_median() - shoulder).length > 0.75 * (elbow - shoulder).length:
             b.paint([fc], "cream_shade")                             # the rolled cuff
     b.finish(b.sphere(elbow, 3.7 * S, 8, 5), "cream_shade", fore)
-    bandage(b, [elbow, wrist], [3.6 * S, 3.0 * S], fore, 4)
+    bandage(b, [elbow, wrist], [3.6 * S, 3.0 * S], fore, 4, region=DETAIL_BAND_FORE)
     b.finish(b.ring(elbow.lerp(wrist, 0.86), wrist - elbow, 2.6 * S, 3.7 * S, 1.8 * S), "brown", fore, smooth=False)
     palm = build_hand(b, grip, u, f, w, R, hand, colour="black", knuckle="black_light")
     b.finish(b.tube([wrist, palm - f * 1.8 * S], 3.0 * S, 8, rs=[3.2 * S, 2.8 * S]), "black", hand)
@@ -656,7 +657,7 @@ def build_leg(b, hip, knee, ankle, toe, s):
         b.finish(b.sphere(pad + Vector((sx * 3.3 * S, -1.9 * S, -0.6 * S)), 0.9 * S, 6, 4), "gold", shin)
     b.finish(b.ring(knee, Vector((0, 0, 1)) + out * 0.2, 4.0 * S, 4.7 * S, 1.6 * S, 10), "brown", shin, smooth=False)
     top = knee.lerp(ankle, 0.14)
-    bandage(b, [top, top.lerp(ankle, 0.5), ankle], [4.1 * S, 3.8 * S, 3.2 * S], shin, 5)
+    bandage(b, [top, top.lerp(ankle, 0.5), ankle], [4.1 * S, 3.8 * S, 3.2 * S], shin, 5, region=DETAIL_BAND_SHIN)
     strap = knee.lerp(ankle, 0.86)
     b.finish(b.ring(strap, ankle - knee, 3.0 * S, 4.0 * S, 2.0 * S, 10), "brown", shin, smooth=False)
     b.finish(b.sphere(strap + out * 4.0 * S, 1.7 * S, 8, 4, (0.45, 1, 1)), "gold", shin)   # round buckle

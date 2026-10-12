@@ -217,12 +217,15 @@ on the origin) plus **Stop**.
   at 4× and scaled down) on a 1024 px detail atlas (`toy3d.Character(detail=...)`,
   `DETAIL_SIZE`, palette in the top-left `PALETTE_PX`), laid over the cloth with
   `Builder.map_detail(faces, region, uv_at, wrap)`. Never stepped palette cells. Plan each
-  character's line art with its model. (Lamp and Stapler still use painted cells; revisit
-  them for line art.)
+  character's line art with its model. Every toy now has it (2026-10-11): Lamp's tabard
+  (`tools/draw_lamp_details.py`), Stapler's scarf wrap and bandage seams
+  (`tools/draw_stapler_details.py`, `toy3d.bandage(region=...)`; `map_detail(wrap_v=True)` for a
+  ring of tube).
 - **No painted-on shading:** no fold streaks, darker cells in fold valleys or drawn fold lines.
   Folds are real geometry and the scene's light shades them, also as the cloth moves. Inside
   faces keep their lining colour (a dark cape lining is the fabric, not shading).
-  (Lamp and Stapler still have painted shading to remove.)
+  (Lamp's and Stapler's painted folds were removed 2026-10-11. Lamp's greaves keep a lighter
+  band on their rolled edges, part of the armour's trim.)
 - **Only real light sources glow:** eyes, vents, lamp bulbs and fire. The rest of the model is
   lit by the room; never hang a light on a model (one that close washes the whole model out).
 - **Budget:** about 8k triangles was the first target. Raise it when the look needs it: Stapler

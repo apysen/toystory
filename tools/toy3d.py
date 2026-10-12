@@ -164,19 +164,25 @@ class Builder:
             for loop in f.loops:
                 loop[self.uv].uv = uv
 
-    def map_detail(self, faces, region, uv_at, wrap=False):
+    def map_detail(self, faces, region, uv_at, wrap=False, wrap_v=False):
         """Lay a region (x0, y0, x1, y1 px) of the detail atlas over faces:
         uv_at(co) gives each corner's place (u, v) in 0..1 across and down the
         region. With wrap, u runs round a tube: a face across the seam takes u
-        past 1, so the region's art must carry on to u = 1.25."""
+        past 1, so the region's art must carry on to u = 1.25. With wrap_v, v
+        runs round too (a ring of tube, as a scarf wrapped round a neck), and the
+        art carries on to v = 1.25 as well."""
         x0, y0, x1, y1 = region
         span = (x1 - x0) / (1.25 if wrap else 1.0)
+        span_v = (y1 - y0) / (1.25 if wrap_v else 1.0)
         for f in faces:
             uvs = [uv_at(loop.vert.co) for loop in f.loops]
             if wrap and max(u for u, _ in uvs) - min(u for u, _ in uvs) > 0.5:
                 uvs = [(u + 1.0 if u < 0.5 else u, v) for u, v in uvs]
+            if wrap_v and max(v for _, v in uvs) - min(v for _, v in uvs) > 0.5:
+                uvs = [(u, v + 1.0 if v < 0.5 else v) for u, v in uvs]
             for loop, (u, v) in zip(f.loops, uvs):
-                loop[self.uv].uv = detail_uv(x0 + span * u, y0 + (y1 - y0) * max(0.0, min(1.0, v)))
+                v = v if wrap_v else max(0.0, min(1.0, v))
+                loop[self.uv].uv = detail_uv(x0 + span * u, y0 + span_v * v)
 
     # -- primitives ----------------------------------------------------------
 
@@ -584,9 +590,12 @@ def _ragged_hole(b, mids, norms, th, origin, n, loop, F, B, seed, extra, fronts)
     return backs
 
 
-def bandage(b, pts, rs, part, wraps, colours=("cream", "cream_shade"), segs=8, tilt=0.35):
+def bandage(b, pts, rs, part, wraps, colours=("cream", "cream_shade"), segs=8, tilt=0.35, region=None):
     """A limb wrapped in strips of cloth: a ridged tube through pts with
-    alternating bands slanting round it like a wound bandage."""
+    alternating bands slanting round it like a wound bandage. With a detail-atlas
+    `region`, the wraps are told apart by drawn seam lines instead of painted
+    bands (a draw_<name>_details.py script draws the seams: u round the tube to
+    1.25, v down its length)."""
     pts = [Vector(p) for p in pts]
     n = wraps * 3
     path, radii = [], []
@@ -602,12 +611,21 @@ def bandage(b, pts, rs, part, wraps, colours=("cream", "cream_shade"), segs=8, t
     length = axis.length
     axis.normalize()
     side = axis.orthogonal().normalized()
+    if region is not None:
+        up = axis.cross(side)
+
+        def uv_at(co):
+            d = co - pts[0]
+            return ((math.atan2(d.dot(up), d.dot(side)) / (2 * math.pi)) % 1.0, d.dot(axis) / length)
+        b.map_detail([f for f in faces if abs(f.normal.dot(axis)) < 0.9], region, uv_at, wrap=True)
+        return faces
     for f in faces:
         c = f.calc_center_median()
         t = (c - pts[0]).dot(axis) / length + tilt / wraps * (c - pts[0]).dot(side) / (radii[0] * 2)
         if int(math.floor(t * wraps * 2)) % 2:
             b.paint([f], colours[1])
     return faces
+
 
 
 # -- hands ----------------------------------------------------------------------
