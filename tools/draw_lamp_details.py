@@ -29,7 +29,7 @@ TABARD = (320, 0, 512, 512)            # 15 x 40 sprite px at 12.8 atlas px each
 TABARD_W, TABARD_H = 15.0, 40.0        # sprite px, as build_lamp_warden_3d.TABARD_X / TABARD_Y
 
 NAVY = (42, 70, 102)                   # palette navy_mid
-CREAM = (250, 238, 210)
+CREAM = (230, 219, 193)                # palette cream (8% under the sprite's)
 GOLD = (246, 214, 110)
 GOLD_INK = (150, 104, 36)              # the sun's outline
 PALE = (250, 234, 178)                 # its bright middle

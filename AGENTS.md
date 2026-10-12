@@ -76,6 +76,13 @@ Toy Story mirrors **Sporekeeper**'s structure
 
 ### Look and facing
 
+- **Lighting (fixed 2026-10-11):** the board sits under a desk whose underside shades it from the
+  `Sun`. Units under it are lit by `UnderDeskGlow`, which casts shadows (energy 1.6, range 14),
+  and the room's ambient light (0.4). Before, the sun pointed upward and the glow cast no
+  shadows, so everything was flat and bright (the owner's note). The `Sun` shines down on the
+  open floor beyond the desk. Near-white palettes bloom: the Teacup's whites and Lamp's cream
+  sit 8% under their sprites'.
+
 - HD-2D diorama: a modelled, lit 3D room, a free orbit camera and a minimal HUD.
   Units used to be pixel-art sprite cards; they are being replaced by 3D models one
   character at a time (Lamp Warden, Stapler Rogue, Toaster Pyromancer and Teacup Cleric so far).

@@ -101,7 +101,8 @@ CHAR = toy3d.Character(
     name="stapler_rogue", folder="stapler", object_name="StaplerRogue", pivot=(68, 118),
     palette=PALETTE,
     part_bone={"torso": "body", "shirt": "body", "bandolier": "body", "belt": "body", "pouch": "body",
-               "skirt": "body", "cloak": "body", "hood": "head", "collar": "chest", "scarf": "chest"},
+               "skirt": "body", "cloak": "body", "hood": "head", "collar": "chest", "scarf": "chest",
+               "neck": "head"},
     # line art (the seams of the scarf's wrap and of the bandages) drawn by
     # tools/draw_stapler_details.py (run it first) onto a detail atlas laid over the cloth
     detail=os.path.join(toy3d.ROOT, "assets", "models", "stapler", "source", "stapler_details.png"),
@@ -154,8 +155,12 @@ def build_head(b):
     mid = (back + front) / 2
     b.finish(b.box(Vector((x, mid, H(34))), (0.072, length, 0.026)), "grey_dark", "head", smooth=False)
     b.finish(b.box(Vector((x, front + 0.008, H(32.5))), (0.074, 0.016, 0.012)), "grey", "head", smooth=False)
-    b.finish(b.box(Vector((x, mid + 0.012, H(29.5))), (0.056, length - 0.03, 0.03)), "outline", "head", smooth=False)
     tilt = math.radians(5)
+    # the dark mouth fills the gap between the base and the top arm, so the jaws
+    # are one piece (each sinks a little into it)
+    base_top, arm_bottom = H(34) + 0.013, H(24.5) - 0.018
+    b.finish(b.box(Vector((x, mid + 0.012, (base_top + arm_bottom) / 2)),
+                   (0.056, length - 0.03, arm_bottom - base_top + 0.004)), "outline", "head", smooth=False)
     arm_dir = Vector((0, -math.cos(tilt), -math.sin(tilt)))
     arm_c = Vector((x, mid - 0.004, H(24.5)))
     b.finish(b.box(arm_c, (0.068, length + 0.004, 0.036), zdir=(0, -math.sin(tilt), math.cos(tilt))),
@@ -167,6 +172,9 @@ def build_head(b):
     b.finish(b.tube([hinge + Vector((-0.04, 0, 0)), hinge + Vector((0.04, 0, 0))], 0.012, 8), "black", "head")
     for s in (-1, 1):  # eyes glowing in the dark of the mouth, under the jaws' overhang
         b.finish(b.sphere(Vector((x + s * 0.03, -0.075, H(29.5))), 0.011, 8, 5, (0.45, 1, 1)), "eye", "head")
+    # the neck: a dark post from under the base down into his body, hidden in the
+    # hood (its own part, so the head's checks against the collar stand)
+    b.finish(b.tube([Vector((x, NECK.y, H(34) - 0.010)), Vector((x, NECK.y, H(46)))], 0.022, 8), "black", "neck")
 
 
 def build_hood(b):
@@ -480,11 +488,13 @@ def build_gear(b):
     # staple strips clipped to the belt at his left side
     first = len(b.bm.verts)
     for k, px in enumerate((CX + 13, CX + 15, CX + 17)):
-        clip, n = body_pt(px, BELT_TOP + 2, torso_r(BELT_TOP + 2) + 2.9)
+        # the clip: its back sunk into the belt, deep and long enough to close over
+        # the top of its strip
+        clip, n = body_pt(px, BELT_TOP + 2.5, torso_r(BELT_TOP + 2.5) + 2.6)   # ends at the belt's bottom edge
         side = Vector((0, 0, 1)).cross(n).normalized()
-        b.finish(b.box(clip, (2.6 * S, 0.8 * S, 4.6 * S), xdir=side), "grey_dark", "pouch", smooth=False)
+        b.finish(b.box(clip, (2.6 * S, 1.8 * S, 5.0 * S), xdir=side), "grey_dark", "pouch", smooth=False)
         length = 6 + 2 * k
-        rows = [BELT_BOTTOM - 0.5 + length * f / 4 for f in range(5)]
+        rows = [BELT_BOTTOM - 0.5 + length * f / 4 for f in range(5)]   # its top up inside the clip
         for lift, w, h, colour in ((1.5, 2.2, 1.0, "grey"), (2.35, 1.4, 0.4, "white")):
             pts = [body_pt(px, q, skirt_r(q) + lift, skirt_sy(q)) for q in rows]
             b.finish(b.strap([p for p, _ in pts], P(CX, 0), w * S, h * S, [m for _, m in pts]), colour, "pouch",

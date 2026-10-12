@@ -54,7 +54,7 @@ from toy3d import (S, P, Builder, frame, vprof, resample, smoothstep, chain_weig
 PALETTE = [
     ("outline", "0a0a0c", False), ("steel", "76868e", False),
     ("steel_dark", "4c5a62", False), ("steel_light", "a8b6bc", False),
-    ("cream", "faeed2", False), ("cream_shade", "c9c6b8", False),
+    ("cream", "e6dbc1", False), ("cream_shade", "c9c6b8", False),   # cream 8% under the sprite's: it bloomed (the owner's pick)
     ("navy", "0e1e3a", False), ("navy_mid", "2a4666", False),
     ("brown", "825222", False), ("brown_dark", "5a3818", False),
     ("gold", "f6d66e", False), ("pale", "faeab2", False),
@@ -62,7 +62,8 @@ PALETTE = [
     ("unused0", "ff00ff", False), ("unused1", "ff00ff", False),
 ]
 # parts skinned to another part's bone; every other part has a bone of its own
-PART_BONE = {"torso": "body", "mantle": "body", "tabard": "body", "cape": "body", "belt": "body"}
+PART_BONE = {"torso": "body", "mantle": "body", "tabard": "body", "cape": "body", "belt": "body",
+             "lantern_hook": "lantern", "socket": "head"}
 BODY_BONES = ("hips", "spine", "chest")
 
 
@@ -112,6 +113,9 @@ def build_shade(b):  # the head
     b.paint(bands[8] + bands[9], "glow")
     b.paint(bands[10] + bands[11], "glow_hot")
     b.finish(b.sphere(apex + axis * 0.14, 0.034, 8, 5), "glow_hot", "head")  # bulb
+    # its socket: a stem from the shade's crown down into the bulb (its own part, as
+    # it sits inside the shade by design)
+    b.finish(b.tube([apex + axis * 0.012, apex + axis * 0.13], 0.011, 6), "steel_dark", "socket")
     # hub on the crown, where the lamp arm holds the shade (the arm's three brass
     # joints carry the gold; the crown has no knob of its own)
     b.finish(b.tube([apex - axis * 0.012, apex + axis * 0.03], 0.03, 8), "steel_dark", "head")
@@ -417,9 +421,11 @@ def build_staff(b):
         return pole[-1]
 
     b.finish(b.tube(pole, 2.2 * S, 6), "steel", "staff")
-    for y0, y1, colour in ((40, 46, "brown"), (GRIP_ROW - 4, GRIP_ROW + 4, "brown"), (96, 102, "brown"),
-                           (108, 111, "gold"), (120, 125, "gold")):
+    for y0, y1, colour in ((40, 46, "brown"), (96, 102, "brown"), (108, 111, "gold"), (120, 125, "gold")):
         b.finish(b.tube([at(y1), at(y0)], 3.0 * S, 6), colour, "staff", smooth=False)
+    # the leather wrap under his hand, thick enough that the gauntlet's fingers close
+    # on it (build_arm closes them 0.8 px clear of a 3.4 px bar)
+    b.finish(b.tube([at(GRIP_ROW + 4), at(GRIP_ROW - 4)], 4.0 * S, 8), "brown", "staff", smooth=False)
     # crook: a little desk-lamp arm holding the lantern
     top, tip, brace = SP(29, 22, d), SP(11, 32, d), at(44)
     b.finish(b.sphere(top, 3.5 * S, 8, 5), "gold", "staff")
@@ -428,9 +434,10 @@ def build_staff(b):
     b.finish(b.sphere(brace, 2.6 * S, 6, 4), "gold", "staff")
     b.finish(b.sphere(tip, 3.0 * S, 8, 5), "gold", "staff")
     # the lantern hangs from the knob on a short rod and swings on its own bone,
-    # hinged at the knob's centre; the rod starts just outside the knob so it
-    # never sinks into it however far the lantern swings
-    b.finish(b.tube([tip + Vector((0, 0, -3.4 * S)), SP(11, 36.2, d)], 0.8 * S, 4), "steel_dark", "lantern")
+    # hinged at the knob's centre; the rod runs up into the knob's centre, so it
+    # stays in the knob however far the lantern swings (its own part, the hook,
+    # so the lantern's checks against the staff stand)
+    b.finish(b.tube([tip, SP(11, 36.2, d)], 0.8 * S, 4), "steel_dark", "lantern_hook")
     b.joints["lantern"] = (tip, SP(11, 66, d), "staff")
 
     prof = vprof([(0, 66), (1.5, 64), (3, 61), (4.5, 60), (7.5, 54), (8.3, 49), (7.5, 44),
@@ -521,11 +528,19 @@ def build_shield(b):
         lx, ly = x * S, y * S
         pos = M @ Vector((lx, ly, 0.009 + bend(lx)))
         b.finish(b.sphere(pos, 1.7 * S, 6, 4), "gold", "shield")
-    # grip strap behind the shield, held by the left gauntlet
-    b.finish(b.box(SHIELD_GRIP, (0.11, 0.012, 0.008), xdir=SHIELD_GRIP_AXIS, zdir=SHIELD_NORMAL),
+    # grip strap behind the shield, held by the left gauntlet: thin toward the wrist
+    # (a round handle met the wrist's cuff as it bent), broad across the hand so it
+    # lies against the palm and fingers (build_arm closes them about 12 mm off the
+    # bar's axis)
+    u = SHIELD_GRIP_AXIS
+    f = SHIELD_GRIP - ARM_L[1]
+    f = (f - u * f.dot(u)).normalized()
+    w = f.cross(u)                              # across the hand, palm to fingertips
+    b.finish(b.box(SHIELD_GRIP, (0.11, 0.008, 0.026), xdir=u, zdir=w),
              "brown", "shield", smooth=False)
-    for end in (-1, 1):  # lugs riveting the handle to the back of the shield
-        reach = SHIELD_GRIP_DEPTH - 0.006
+    for end in (-1, 1):  # lugs riveting the handle to the back of the shield, sunk into both
+        # (the grip's offset puts it 8.5 mm further back than SHIELD_GRIP_DEPTH)
+        reach = -(SHIELD_GRIP - P(110, 84, -0.165)).dot(SHIELD_NORMAL) + 0.003
         lug = SHIELD_GRIP + SHIELD_GRIP_AXIS * end * 0.051 + SHIELD_NORMAL * reach / 2
         b.finish(b.box(lug, (0.008, 0.012, reach), xdir=SHIELD_GRIP_AXIS, zdir=SHIELD_NORMAL),
                  "brown_dark", "shield", smooth=False)
@@ -641,7 +656,9 @@ CLIP_CHECKS = [
     ("upperarm_R", "mantle"), ("upperarm_L", "mantle"), ("forearm_R", "mantle"), ("forearm_L", "mantle"),
     ("hand_R", "mantle"), ("hand_L", "mantle"),
     ("upperarm_R", "cape"), ("upperarm_L", "cape"), ("forearm_R", "cape"), ("forearm_L", "cape"),
-    ("hand_R", "staff"), ("hand_L", "shield"), ("forearm_L", "shield"),
+    ("forearm_L", "shield"),
+    # (Each hand closes on what it holds by design, the staff's wrap and the shield's
+    # grip touching its fingers; both ride on the hand's bone, so no clip moves them.)
     ("lantern", "staff"), ("lantern", "hand_R"), ("lantern", "forearm_R"), ("lantern", "head"),
     ("lantern", "mantle"), ("lantern", "cape"), ("mantle", "cape"),
     ("neck_lower", "cape"), ("neck_upper", "upperarm_L"), ("neck_upper", "mantle"),

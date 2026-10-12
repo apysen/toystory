@@ -518,7 +518,14 @@ def cloth(b, mids, norms, th, keep=None, wrap=False, holes=None):
             flat.update({k + (n,): f for n, f in enumerate(v)})
         else:
             flat[k] = v
-    return list(F.values()) + list(B.values()) + extra, fronts, flat
+    # a hole spanning several cells leaves the grid points inside it unused:
+    # drop them, or each is a loose point floating in the hole
+    verts = list(F.values()) + list(B.values()) + extra
+    loose = [v for v in verts if not v.link_faces]
+    if loose:
+        bmesh.ops.delete(bm, geom=loose, context="VERTS")
+        verts = [v for v in verts if v.is_valid]
+    return verts, fronts, flat
 
 
 def _ragged_hole(b, mids, norms, th, origin, n, loop, F, B, seed, extra, fronts):
