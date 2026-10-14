@@ -1,4 +1,4 @@
-# Toy Story
+# Project Toy Story (working title)
 
 A turn-based tactics game about household objects that become fantasy warriors when humans aren't watching. Built in Godot 4.7, with compact battlefields, free movement, and a lit 3D room presented as a miniature diorama.
 
